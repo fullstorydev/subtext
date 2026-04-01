@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "subtext-marketplace",
+  "owner": {
+    "name": "Fullstory",
+    "email": "support@fullstory.com"
+  },
+  "plugins": [
+    {
+      "name": "subtext",
+      "source": "./",
+      "version": "0.1.42",
+      "description": "Tools for agents to build with Subtext",
+      "category": "development",
+      "keywords": ["subtext", "session-replay", "debugging"],
+      "homepage": "https://github.com/fullstorydev/subtext"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "subtext",
+  "description": "Tools for agents to build with Subtext",
+  "license": "MIT",
+  "author": {
+    "name": "Fullstory",
+    "url": "https://fullstory.com"
+  }
+}
