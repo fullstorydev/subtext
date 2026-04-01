@@ -1,0 +1,9 @@
+{
+  "name": "subtext",
+  "description": "Session analysis tools for debugging user issues with Fullstory",
+  "license": "MIT",
+  "author": {
+    "name": "Fullstory",
+    "url": "https://fullstory.com"
+  }
+}
