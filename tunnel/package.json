@@ -37,7 +37,7 @@
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.0",
     "@types/yargs": "^17.0.35",
-    "rollup": "4.57.1",
+    "rollup": "^4.60.1",
     "rollup-plugin-cleanup": "^3.2.1",
     "typescript": "^5.9.2",
     "ws": "^8.18.0",

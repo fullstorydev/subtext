@@ -1,7 +1,9 @@
 # Repo structure
 
 - `.claude-plugin/` — Claude Code plugin manifest and marketplace config
-- `.mcp.json` — MCP server configuration (subtext server + live-tunnel). Uses `${CLAUDE_PLUGIN_ROOT}` for plugin-relative paths.
+- `.cursor-plugin/` — Cursor plugin manifest
+- `.codex-plugin/` — Codex plugin manifest
+- `.mcp.json` — MCP server configuration (subtext server + live-tunnel).
 - `skills/` — Skill definitions (SKILL.md files), see "Skills" below
 - `tunnel/` — Live tunnel client MCP server (see the subtext:tunnel skill)
 
