@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "subtext": {
+      "type": "http",
+      "url": "https://api.fullstory.com/mcp/subtext"
+    },
+    "subtext-eu1": {
+      "type": "http",
+      "url": "https://api.eu1.fullstory.com/mcp/subtext"
+    },
+    "subtext-tunnel": {
+      "command": "npx",
+      "args": ["-y", "@fullstory/subtext-tunnel"]
+    }
+  }
+}
