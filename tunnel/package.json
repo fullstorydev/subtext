@@ -1,0 +1,32 @@
+{
+  "name": "subtext-tunnel",
+  "version": "0.1.0",
+  "description": "MCP server for reverse tunneling to localhost",
+  "type": "module",
+  "bin": "./build/src/index.js",
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('build', {recursive: true, force: true})\"",
+    "build": "tsc",
+    "bundle": "npm run clean && npm run build && rollup -c rollup.config.mjs",
+    "test": "node --test build/tests/**/*.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.0",
+    "@types/yargs": "^17.0.35",
+    "rollup": "4.57.1",
+    "rollup-plugin-cleanup": "^3.2.1",
+    "typescript": "^5.9.2",
+    "ws": "^8.18.0",
+    "yargs": "18.0.0"
+  },
+  "engines": {
+    "node": "^20.11.0 || ^22.12.0 || >=23"
+  }
+}

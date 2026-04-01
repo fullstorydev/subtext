@@ -1,0 +1,17 @@
+version: 1
+
+components:
+  - name: Footer
+    selector: "footer.site-footer"
+    source: src/Footer.tsx
+
+views:
+  - name: checkout
+    route: "/checkout"
+    components:
+      - name: CheckoutForm
+        selector: "form.checkout"
+        source: src/Checkout.tsx
+        children:
+          - name: SubmitButton
+            selector: "button.submit"

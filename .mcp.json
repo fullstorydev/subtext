@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "subtext": {
+      "type": "http",
+      "url": "https://api.fullstory.com/mcp/subtext"
+    },
+    "eu1-subtext": {
+      "type": "http",
+      "url": "https://api.eu1.fullstory.com/mcp/subtext"
+    },
+    "live-tunnel": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/tunnel/build/src/index.js"
+      ]
+    }
+  }
+}

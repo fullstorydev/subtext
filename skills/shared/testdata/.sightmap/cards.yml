@@ -1,0 +1,9 @@
+version: 1
+
+components:
+  - name: ProductCard
+    selector: "div.card"
+    source: src/Card.tsx
+  - name: CardImage
+    selector: "div.card img.card-img"
+    source: src/Card.tsx
