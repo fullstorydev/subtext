@@ -1,10 +1,5 @@
 # Subtext by Fullstory
 
-https://subtext.fullstory.com/
+[Subtext](https://subtext.fullstory.com/) agent plugin.
 
-## TODO
-- general description
-- Link to site + installation guide
-  - Maybe claude plugin quick start?
-- Contributing
-- License?
+See the [install guide](https://subtext.fullstory.com/install/) for installation and usage.

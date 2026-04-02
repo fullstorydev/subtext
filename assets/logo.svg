@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="128" height="128" rx="20" fill="#0a0a0b"/>
+  <text x="64" y="92" font-family="'Instrument Serif', serif" font-size="80" font-style="italic" text-anchor="middle" fill="#e1bcff">S</text>
+</svg>

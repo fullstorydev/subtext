@@ -1,6 +1,6 @@
 {
   "name": "subtext",
-  "description": "Session analysis tools for debugging user issues with Fullstory",
+  "description": "Tools for agents to build with Subtext",
   "license": "MIT",
   "author": {
     "name": "Fullstory",
