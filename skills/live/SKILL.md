@@ -18,7 +18,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, and `viewer_url`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, and `viewer_url`. |
 | `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
