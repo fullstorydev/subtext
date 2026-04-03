@@ -4,7 +4,7 @@ description: Guided onboarding for new Subtext users. Installs the plugin, adds 
 metadata:
   platform: claude-code
   requires:
-    skills: ["subtext:shared", "subtext:agent-playback-link", "subtext:comments"]
+    skills: ["subtext:shared", "subtext:live", "subtext:comments"]
 ---
 
 # Subtext Onboarding
@@ -40,7 +40,7 @@ Greet the user:
 "Welcome to Subtext! I'm going to walk you through getting set up. By the end, you'll have:
 - The Subtext plugin installed and connected
 - The Subtext snippet capturing sessions in your app
-- An agent-driven session exploring your site with comments you can review via agent playback link
+- An agent-driven session exploring your site with comments you can review via viewer URL
 - A sightmap giving your components semantic names
 - Privacy rules auto-configured from PII detection
 - A metrics comparison showing the value of sightmap enrichment
@@ -115,13 +115,13 @@ Ask the user:
 - The app URL from Step 2
 - The user's flow description (or "feeling lucky")
 
-**Capture from subagent result:** session URL, agent playback link, interaction count, tokens, duration_ms.
+**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
 
 After the subagent completes, tell the user:
 
 "Done! I explored your site in {interaction_count} interactions, leaving comments along the way. You can watch my exploration with my comments in the sidebar:
 
-{agent_playback_link}
+{viewer_url}
 
 Now let me analyze what I found."
 
@@ -232,11 +232,11 @@ Reproducing the same flow — this time with sightmap enrichment.
 
 **Capture from subagent result:** interaction count, tokens, duration_ms.
 
-**Capture from subagent result:** session URL, agent playback link, interaction count, tokens, duration_ms.
+**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
 
 After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. The session was captured with preview privacy rules applied. You can review the replay with agent comments here:
 
-{agent_playback_link}
+{viewer_url}
 
 Now let's see how the two passes compare."
 
@@ -277,10 +277,10 @@ Take a snapshot from the same page in both sessions and show them side-by-side (
 
 ### Agent playback links
 
-Present both agent playback links so the user can review each session with agent comments in the sidebar:
+Present both viewer URLs so the user can review each session with agent comments in the sidebar:
 
-- **Pass 1 (Blind):** {pass1_agent_playback_link}
-- **Pass 2 (Sightmap):** {pass2_agent_playback_link}
+- **Pass 1 (Blind):** {pass1_viewer_url}
+- **Pass 2 (Sightmap):** {pass2_viewer_url}
 
 ## Recap
 
@@ -294,7 +294,7 @@ Present both agent playback links so the user can review each session with agent
 7. **Reproduction** — Reproduced the same flow with sightmap enrichment and privacy preview
 8. **Results** — Measured the concrete improvement in tokens, time, and interactions
 
-You can review both sessions with agent comments via the agent playback links above.
+You can review both sessions with agent comments via the viewer URLs above.
 
 ## Next Steps
 

@@ -3,7 +3,7 @@ name: subtext:session-analysis-workflow
 description: Analyze a Fullstory session recording. Understands what happened, maps components to source code, and forms root cause hypotheses when bugs are present.
 metadata:
   requires:
-    skills: ["subtext:session", "subtext:shared", "subtext:comments", "subtext:agent-playback-link"]
+    skills: ["subtext:session", "subtext:shared", "subtext:comments"]
 ---
 
 # Session Analysis
