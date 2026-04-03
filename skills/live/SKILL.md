@@ -90,13 +90,13 @@ Viewer: {viewer_url}
 
 ## Tunnel Setup
 
-When the hosted browser needs to reach `localhost` or local dev URLs, set up a tunnel first:
+When the hosted browser needs to reach `localhost` or local dev URLs, use the tunnel-first flow:
 
-1. Call `live-tunnel` to get the relay URL
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl`, `connectionId`, and `target`
-3. Then call `live-connect` with the localhost URL — traffic routes through the tunnel
+1. Call `live-tunnel` — allocates a browser connection and returns `relayUrl` + `connectionId`
+2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target`
+3. Call `live-view-new` with the `connection_id` and localhost URL
 
-See `subtext:tunnel` for the full tunnel setup flow.
+Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details.
 
 ## See Also
 
