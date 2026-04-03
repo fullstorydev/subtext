@@ -1,9 +1,9 @@
 ---
 name: subtext:first-session
-description: Agent explores the user's site via hosted DevTools, leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, agent playback link, and metrics.
+description: Agent explores the user's site via hosted DevTools, leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, viewer URL, and metrics.
 metadata:
   requires:
-    skills: ["subtext:shared", "subtext:tunnel", "subtext:comments", "subtext:agent-playback-link"]
+    skills: ["subtext:shared", "subtext:live", "subtext:tunnel", "subtext:comments"]
   platform: claude-code
 ---
 
@@ -57,7 +57,7 @@ Stop after **~10 interactions** (clicks, fills, navigations) across **2-3 pages*
 
 ## Comments
 
-Use `comment-add` (from `subtext:comments`) to leave observations throughout exploration. Comments attach to the session and appear in the agent playback link sidebar.
+Use `comment-add` (from `subtext:comments`) to leave observations throughout exploration. Comments attach to the session and appear in the viewer sidebar.
 
 ### Comment guidelines
 
@@ -65,14 +65,10 @@ Use `comment-add` (from `subtext:comments`) to leave observations throughout exp
 - **Be specific about confusion** — when something is hard to figure out, describe what made it difficult. These observations become sightmap memory candidates later.
 - Use the `bug` intent for issues found, `ask` for ambiguous UI, `looks-good` for smooth flows
 
-## Agent Playback Link
-
-After closing the connection, transform the `fs_session_url` into an agent playback link using the pattern in `subtext:agent-playback-link`.
-
 ## Output
 
 Return to the orchestrator:
+- **Viewer URL** — the `viewer_url` from `live-connect` (print to the user so they can watch live)
 - **Session URL** from the hosted browser handshake
-- **Agent playback link** (transformed from session URL per `subtext:agent-playback-link`)
 - **Total interaction count**
 - Subagent usage stats (tokens, duration) are captured automatically by the orchestrator

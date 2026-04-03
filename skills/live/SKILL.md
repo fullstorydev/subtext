@@ -18,8 +18,8 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot + component tree. |
-| `live-disconnect` | Close a browser connection and free resources. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, and `viewer_url`. |
+| `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
 ### Views
@@ -68,9 +68,21 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 Parameter schemas are visible in the tool definition at call time.
 
+## Session URLs
+
+Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
+
+- **fs_session_url** — the raw FullStory session URL.
+- **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
+
+After every `live-connect`, output the viewer URL on its own line:
+
+```
+Viewer: {viewer_url}
+```
+
 ## Tips
 
-- `live-connect` returns both a screenshot and component tree — use it as your first look at a page.
 - Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
 - `live-view-snapshot` is cheaper than `live-view-screenshot`. Prefer snapshots; use screenshots for visual evidence.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.

@@ -3,7 +3,7 @@ name: subtext:visual-verification
 description: After making visual UI changes, verify the result by screenshotting the running app. Self-correct obvious issues; checkpoint with the user on subjective changes.
 metadata:
   requires:
-    skills: ["subtext:shared", "subtext:live", "subtext:comments", "subtext:agent-playback-link"]
+    skills: ["subtext:shared", "subtext:live", "subtext:comments"]
 ---
 
 # Visual Verification
@@ -52,17 +52,15 @@ When the user provides visual feedback (screenshot, description of what's wrong)
 
 Before changing a component you haven't seen yet, take a snapshot to understand the current state. Don't guess at the existing layout from code alone.
 
-### 6. Share an agent playback link as the last step
+### 6. Share the viewer URL as the last step
 
-After verifying, **output an agent playback link** so the user can review your work asynchronously. The link shows the replay of your session with your agent comments in the sidebar.
-
-Transform the `fs_session_url` into an agent playback link using the pattern in `subtext:agent-playback-link`.
+After verifying, **output the `viewer_url`** from the `live-connect` response so the user can review your work. The link opens the live viewer with agent comments in the sidebar.
 
 ## Leaving comments
 
 Call `comment-list` before starting verification to read existing user annotations or prior agent observations. Address these first.
 
-Use `comment-add` to leave comments while browsing. These attach to your session as `AUTHOR_TYPE_AGENT` and appear in the agent playback link sidebar when the user opens your session link. Navigate to the **actual page** you're reviewing and comment there.
+Use `comment-add` to leave comments while browsing. These attach to your session as `AUTHOR_TYPE_AGENT` and appear in the viewer sidebar when the user opens the viewer URL. Navigate to the **actual page** you're reviewing and comment there.
 
 ## Decision Logic
 

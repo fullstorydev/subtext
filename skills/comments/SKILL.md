@@ -58,7 +58,7 @@ Comments enable asynchronous review between agents and users:
 
 1. Agent does work → runs visual verification
 2. Agent calls `comment-add` with observations (`bug`, `tweak`, `looks-good`)
-3. Agent shares the agent playback link with the user
+3. Agent shares the viewer URL with the user
 4. User reviews → reads agent comments → leaves own comments/replies
 5. User shares URL back to agent
 6. Agent calls `comment-list` to read ALL feedback

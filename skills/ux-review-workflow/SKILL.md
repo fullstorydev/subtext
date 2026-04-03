@@ -3,7 +3,7 @@ name: subtext:ux-review-workflow
 description: Evaluate a session recording for usability issues. Identifies friction, confusion, and improvement opportunities.
 metadata:
   requires:
-    skills: ["subtext:session", "subtext:shared", "subtext:comments", "subtext:agent-playback-link"]
+    skills: ["subtext:session", "subtext:shared", "subtext:comments"]
 ---
 
 # UX Review
