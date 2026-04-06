@@ -18,7 +18,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, and `viewer_url`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `viewer_url`, and `capture_status`. |
 | `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
@@ -80,6 +80,15 @@ After every `live-connect`, output the viewer URL on its own line:
 ```
 Viewer: {viewer_url}
 ```
+
+## `live-connect` Capture Status
+
+After every `live-connect`, check `capture_status` and respond as follows:
+
+- `active`: proceed normally.
+- `blocked`: tell the user to check capture quota and verify the target domain is allow listed in Subtext data capture settings.
+- `snippet_not_found` or `api_unavailable`: tell the user something went wrong during setup and they should run onboarding again.
+- any other status: something went wrong, try again
 
 ## Tips
 
