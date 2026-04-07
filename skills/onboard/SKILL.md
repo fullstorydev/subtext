@@ -1,6 +1,6 @@
 ---
 name: subtext:onboard
-description: Guided onboarding for new Subtext users. Installs the plugin, adds the Subtext snippet, agent explores the site, reviews the session, bootstraps sightmap, configures privacy rules, then reproduces with metrics — all as an interactive conversation.
+description: Guided onboarding for new Subtext users. Installs the plugin, adds the Subtext snippet, agent explores the site, reviews the session, bootstraps sightmap, then reproduces with metrics — all as an interactive conversation.
 metadata:
   platform: claude-code
   requires:
@@ -15,7 +15,7 @@ Welcome new users to Subtext through a guided, conversational setup experience.
 
 **Complete each step fully before moving to the next.** Do NOT pre-check, parallelize, or look ahead to subsequent steps. Each step has its own pre-check logic — trust the sub-skill to handle detection and skip if already done. Wait for the user's acknowledgment before proceeding.
 
-**Steps 3 and 7 run as subagents** so the orchestrator can capture usage metrics (tokens, time, interactions) for the comparison in Step 8.
+**Steps 3 and 6 run as subagents** so the orchestrator can capture usage metrics (tokens, time, interactions) for the comparison in Step 7.
 
 ### Step announcements
 
@@ -24,7 +24,7 @@ Before each step, print a prominent banner so the user can see progress through 
 ```
 ---
 
-## Step N of 8: Title
+## Step N of 7: Title
 
 Brief description of what this step does.
 
@@ -42,7 +42,6 @@ Greet the user:
 - The Subtext snippet capturing sessions in your app
 - An agent-driven session exploring your site with comments you can review via viewer URL
 - A sightmap giving your components semantic names
-- Privacy rules auto-configured from PII detection
 - A metrics comparison showing the value of sightmap enrichment
 
 Let's get started."
@@ -53,7 +52,7 @@ Print:
 ```
 ---
 
-## Step 1 of 8: Plugin Setup
+## Step 1 of 7: Plugin Setup
 
 Checking that the Subtext plugin and MCP servers are installed and connected.
 
@@ -71,7 +70,7 @@ Print:
 ```
 ---
 
-## Step 2 of 8: Subtext Snippet
+## Step 2 of 7: Subtext Snippet
 
 Installing the Subtext capture snippet into your app.
 
@@ -98,7 +97,7 @@ Print:
 ```
 ---
 
-## Step 3 of 8: First Session
+## Step 3 of 7: First Session
 
 The agent will explore your site and capture a session — no sightmap yet.
 
@@ -131,7 +130,7 @@ Print:
 ```
 ---
 
-## Step 4 of 8: Session Review
+## Step 4 of 7: Session Review
 
 Analyzing the session from my exploration.
 
@@ -140,7 +139,7 @@ Analyzing the session from my exploration.
 
 Invoke `subtext:session-analysis-workflow` with the captured session URL.
 
-**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 7.
+**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 6.
 
 After the review, explain: "That's what Subtext sees when it analyzes a session. It maps interactions to your source code, identifies friction, and spots issues — all from a single session. The agent's own difficulty notes are part of the timeline."
 
@@ -150,7 +149,7 @@ Print:
 ```
 ---
 
-## Step 5 of 8: Sightmap
+## Step 5 of 7: Sightmap
 
 Building semantic component definitions and memories for your app.
 
@@ -193,32 +192,13 @@ Example:
     - "Audience toggle switches ALL copy between 'For Builders' and 'For Agents' perspectives"
 ```
 
-## Step 6: Privacy Setup
+## Step 6: Informed Reproduction (Pass 2)
 
 Print:
 ```
 ---
 
-## Step 6 of 8: Privacy
-
-Auto-detecting PII and creating privacy rules from the seed session.
-
----
-```
-
-Use the session captured in Step 3 as the seed for PII detection. Follow `subtext:recipe-privacy-setup` — the full detect → create → validate → promote flow.
-
-If no PII is detected, explain: "No PII was detected in the seed session. This is common for apps that use test data during development. Privacy rules can be added later as real user data flows through — the self-healing pipeline will automatically detect and propose new rules."
-
-After privacy setup is complete (rules promoted), ask the user if they'd like to proceed to reproduction.
-
-## Step 7: Informed Reproduction (Pass 2)
-
-Print:
-```
----
-
-## Step 7 of 8: Reproduction
+## Step 6 of 7: Reproduction
 
 Reproducing the same flow — this time with sightmap enrichment.
 
@@ -234,19 +214,19 @@ Reproducing the same flow — this time with sightmap enrichment.
 
 **Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
 
-After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. The session was captured with preview privacy rules applied. You can review the replay with agent comments here:
+After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. You can review the replay with agent comments here:
 
 {viewer_url}
 
 Now let's see how the two passes compare."
 
-## Step 8: Results
+## Step 7: Results
 
 Print:
 ```
 ---
 
-## Step 8 of 8: Results
+## Step 7 of 7: Results
 
 Here's the impact your sightmap had on agent performance.
 
@@ -255,7 +235,7 @@ Here's the impact your sightmap had on agent performance.
 
 ### Metrics comparison
 
-Present the delta between Pass 1 (Step 3) and Pass 2 (Step 7):
+Present the delta between Pass 1 (Step 3) and Pass 2 (Step 6):
 
 ```
 | Metric            | Pass 1 (Blind) | Pass 2 (Sightmap) | Delta    |
@@ -290,9 +270,8 @@ Present both viewer URLs so the user can review each session with agent comments
 3. **Exploration** — Agent explored your site blind, leaving comments as it went
 4. **Session Review** — Analyzed the session and extracted reproduction steps
 5. **Sightmap** — Your components have semantic names and memories
-6. **Privacy** — Auto-detected PII, validated masking, and promoted rules to production
-7. **Reproduction** — Reproduced the same flow with sightmap enrichment and privacy preview
-8. **Results** — Measured the concrete improvement in tokens, time, and interactions
+6. **Reproduction** — Reproduced the same flow with sightmap enrichment
+7. **Results** — Measured the concrete improvement in tokens, time, and interactions
 
 You can review both sessions with agent comments via the viewer URLs above.
 
