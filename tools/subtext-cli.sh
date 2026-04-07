@@ -15,13 +15,6 @@ set -euo pipefail
 # Environment
 # ---------------------------------------------------------------------------
 
-if [[ -z "${SECRET_SUBTEXT_API_KEY:-}" ]]; then
-  echo "Error: SECRET_SUBTEXT_API_KEY is not set." >&2
-  echo "Export your Subtext API key before running this script:" >&2
-  echo "  export SECRET_SUBTEXT_API_KEY='your-api-key'" >&2
-  exit 1
-fi
-
 SUBTEXT_API_URL="${SUBTEXT_API_URL:-https://api.fullstory.com/mcp/subtext}"
 
 # ---------------------------------------------------------------------------
@@ -41,18 +34,8 @@ call_mcp() {
   local arguments="$2"
 
   local payload
-  payload=$(cat <<ENDJSON
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "${tool_name}",
-    "arguments": ${arguments}
-  }
-}
-ENDJSON
-)
+  payload=$(printf '{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"%s","arguments":%s}}' \
+    "$RANDOM" "$tool_name" "$arguments")
 
   local http_code body response
   # Use a temp file so we can capture both the body and the HTTP status code
@@ -163,12 +146,12 @@ Options:
   -h, --help       Show this help message
 
 Examples:
-  subtext-cli.sh connect --url "https://example.com"
+  subtext-cli.sh connect https://example.com
   subtext-cli.sh screenshot
-  subtext-cli.sh click --selector "#submit-btn"
-  subtext-cli.sh fill --selector "#email" --value "user@example.com"
-  subtext-cli.sh navigate --url "https://example.com/dashboard"
-  subtext-cli.sh eval --expression "document.title"
+  subtext-cli.sh click <conn_id> 95
+  subtext-cli.sh fill <conn_id> 91 "user@example.com"
+  subtext-cli.sh navigate <conn_id> https://example.com/dashboard
+  subtext-cli.sh eval <conn_id> "document.title"
 EOF
 }
 
@@ -176,16 +159,20 @@ EOF
 # Command dispatch
 # ---------------------------------------------------------------------------
 
-if [[ $# -eq 0 ]]; then
+if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
   usage
   exit 0
 fi
 
+# Check for API key (after help so --help works without it)
+if [[ -z "${SECRET_SUBTEXT_API_KEY:-}" ]]; then
+  echo "Error: SECRET_SUBTEXT_API_KEY is not set." >&2
+  echo "Export your Subtext API key before running this script:" >&2
+  echo "  export SECRET_SUBTEXT_API_KEY='your-api-key'" >&2
+  exit 1
+fi
+
 case "${1}" in
-  -h|--help)
-    usage
-    exit 0
-    ;;
   *)
     echo "Error: Unknown command '${1}'." >&2
     echo "Run 'subtext-cli.sh --help' for usage information." >&2
