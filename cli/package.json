@@ -14,7 +14,7 @@
       "import": "./build/src/sdk/index.js"
     }
   },
-  "files": ["build/"],
+  "files": ["build/src/"],
   "scripts": {
     "build": "tsc",
     "test": "node --test build/tests/**/*.js",
@@ -27,11 +27,13 @@
     "url": "https://github.com/fullstorydev/subtext.git",
     "directory": "cli"
   },
+  "dependencies": {
+    "yargs": "18.0.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/yargs": "^17.0.35",
-    "typescript": "^5.9.2",
-    "yargs": "18.0.0"
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": "^20.11.0 || ^22.12.0 || >=23"

@@ -117,7 +117,13 @@ export function registerCommands(yargs: any): void {
       "Fill multiple fields",
       {},
       async (argv: any) => {
-        const fields = JSON.parse(argv.json);
+        let fields;
+        try {
+          fields = JSON.parse(argv.json);
+        } catch {
+          console.error("Error: invalid JSON for fields argument");
+          process.exit(1);
+        }
         const result = await getClient().raw("live-act-fill", {
           connection_id: argv.connection_id,
           fields,
@@ -318,7 +324,13 @@ export function registerCommands(yargs: any): void {
       "Call any MCP tool directly",
       {},
       async (argv: any) => {
-        const params = JSON.parse(argv.json);
+        let params;
+        try {
+          params = JSON.parse(argv.json);
+        } catch {
+          console.error("Error: invalid JSON argument");
+          process.exit(1);
+        }
         const result = await getClient().raw(argv.tool_name, params);
         printResult(result);
       }
