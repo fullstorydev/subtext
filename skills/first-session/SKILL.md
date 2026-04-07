@@ -20,7 +20,7 @@ If the user already has a session URL (they mention one or it was passed in), sk
 Before starting, confirm:
 1. **Dev server is running** — the user must have their app running locally (or provide a deployed URL)
 2. **Subtext snippet is installed** — the snippet must be loaded on the target site for session capture to work
-3. **Tunnel if localhost** — use `live-tunnel` + `tunnel-connect` (tunnel-first flow, no `connectionId`) to set up a reverse tunnel; grab the `connectionId` from the `tunnel-connect` response and pass it as `connection_id` to `live-connect`
+3. **Tunnel if localhost** — use the tunnel-first flow: `live-tunnel` → `tunnel-connect` → `live-view-new` (see `subtext:tunnel`). Do **not** use `live-connect` for localhost URLs.
 
 ## Input
 
@@ -31,7 +31,7 @@ The orchestrator provides:
 ## Exploration Loop
 
 ```
-1. live-connect → navigate to app URL
+1. Connect to app URL (live-connect for remote, or tunnel-first flow for localhost — see Prerequisites)
 2. live-view-snapshot to see the page
 3. Optionally comment-add with an observation about the page or what just happened, if noteworthy
 4. Choose an interaction:
