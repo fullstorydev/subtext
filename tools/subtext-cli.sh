@@ -173,6 +173,88 @@ if [[ -z "${SECRET_SUBTEXT_API_KEY:-}" ]]; then
 fi
 
 case "${1}" in
+  connect)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh connect <url>" >&2
+      exit 1
+    fi
+    call_mcp "live-connect" "{\"url\":\"$2\"}"
+    ;;
+  disconnect)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh disconnect <conn_id>" >&2
+      exit 1
+    fi
+    call_mcp "live-disconnect" "{\"connection_id\":\"$2\"}"
+    ;;
+  snapshot)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh snapshot <conn_id> [view_id]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\"}"
+    if [[ -n "${3:-}" ]]; then
+      local_args="{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+    fi
+    call_mcp "live-view-snapshot" "$local_args"
+    ;;
+  screenshot)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh screenshot <conn_id> [view_id]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\"}"
+    if [[ -n "${3:-}" ]]; then
+      local_args="{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+    fi
+    call_mcp "live-view-screenshot" "$local_args"
+    ;;
+  navigate)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh navigate <conn_id> <url>" >&2
+      exit 1
+    fi
+    call_mcp "live-view-navigate" "{\"connection_id\":\"$2\",\"url\":\"$3\"}"
+    ;;
+  new-tab)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh new-tab <conn_id> [url]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\"}"
+    if [[ -n "${3:-}" ]]; then
+      local_args="{\"connection_id\":\"$2\",\"url\":\"$3\"}"
+    fi
+    call_mcp "live-view-new" "$local_args"
+    ;;
+  close-tab)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh close-tab <conn_id> <view_id>" >&2
+      exit 1
+    fi
+    call_mcp "live-view-close" "{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+    ;;
+  tabs)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh tabs <conn_id>" >&2
+      exit 1
+    fi
+    call_mcp "live-view-list" "{\"connection_id\":\"$2\"}"
+    ;;
+  emulate)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh emulate <conn_id> <device>" >&2
+      exit 1
+    fi
+    call_mcp "live-emulate" "{\"connection_id\":\"$2\",\"device\":\"$3\"}"
+    ;;
+  resize)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
+      echo "Usage: subtext-cli.sh resize <conn_id> <width> <height>" >&2
+      exit 1
+    fi
+    call_mcp "live-view-resize" "{\"connection_id\":\"$2\",\"width\":$3,\"height\":$4}"
+    ;;
   *)
     echo "Error: Unknown command '${1}'." >&2
     echo "Run 'subtext-cli.sh --help' for usage information." >&2
