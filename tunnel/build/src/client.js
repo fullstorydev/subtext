@@ -1,6 +1,6 @@
 import { WebSocket } from './third_party/index.js';
 import * as net from 'node:net';
-import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES, RECONNECT_BASE_MS, RECONNECT_MAX_MS, STALE_CONNECTION_MS, } from './types.js';
+import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES, RECONNECT_BASE_MS, RECONNECT_MAX_MS, STALE_CONNECTION_MS, MAX_RECONNECT_ATTEMPTS, } from './types.js';
 export class TunnelClient {
     #relayUrl;
     #target;
@@ -258,6 +258,10 @@ export class TunnelClient {
         this.#scheduleReconnect();
     }
     #scheduleReconnect() {
+        if (this.#reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            this.#log(`Reached max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}); stopping reconnect loop`);
+            return;
+        }
         const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, this.#reconnectAttempts), RECONNECT_MAX_MS);
         // Add jitter: 0-25% of delay
         const jitter = Math.random() * delay * 0.25;

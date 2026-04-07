@@ -7,3 +7,4 @@ export const REQUEST_TIMEOUT_MS = 30_000; // 30s
 export const RECONNECT_BASE_MS = 1_000; // 1s
 export const RECONNECT_MAX_MS = 30_000; // 30s
 export const STALE_CONNECTION_MS = 90_000; // 90s — no messages at all
+export const MAX_RECONNECT_ATTEMPTS = 5;
