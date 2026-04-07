@@ -30,14 +30,14 @@ A publishable npm package with both a CLI and a programmatic SDK.
 
 ```bash
 # Install globally
-npm install -g @fullstory/subtext
+npm install -g @fullstorydev/subtext-cli
 
 # CLI usage
 export SECRET_SUBTEXT_API_KEY='your-api-key'
 subtext connect https://example.com
 
 # SDK usage
-import { SubtextClient } from "@fullstory/subtext";
+import { SubtextClient } from "@fullstorydev/subtext-cli";
 
 const client = new SubtextClient({ apiKey: process.env.SECRET_SUBTEXT_API_KEY });
 const result = await client.connect("https://example.com");
