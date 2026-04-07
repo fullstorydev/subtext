@@ -9,7 +9,7 @@
     {
       "name": "subtext",
       "source": "./",
-      "version": "0.1.42",
+      "version": "0.1.43",
       "description": "Tools for agents to build with Subtext",
       "category": "development",
       "keywords": ["subtext", "session-replay", "debugging"],
