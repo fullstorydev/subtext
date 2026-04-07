@@ -308,6 +308,78 @@ case "${1}" in
     fi
     call_mcp "live-act-wait-for" "{\"connection_id\":\"$2\",\"type\":\"$3\",\"value\":\"$4\"}"
     ;;
+  eval)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh eval <conn_id> <expression>" >&2
+      exit 1
+    fi
+    call_mcp "live-eval-script" "{\"connection_id\":\"$2\",\"expression\":\"$3\"}"
+    ;;
+  logs)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh logs <conn_id> [level] [limit]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\""
+    if [[ -n "${3:-}" ]]; then
+      local_args="$local_args,\"level\":\"$3\""
+    fi
+    if [[ -n "${4:-}" ]]; then
+      local_args="$local_args,\"limit\":$4"
+    fi
+    local_args="$local_args}"
+    call_mcp "live-log-list" "$local_args"
+    ;;
+  network)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: subtext-cli.sh network <conn_id> [pattern] [limit]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\""
+    if [[ -n "${3:-}" ]]; then
+      local_args="$local_args,\"pattern\":\"$3\""
+    fi
+    if [[ -n "${4:-}" ]]; then
+      local_args="$local_args,\"limit\":$4"
+    fi
+    local_args="$local_args}"
+    call_mcp "live-net-list" "$local_args"
+    ;;
+  tools)
+    payload=$(printf '{"jsonrpc":"2.0","id":%d,"method":"tools/list","params":{}}' "$RANDOM")
+    response=$(curl -s \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${SECRET_SUBTEXT_API_KEY}" \
+      -d "$payload" \
+      "$SUBTEXT_API_URL") || {
+      echo "Error: curl request failed." >&2
+      exit 1
+    }
+    printf '%s' "$response" | python3 -c "
+import sys, json
+resp = json.load(sys.stdin)
+if 'error' in resp:
+    e = resp['error']
+    print(f\"Error: JSON-RPC error {e.get('code','?')}: {e.get('message','unknown')}\", file=sys.stderr)
+    sys.exit(1)
+tools = resp.get('result', {}).get('tools', [])
+if not tools:
+    print('No tools found.')
+else:
+    for t in tools:
+        name = t.get('name', '(unknown)')
+        desc = t.get('description', '')
+        print(f'  {name:<30s} {desc}')
+"
+    ;;
+  raw)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh raw <tool_name> <json>" >&2
+      exit 1
+    fi
+    call_mcp "$2" "$3"
+    ;;
   *)
     echo "Error: Unknown command '${1}'." >&2
     echo "Run 'subtext-cli.sh --help' for usage information." >&2
