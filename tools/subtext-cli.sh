@@ -18,6 +18,16 @@ set -euo pipefail
 SUBTEXT_API_URL="${SUBTEXT_API_URL:-https://api.fullstory.com/mcp/subtext}"
 
 # ---------------------------------------------------------------------------
+# json_escape  —  Escape a string for safe JSON embedding
+#
+# Returns a QUOTED JSON string (e.g., "hello \"world\""), so callers must
+# NOT add their own quotes around the result.
+# ---------------------------------------------------------------------------
+json_escape() {
+  python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$1"
+}
+
+# ---------------------------------------------------------------------------
 # call_mcp  —  Send a JSON-RPC 2.0 tools/call request and process the response
 #
 # Usage: call_mcp <tool_name> <json_arguments>
@@ -147,7 +157,7 @@ Options:
 
 Examples:
   subtext-cli.sh connect https://example.com
-  subtext-cli.sh screenshot
+  subtext-cli.sh screenshot <conn_id>
   subtext-cli.sh click <conn_id> 95
   subtext-cli.sh fill <conn_id> 91 "user@example.com"
   subtext-cli.sh navigate <conn_id> https://example.com/dashboard
@@ -178,23 +188,23 @@ case "${1}" in
       echo "Usage: subtext-cli.sh connect <url>" >&2
       exit 1
     fi
-    call_mcp "live-connect" "{\"url\":\"$2\"}"
+    call_mcp "live-connect" "{\"url\":$(json_escape "$2")}"
     ;;
   disconnect)
     if [[ -z "${2:-}" ]]; then
       echo "Usage: subtext-cli.sh disconnect <conn_id>" >&2
       exit 1
     fi
-    call_mcp "live-disconnect" "{\"connection_id\":\"$2\"}"
+    call_mcp "live-disconnect" "{\"connection_id\":$(json_escape "$2")}"
     ;;
   snapshot)
     if [[ -z "${2:-}" ]]; then
       echo "Usage: subtext-cli.sh snapshot <conn_id> [view_id]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\"}"
+    local_args="{\"connection_id\":$(json_escape "$2")}"
     if [[ -n "${3:-}" ]]; then
-      local_args="{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+      local_args="{\"connection_id\":$(json_escape "$2"),\"view_id\":$(json_escape "$3")}"
     fi
     call_mcp "live-view-snapshot" "$local_args"
     ;;
@@ -203,9 +213,9 @@ case "${1}" in
       echo "Usage: subtext-cli.sh screenshot <conn_id> [view_id]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\"}"
+    local_args="{\"connection_id\":$(json_escape "$2")}"
     if [[ -n "${3:-}" ]]; then
-      local_args="{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+      local_args="{\"connection_id\":$(json_escape "$2"),\"view_id\":$(json_escape "$3")}"
     fi
     call_mcp "live-view-screenshot" "$local_args"
     ;;
@@ -214,16 +224,16 @@ case "${1}" in
       echo "Usage: subtext-cli.sh navigate <conn_id> <url>" >&2
       exit 1
     fi
-    call_mcp "live-view-navigate" "{\"connection_id\":\"$2\",\"url\":\"$3\"}"
+    call_mcp "live-view-navigate" "{\"connection_id\":$(json_escape "$2"),\"url\":$(json_escape "$3")}"
     ;;
   new-tab)
     if [[ -z "${2:-}" ]]; then
       echo "Usage: subtext-cli.sh new-tab <conn_id> [url]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\"}"
+    local_args="{\"connection_id\":$(json_escape "$2")}"
     if [[ -n "${3:-}" ]]; then
-      local_args="{\"connection_id\":\"$2\",\"url\":\"$3\"}"
+      local_args="{\"connection_id\":$(json_escape "$2"),\"url\":$(json_escape "$3")}"
     fi
     call_mcp "live-view-new" "$local_args"
     ;;
@@ -232,65 +242,65 @@ case "${1}" in
       echo "Usage: subtext-cli.sh close-tab <conn_id> <view_id>" >&2
       exit 1
     fi
-    call_mcp "live-view-close" "{\"connection_id\":\"$2\",\"view_id\":\"$3\"}"
+    call_mcp "live-view-close" "{\"connection_id\":$(json_escape "$2"),\"view_id\":$(json_escape "$3")}"
     ;;
   tabs)
     if [[ -z "${2:-}" ]]; then
       echo "Usage: subtext-cli.sh tabs <conn_id>" >&2
       exit 1
     fi
-    call_mcp "live-view-list" "{\"connection_id\":\"$2\"}"
+    call_mcp "live-view-list" "{\"connection_id\":$(json_escape "$2")}"
     ;;
   emulate)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh emulate <conn_id> <device>" >&2
       exit 1
     fi
-    call_mcp "live-emulate" "{\"connection_id\":\"$2\",\"device\":\"$3\"}"
+    call_mcp "live-emulate" "{\"connection_id\":$(json_escape "$2"),\"device\":$(json_escape "$3")}"
     ;;
   resize)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
       echo "Usage: subtext-cli.sh resize <conn_id> <width> <height>" >&2
       exit 1
     fi
-    call_mcp "live-view-resize" "{\"connection_id\":\"$2\",\"width\":$3,\"height\":$4}"
+    call_mcp "live-view-resize" "{\"connection_id\":$(json_escape "$2"),\"width\":$3,\"height\":$4}"
     ;;
   click)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh click <conn_id> <component_id>" >&2
       exit 1
     fi
-    call_mcp "live-act-click" "{\"connection_id\":\"$2\",\"component_id\":\"$3\"}"
+    call_mcp "live-act-click" "{\"connection_id\":$(json_escape "$2"),\"component_id\":$(json_escape "$3")}"
     ;;
   fill)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
       echo "Usage: subtext-cli.sh fill <conn_id> <component_id> <value>" >&2
       exit 1
     fi
-    call_mcp "live-act-fill" "{\"connection_id\":\"$2\",\"component_id\":\"$3\",\"value\":\"$4\"}"
+    call_mcp "live-act-fill" "{\"connection_id\":$(json_escape "$2"),\"component_id\":$(json_escape "$3"),\"value\":$(json_escape "$4")}"
     ;;
   fill-multi)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh fill-multi <conn_id> <json>" >&2
       exit 1
     fi
-    call_mcp "live-act-fill" "{\"connection_id\":\"$2\",\"fields\":$3}"
+    call_mcp "live-act-fill" "{\"connection_id\":$(json_escape "$2"),\"fields\":$3}"
     ;;
   hover)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh hover <conn_id> <component_id>" >&2
       exit 1
     fi
-    call_mcp "live-act-hover" "{\"connection_id\":\"$2\",\"component_id\":\"$3\"}"
+    call_mcp "live-act-hover" "{\"connection_id\":$(json_escape "$2"),\"component_id\":$(json_escape "$3")}"
     ;;
   keypress)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh keypress <conn_id> <key> [component_id]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\",\"key\":\"$3\"}"
+    local_args="{\"connection_id\":$(json_escape "$2"),\"key\":$(json_escape "$3")}"
     if [[ -n "${4:-}" ]]; then
-      local_args="{\"connection_id\":\"$2\",\"key\":\"$3\",\"component_id\":\"$4\"}"
+      local_args="{\"connection_id\":$(json_escape "$2"),\"key\":$(json_escape "$3"),\"component_id\":$(json_escape "$4")}"
     fi
     call_mcp "live-act-keypress" "$local_args"
     ;;
@@ -299,30 +309,30 @@ case "${1}" in
       echo "Usage: subtext-cli.sh drag <conn_id> <component_id> <dx> <dy>" >&2
       exit 1
     fi
-    call_mcp "live-act-drag" "{\"connection_id\":\"$2\",\"component_id\":\"$3\",\"dx\":$4,\"dy\":$5}"
+    call_mcp "live-act-drag" "{\"connection_id\":$(json_escape "$2"),\"component_id\":$(json_escape "$3"),\"dx\":$4,\"dy\":$5}"
     ;;
   wait)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
       echo "Usage: subtext-cli.sh wait <conn_id> <type> <value>" >&2
       exit 1
     fi
-    call_mcp "live-act-wait-for" "{\"connection_id\":\"$2\",\"type\":\"$3\",\"value\":\"$4\"}"
+    call_mcp "live-act-wait-for" "{\"connection_id\":$(json_escape "$2"),\"type\":$(json_escape "$3"),\"value\":$(json_escape "$4")}"
     ;;
   eval)
     if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
       echo "Usage: subtext-cli.sh eval <conn_id> <expression>" >&2
       exit 1
     fi
-    call_mcp "live-eval-script" "{\"connection_id\":\"$2\",\"expression\":\"$3\"}"
+    call_mcp "live-eval-script" "{\"connection_id\":$(json_escape "$2"),\"expression\":$(json_escape "$3")}"
     ;;
   logs)
     if [[ -z "${2:-}" ]]; then
       echo "Usage: subtext-cli.sh logs <conn_id> [level] [limit]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\""
+    local_args="{\"connection_id\":$(json_escape "$2")"
     if [[ -n "${3:-}" ]]; then
-      local_args="$local_args,\"level\":\"$3\""
+      local_args="$local_args,\"level\":$(json_escape "$3")"
     fi
     if [[ -n "${4:-}" ]]; then
       local_args="$local_args,\"limit\":$4"
@@ -335,9 +345,9 @@ case "${1}" in
       echo "Usage: subtext-cli.sh network <conn_id> [pattern] [limit]" >&2
       exit 1
     fi
-    local_args="{\"connection_id\":\"$2\""
+    local_args="{\"connection_id\":$(json_escape "$2")"
     if [[ -n "${3:-}" ]]; then
-      local_args="$local_args,\"pattern\":\"$3\""
+      local_args="$local_args,\"pattern\":$(json_escape "$3")"
     fi
     if [[ -n "${4:-}" ]]; then
       local_args="$local_args,\"limit\":$4"
