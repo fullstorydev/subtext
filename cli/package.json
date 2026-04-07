@@ -1,0 +1,39 @@
+{
+  "name": "@fullstory/subtext",
+  "version": "0.1.0",
+  "description": "CLI and SDK for Subtext — FullStory's agent browser testing tool",
+  "type": "module",
+  "main": "./build/src/sdk/index.js",
+  "types": "./build/src/sdk/index.d.ts",
+  "bin": {
+    "subtext": "./build/src/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/src/sdk/index.d.ts",
+      "import": "./build/src/sdk/index.js"
+    }
+  },
+  "files": ["build/"],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test build/tests/**/*.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["fullstory", "subtext", "mcp", "browser-testing", "cli"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fullstorydev/subtext.git",
+    "directory": "cli"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/yargs": "^17.0.35",
+    "typescript": "^5.9.2",
+    "yargs": "18.0.0"
+  },
+  "engines": {
+    "node": "^20.11.0 || ^22.12.0 || >=23"
+  }
+}
