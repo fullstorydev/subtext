@@ -255,6 +255,59 @@ case "${1}" in
     fi
     call_mcp "live-view-resize" "{\"connection_id\":\"$2\",\"width\":$3,\"height\":$4}"
     ;;
+  click)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh click <conn_id> <component_id>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-click" "{\"connection_id\":\"$2\",\"component_id\":\"$3\"}"
+    ;;
+  fill)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
+      echo "Usage: subtext-cli.sh fill <conn_id> <component_id> <value>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-fill" "{\"connection_id\":\"$2\",\"component_id\":\"$3\",\"value\":\"$4\"}"
+    ;;
+  fill-multi)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh fill-multi <conn_id> <json>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-fill" "{\"connection_id\":\"$2\",\"fields\":$3}"
+    ;;
+  hover)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh hover <conn_id> <component_id>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-hover" "{\"connection_id\":\"$2\",\"component_id\":\"$3\"}"
+    ;;
+  keypress)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]]; then
+      echo "Usage: subtext-cli.sh keypress <conn_id> <key> [component_id]" >&2
+      exit 1
+    fi
+    local_args="{\"connection_id\":\"$2\",\"key\":\"$3\"}"
+    if [[ -n "${4:-}" ]]; then
+      local_args="{\"connection_id\":\"$2\",\"key\":\"$3\",\"component_id\":\"$4\"}"
+    fi
+    call_mcp "live-act-keypress" "$local_args"
+    ;;
+  drag)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]] || [[ -z "${5:-}" ]]; then
+      echo "Usage: subtext-cli.sh drag <conn_id> <component_id> <dx> <dy>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-drag" "{\"connection_id\":\"$2\",\"component_id\":\"$3\",\"dx\":$4,\"dy\":$5}"
+    ;;
+  wait)
+    if [[ -z "${2:-}" ]] || [[ -z "${3:-}" ]] || [[ -z "${4:-}" ]]; then
+      echo "Usage: subtext-cli.sh wait <conn_id> <type> <value>" >&2
+      exit 1
+    fi
+    call_mcp "live-act-wait-for" "{\"connection_id\":\"$2\",\"type\":\"$3\",\"value\":\"$4\"}"
+    ;;
   *)
     echo "Error: Unknown command '${1}'." >&2
     echo "Run 'subtext-cli.sh --help' for usage information." >&2
