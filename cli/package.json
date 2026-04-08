@@ -1,6 +1,6 @@
 {
   "name": "@fullstorydev/subtext-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI and SDK for Subtext — FullStory's agent browser testing tool",
   "type": "module",
   "main": "./build/src/sdk/index.js",

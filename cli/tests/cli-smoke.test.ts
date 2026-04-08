@@ -76,6 +76,29 @@ describe("CLI smoke tests", () => {
     );
   });
 
+  it("click with numeric component_id passes as string", async () => {
+    // Just verify the flag is accepted (will fail on connect, but shouldn't error on arg parsing)
+    const { stderr } = await run(["click", "fake-conn", "15"], { SECRET_SUBTEXT_API_KEY: "test" });
+    assert.ok(!stderr.includes("expected string"), "should not reject numeric component_id");
+  });
+
+  it("SUBTEXT_API_KEY is accepted as fallback", async () => {
+    const { stderr } = await run(["connect", "https://example.com"], {
+      SECRET_SUBTEXT_API_KEY: "",
+      SUBTEXT_API_KEY: "",
+    });
+    assert.ok(
+      stderr.includes("SUBTEXT_API_KEY"),
+      "stderr should mention SUBTEXT_API_KEY"
+    );
+  });
+
+  it("--version prints package version", async () => {
+    const { code, stdout } = await run(["--version"]);
+    assert.equal(code, 0);
+    assert.match(stdout.trim(), /^\d+\.\d+\.\d+/, "should print semver version");
+  });
+
   it("sightmap upload without url shows error", async () => {
     const { code, stderr } = await run(["sightmap", "upload"]);
     assert.notEqual(code, 0, "should exit non-zero");

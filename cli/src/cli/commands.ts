@@ -22,11 +22,11 @@ function handler(fn: (argv: any) => Promise<void>): (argv: any) => void {
 }
 
 function getConfig(): SubtextConfig {
-  const apiKey = process.env.SECRET_SUBTEXT_API_KEY;
+  const apiKey = process.env.SECRET_SUBTEXT_API_KEY ?? process.env.SUBTEXT_API_KEY;
   if (!apiKey) {
-    console.error("Error: SECRET_SUBTEXT_API_KEY is not set.");
+    console.error("Error: No API key set. Export SECRET_SUBTEXT_API_KEY or SUBTEXT_API_KEY.");
     console.error(
-      "Export your Subtext API key: export SECRET_SUBTEXT_API_KEY='your-api-key'"
+      "Example: export SECRET_SUBTEXT_API_KEY='your-api-key'"
     );
     process.exit(1);
   }
@@ -34,11 +34,11 @@ function getConfig(): SubtextConfig {
 }
 
 function getClient(options?: { hooks?: boolean }): SubtextClient {
-  const apiKey = process.env.SECRET_SUBTEXT_API_KEY;
+  const apiKey = process.env.SECRET_SUBTEXT_API_KEY ?? process.env.SUBTEXT_API_KEY;
   if (!apiKey) {
-    console.error("Error: SECRET_SUBTEXT_API_KEY is not set.");
+    console.error("Error: No API key set. Export SECRET_SUBTEXT_API_KEY or SUBTEXT_API_KEY.");
     console.error(
-      "Export your Subtext API key: export SECRET_SUBTEXT_API_KEY='your-api-key'"
+      "Example: export SECRET_SUBTEXT_API_KEY='your-api-key'"
     );
     process.exit(1);
   }
@@ -186,23 +186,33 @@ export function registerCommands(yargs: any): void {
     .command(
       "screenshot <connection_id> [view_id]",
       "Screenshot only",
-      {},
+      (y: any) => y.option("output", { type: "string", alias: "o", description: "Save screenshot to this path" }),
       handler(async (argv: any) => {
         const result = await getClient().screenshot(
           argv.connection_id,
           argv.view_id
         );
-        printResult(result);
+        if (argv.output) {
+          const img = result.content.find((c: any) => c.type === "image" && c.data);
+          if (img?.data) {
+            const dir = path.dirname(argv.output);
+            if (dir) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(argv.output, Buffer.from(img.data, "base64"));
+            console.log(`Screenshot saved: ${argv.output}`);
+          }
+        } else {
+          printResult(result);
+        }
       })
     )
     .command(
       "click <connection_id> <component_id>",
       "Click a component by UID",
-      {},
+      (y: any) => y.positional("component_id", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().click(
           argv.connection_id,
-          argv.component_id
+          String(argv.component_id)
         );
         printResult(result);
       })
@@ -210,11 +220,11 @@ export function registerCommands(yargs: any): void {
     .command(
       "fill <connection_id> <component_id> <value>",
       "Fill an input field",
-      {},
+      (y: any) => y.positional("component_id", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().fill(
           argv.connection_id,
-          argv.component_id,
+          String(argv.component_id),
           argv.value
         );
         printResult(result);
@@ -242,11 +252,11 @@ export function registerCommands(yargs: any): void {
     .command(
       "hover <connection_id> <component_id>",
       "Hover over a component",
-      {},
+      (y: any) => y.positional("component_id", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().hover(
           argv.connection_id,
-          argv.component_id
+          String(argv.component_id)
         );
         printResult(result);
       })
@@ -254,12 +264,12 @@ export function registerCommands(yargs: any): void {
     .command(
       "keypress <connection_id> <key> [component_id]",
       "Press a key",
-      {},
+      (y: any) => y.positional("component_id", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().keypress(
           argv.connection_id,
           argv.key,
-          argv.component_id
+          argv.component_id ? String(argv.component_id) : undefined
         );
         printResult(result);
       })
@@ -337,11 +347,11 @@ export function registerCommands(yargs: any): void {
     .command(
       "drag <connection_id> <component_id> <dx> <dy>",
       "Drag component",
-      {},
+      (y: any) => y.positional("component_id", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().drag(
           argv.connection_id,
-          argv.component_id,
+          String(argv.component_id),
           Number(argv.dx),
           Number(argv.dy)
         );
@@ -351,12 +361,12 @@ export function registerCommands(yargs: any): void {
     .command(
       "wait <connection_id> <type> <value>",
       "Wait for condition",
-      {},
+      (y: any) => y.positional("value", { type: "string" }),
       handler(async (argv: any) => {
         const result = await getClient().waitFor(
           argv.connection_id,
           argv.type,
-          argv.value
+          String(argv.value)
         );
         printResult(result);
       })
@@ -400,9 +410,9 @@ export function registerCommands(yargs: any): void {
       })
     )
     .command("tools", "List available MCP tools", {}, handler(async () => {
-      const apiKey = process.env.SECRET_SUBTEXT_API_KEY;
+      const apiKey = process.env.SECRET_SUBTEXT_API_KEY ?? process.env.SUBTEXT_API_KEY;
       if (!apiKey) {
-        console.error("Error: SECRET_SUBTEXT_API_KEY not set");
+        console.error("Error: No API key set. Export SECRET_SUBTEXT_API_KEY or SUBTEXT_API_KEY.");
         process.exit(1);
       }
       const url =
@@ -520,7 +530,14 @@ export function registerCommands(yargs: any): void {
             const memory = collectMemory(root);
             console.log(`Sightmap: ${root}`);
             console.log(`Components: ${components.length}`);
+            for (const c of components) {
+              console.log(`  ${c.name}  ${c.selectors.join(", ")}`);
+            }
             console.log(`Memory entries: ${memory.length}`);
+            if (components.length === 0) {
+              console.warn("Warning: No components found. Components need a 'name' and 'selector' field.");
+              console.warn("See: https://github.com/fullstorydev/subtext/tree/main/cli#sightmap");
+            }
           })
         )
         .demandCommand(1, "Please specify a sightmap subcommand: upload or show")

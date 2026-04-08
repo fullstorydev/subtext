@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import { createRequire } from "node:module";
 import { registerCommands } from "./commands.js";
 
+const _require = createRequire(import.meta.url);
+const pkg = _require("../../../package.json");
+
 const argv = yargs(hideBin(process.argv));
+argv.version(pkg.version);
 registerCommands(argv);
 argv
   .fail((msg: string | null, err: Error | null) => {

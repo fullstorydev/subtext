@@ -5,7 +5,8 @@ import yaml from "js-yaml";
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface SightmapComponent {
-  name: string;
+  name?: string;
+  label?: string;
   selector?: string | string[];
   source?: string;
   description?: string;
@@ -104,7 +105,8 @@ export function flattenComponents(
 
   const result: FlatComponent[] = [];
   for (const comp of components) {
-    if (!comp.name || !comp.selector) {
+    const compName = comp.name ?? comp.label;
+    if (!compName || !comp.selector) {
       // Still recurse children even if this component is skipped
       if (comp.children) {
         result.push(
@@ -133,8 +135,14 @@ export function flattenComponents(
       }
     }
 
+    if (comp.label && !comp.name) {
+      process.stderr.write(
+        `sightmap: component "${comp.label}" uses 'label' instead of 'name'. Please rename to 'name'.\n`,
+      );
+    }
+
     result.push({
-      name: comp.name,
+      name: compName,
       selectors: compoundSelectors,
       source,
       memory,
