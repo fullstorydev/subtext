@@ -74,6 +74,10 @@ function printResult(result: ToolResult): void {
       }
     }
   }
+  // Exit non-zero when the MCP tool returned an error
+  if (result.isError) {
+    process.exit(1);
+  }
 }
 
 export function registerCommands(yargs: any): void {
