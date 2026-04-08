@@ -107,14 +107,15 @@ export function registerCommands(yargs: any): void {
             .map((item) => item.text!)
             .join("\n");
 
-          // Parse relay_url from response
-          const relayUrlMatch = tunnelText.match(/relay_url:\s*(\S+)/);
-          if (!relayUrlMatch) {
-            console.error("Error: could not parse relay_url from live-tunnel response");
+          // Parse relayUrl from JSON response (may be wrapped in tags)
+          const jsonMatch = tunnelText.match(/\{[^}]*"relayUrl"[^}]*\}/);
+          if (!jsonMatch) {
+            console.error("Error: could not parse relayUrl from live-tunnel response");
             console.error(tunnelText);
             process.exit(1);
           }
-          const relayUrl = relayUrlMatch[1];
+          const tunnelData = JSON.parse(jsonMatch[0].replace(/\\u0026/g, "&"));
+          const relayUrl = tunnelData.relayUrl as string;
 
           // 2. Start the local tunnel proxy and wait for ready
           const { tunnelId, connectionId } = await new Promise<{
