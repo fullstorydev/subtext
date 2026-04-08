@@ -14,8 +14,8 @@ metadata:
 
 1. **Open session**: `review-open(session_url=...)` — extract event summaries and repro steps
 2. **Extract repro steps** from event summaries: URLs, clicks, form fills, waits, expected outcomes
-3. **Set up tunnel if localhost**: `live-tunnel()` then `tunnel-connect({ relayUrl, target })` — grab `connectionId` from the response and pass it as `connection_id` to `live-connect`
-4. **Navigate to local URL**: `live-view-navigate(url=...)` — map session URL to local equivalent
+3. **Set up tunnel if localhost**: `live-tunnel()` → `tunnel-connect({ relayUrl, target })` → `live-view-new({ connection_id, url })` (see `subtext:tunnel` for tunnel-first flow). Do **not** use `live-connect` for localhost URLs.
+4. **Navigate to local URL**: `live-view-navigate(url=...)` or `live-view-new` — map session URL to local equivalent
 5. **For each step**: `live-view-snapshot()` → interact (`live-act-click`/`live-act-fill`/`live-act-keypress`) → capture evidence
 6. **At key moments**: `live-view-screenshot()` for visual evidence, check `live-log-list` and `live-net-list`
 7. **Report outcome**: reproduced / not reproduced / partial — with component hierarchy and errors

@@ -18,7 +18,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, and `viewer_url`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `viewer_url`, and `capture_status`. |
 | `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
@@ -81,6 +81,15 @@ After every `live-connect`, output the viewer URL on its own line:
 Viewer: {viewer_url}
 ```
 
+## `live-connect` Capture Status
+
+After every `live-connect`, check `capture_status` and respond as follows:
+
+- `active`: proceed normally.
+- `blocked`: tell the user to check capture quota and verify the target domain is allow listed in Subtext data capture settings.
+- `snippet_not_found` or `api_unavailable`: tell the user something went wrong during setup and they should run onboarding again.
+- any other status: something went wrong, try again
+
 ## Tips
 
 - Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
@@ -90,13 +99,13 @@ Viewer: {viewer_url}
 
 ## Tunnel Setup
 
-When the hosted browser needs to reach `localhost` or local dev URLs, set up a tunnel first:
+When the hosted browser needs to reach `localhost` or local dev URLs, use the tunnel-first flow:
 
-1. Call `live-tunnel` to get the relay URL
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl`, `connectionId`, and `target`
-3. Then call `live-connect` with the localhost URL — traffic routes through the tunnel
+1. Call `live-tunnel` — allocates a browser connection and returns `relayUrl` + `connectionId`
+2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target`
+3. Call `live-view-new` with the `connection_id` and localhost URL
 
-See `subtext:tunnel` for the full tunnel setup flow.
+Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details.
 
 ## See Also
 

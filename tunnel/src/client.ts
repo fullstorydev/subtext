@@ -17,6 +17,7 @@ import {
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
   STALE_CONNECTION_MS,
+  MAX_RECONNECT_ATTEMPTS,
 } from './types.js';
 
 export interface TunnelClientOptions {
@@ -328,6 +329,13 @@ export class TunnelClient {
   }
 
   #scheduleReconnect(): void {
+    if (this.#reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this.#log(
+        `Reached max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}); stopping reconnect loop`,
+      );
+      return;
+    }
+
     const delay = Math.min(
       RECONNECT_BASE_MS * Math.pow(2, this.#reconnectAttempts),
       RECONNECT_MAX_MS,
@@ -335,7 +343,6 @@ export class TunnelClient {
     // Add jitter: 0-25% of delay
     const jitter = Math.random() * delay * 0.25;
     const total = Math.round(delay + jitter);
-
     this.#reconnectAttempts++;
     this.#log(`Reconnecting in ${total}ms (attempt ${this.#reconnectAttempts})`);
     this.#reconnectTimer = setTimeout(() => {
