@@ -7,7 +7,7 @@
  * 3. Fetches them from the local target server
  * 4. Sends responses back through the relay
  *
- * Requires Node 22+ for built-in WebSocket support.
+ * Uses native WebSocket on Node 22+, falls back to `ws` package on Node 20.
  */
 
 export interface TunnelProxyOptions {
@@ -87,6 +87,10 @@ type IncomingMessage = ReadyMessage | RequestMessage | PingMessage;
  *
  * The proxy runs until `close()` is called or the WebSocket drops.
  */
+// Use native WebSocket (Node 22+) or fall back to ws package (Node 20)
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const WS: typeof WebSocket = globalThis.WebSocket ?? require("ws");
+
 export function startTunnelProxy(options: TunnelProxyOptions): TunnelProxy {
   const { relayUrl, target, onReady, onError, onClose } = options;
 
@@ -96,10 +100,10 @@ export function startTunnelProxy(options: TunnelProxyOptions): TunnelProxy {
   // Normalize target — strip trailing slash
   const normalizedTarget = target.replace(/\/+$/, "");
 
-  const ws = new WebSocket(relayUrl);
+  const ws = new WS(relayUrl);
 
   function send(msg: OutgoingMessage): void {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === WS.OPEN) {
       ws.send(JSON.stringify(msg));
     }
   }
