@@ -19,5 +19,11 @@ export type {
   UploadResult,
 } from "./sightmap.js";
 export { isLocalUrl } from "./tunnel.js";
+export { startTunnelProxy } from "./tunnel-proxy.js";
+export type {
+  TunnelProxyOptions,
+  TunnelProxy,
+  TunnelProxyState,
+} from "./tunnel-proxy.js";
 export { createHooks, extractSightmapUploadUrl } from "./hooks.js";
 export type { HookContext } from "./hooks.js";
