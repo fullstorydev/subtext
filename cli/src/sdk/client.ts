@@ -1,15 +1,39 @@
 import { callTool, SubtextConfig, ToolResult } from "./transport.js";
+import { createHooks, Hooks } from "./hooks.js";
+
+export interface SubtextClientConfig extends SubtextConfig {
+  hooks?: boolean;
+}
 
 export class SubtextClient {
   private config: SubtextConfig;
+  private hooks: Hooks;
 
-  constructor(config: SubtextConfig) {
+  constructor(config: SubtextClientConfig) {
     this.config = config;
+    this.hooks = createHooks({
+      enabled: config.hooks !== false && process.env.SUBTEXT_NO_HOOKS !== "1",
+    });
   }
 
   // Browser control
   async connect(url: string): Promise<ToolResult> {
-    return callTool(this.config, "live-connect", { url });
+    const result = await callTool(this.config, "live-connect", { url });
+
+    // Extract text content and parse connection_id for hooks
+    const textContent = result.content
+      .filter((item) => item.type === "text" && item.text)
+      .map((item) => item.text!)
+      .join("\n");
+    const connectionIdMatch = textContent.match(/connection_id:\s*(\S+)/);
+    const connectionId = connectionIdMatch ? connectionIdMatch[1] : "";
+
+    // Run hook as side-effect (don't await — fire and forget)
+    this.hooks
+      .runPostConnect({ connectionId, url, responseText: textContent })
+      .catch(() => {});
+
+    return result;
   }
 
   async disconnect(connectionId: string): Promise<ToolResult> {

@@ -97,4 +97,14 @@ describe("SubtextClient", () => {
       }
     );
   });
+
+  it("accepts hooks: false in constructor", () => {
+    const client = new SubtextClient({ ...config, hooks: false });
+    assert.ok(client instanceof SubtextClient);
+  });
+
+  it("accepts config without hooks option (defaults to true)", () => {
+    const client = new SubtextClient(config);
+    assert.ok(client instanceof SubtextClient);
+  });
 });
