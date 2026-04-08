@@ -5,6 +5,10 @@ import {
   collectComponents,
   collectMemory,
 } from "../sdk/sightmap.js";
+import { isLocalUrl } from "../sdk/tunnel.js";
+import { startTunnelProxy } from "../sdk/tunnel-proxy.js";
+import { callTool } from "../sdk/transport.js";
+import type { SubtextConfig } from "../sdk/transport.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -15,6 +19,18 @@ function handler(fn: (argv: any) => Promise<void>): (argv: any) => void {
       process.exit(1);
     });
   };
+}
+
+function getConfig(): SubtextConfig {
+  const apiKey = process.env.SECRET_SUBTEXT_API_KEY;
+  if (!apiKey) {
+    console.error("Error: SECRET_SUBTEXT_API_KEY is not set.");
+    console.error(
+      "Export your Subtext API key: export SECRET_SUBTEXT_API_KEY='your-api-key'"
+    );
+    process.exit(1);
+  }
+  return { apiKey, apiUrl: process.env.SUBTEXT_API_URL };
 }
 
 function getClient(options?: { hooks?: boolean }): SubtextClient {
@@ -63,16 +79,86 @@ export function registerCommands(yargs: any): void {
   yargs
     .command(
       "connect <url>",
-      "Open browser, navigate to URL",
+      "Open browser, navigate to URL (auto-tunnels for localhost)",
       (yargs: any) =>
-        yargs.option("hooks", {
-          type: "boolean",
-          default: true,
-          description: "Run post-connect hooks (sightmap upload)",
-        }),
+        yargs
+          .option("hooks", {
+            type: "boolean",
+            default: true,
+            description: "Run post-connect hooks (sightmap upload)",
+          })
+          .option("no-tunnel", {
+            type: "boolean",
+            default: false,
+            description: "Disable auto-tunnel for localhost URLs",
+          }),
       handler(async (argv: any) => {
-        const result = await getClient({ hooks: argv.hooks }).connect(argv.url);
-        printResult(result);
+        const url: string = argv.url;
+
+        if (isLocalUrl(url) && !argv.noTunnel) {
+          // Auto-tunnel flow for localhost URLs
+          const config = getConfig();
+
+          // 1. Allocate a tunnel via the live-tunnel MCP tool
+          console.log(`Localhost detected — setting up tunnel for ${url}…`);
+          const tunnelResult = await callTool(config, "live-tunnel", { url });
+          const tunnelText = tunnelResult.content
+            .filter((item) => item.type === "text" && item.text)
+            .map((item) => item.text!)
+            .join("\n");
+
+          // Parse relay_url from response
+          const relayUrlMatch = tunnelText.match(/relay_url:\s*(\S+)/);
+          if (!relayUrlMatch) {
+            console.error("Error: could not parse relay_url from live-tunnel response");
+            console.error(tunnelText);
+            process.exit(1);
+          }
+          const relayUrl = relayUrlMatch[1];
+
+          // 2. Start the local tunnel proxy and wait for ready
+          const { tunnelId, connectionId } = await new Promise<{
+            tunnelId: string;
+            connectionId: string;
+          }>((resolve, reject) => {
+            const proxy = startTunnelProxy({
+              relayUrl,
+              target: url,
+              onReady: (info) => resolve(info),
+              onError: (err) => reject(err),
+              onClose: () => reject(new Error("Tunnel closed before ready")),
+            });
+
+            // Store proxy for cleanup on SIGINT
+            const cleanup = () => {
+              proxy.close();
+              process.exit(0);
+            };
+            process.on("SIGINT", cleanup);
+            process.on("SIGTERM", cleanup);
+
+            // Also store the proxy on the process so the connect handler
+            // can keep it alive
+            (globalThis as any).__tunnelProxy = proxy;
+            (globalThis as any).__tunnelCleanup = cleanup;
+          });
+
+          console.log(`Tunnel ready — tunnelId: ${tunnelId}, connectionId: ${connectionId}`);
+
+          // 3. Open a browser view using the connectionId
+          const viewResult = await callTool(config, "live-view-new", {
+            connection_id: connectionId,
+            url,
+          });
+          printResult(viewResult);
+
+          // Keep the process alive while tunnel is running
+          console.log("\nTunnel proxy running. Press Ctrl+C to disconnect.");
+          await new Promise(() => {}); // Block forever
+        } else {
+          const result = await getClient({ hooks: argv.hooks }).connect(url);
+          printResult(result);
+        }
       })
     )
     .command(
@@ -360,6 +446,53 @@ export function registerCommands(yargs: any): void {
         }
         const result = await getClient().raw(argv.tool_name, params);
         printResult(result);
+      })
+    )
+    .command(
+      "tunnel <relayUrl>",
+      "Start a tunnel proxy to relay HTTP from a WebSocket to localhost",
+      (yargs: any) =>
+        yargs.option("target", {
+          type: "string",
+          alias: "t",
+          default: "http://localhost:3000",
+          description: "Local target URL to proxy to",
+        }),
+      handler(async (argv: any) => {
+        const relayUrl: string = argv.relayUrl;
+        const target: string = argv.target;
+
+        console.log(`Starting tunnel proxy…`);
+        console.log(`  Relay:  ${relayUrl}`);
+        console.log(`  Target: ${target}`);
+
+        const proxy = startTunnelProxy({
+          relayUrl,
+          target,
+          onReady: (info) => {
+            console.log(`\nTunnel ready!`);
+            console.log(`  tunnelId:     ${info.tunnelId}`);
+            console.log(`  connectionId: ${info.connectionId}`);
+            console.log(`\nProxy running. Press Ctrl+C to stop.`);
+          },
+          onError: (err) => {
+            console.error(`Tunnel error: ${err.message}`);
+          },
+          onClose: () => {
+            console.log("Tunnel closed.");
+            process.exit(0);
+          },
+        });
+
+        const cleanup = () => {
+          proxy.close();
+          process.exit(0);
+        };
+        process.on("SIGINT", cleanup);
+        process.on("SIGTERM", cleanup);
+
+        // Keep the process alive
+        await new Promise(() => {});
       })
     )
     .command("sightmap", "Sightmap management commands", (yargs: any) => {
