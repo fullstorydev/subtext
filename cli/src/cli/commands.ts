@@ -88,15 +88,15 @@ export function registerCommands(yargs: any): void {
             default: true,
             description: "Run post-connect hooks (sightmap upload)",
           })
-          .option("no-tunnel", {
+          .option("tunnel", {
             type: "boolean",
-            default: false,
-            description: "Disable auto-tunnel for localhost URLs",
+            default: true,
+            description: "Auto-tunnel for localhost URLs",
           }),
       handler(async (argv: any) => {
         const url: string = argv.url;
 
-        if (isLocalUrl(url) && !argv.noTunnel) {
+        if (isLocalUrl(url) && argv.tunnel) {
           // Auto-tunnel flow for localhost URLs
           const config = getConfig();
 

@@ -197,26 +197,26 @@ Auto-upload: On \`connect\`, the CLI walks up from cwd (max 5 levels) looking fo
 ### SIGHTMAP UPDATE (intent: tweak)
 When you discover a better selector or renamed component:
 \`\`\`bash
-subtext raw comment-add '{"session_id":"<session_id>","intent":"tweak","body":"SIGHTMAP UPDATE: ArcDetailPage view -- selector .arc-header should be [data-testid=arc-header] for stability.\\nFile: .sightmap/views.yaml\\nSuggested change:\\n  - name: ArcHeader\\n    selector: [data-testid=arc-header]"}'
+subtext raw comment-add '{"session_id":"<session_id>","intent":"tweak","text":"SIGHTMAP UPDATE: ArcDetailPage view -- selector .arc-header should be [data-testid=arc-header] for stability.\\nFile: .sightmap/views.yaml\\nSuggested change:\\n  - name: ArcHeader\\n    selector: [data-testid=arc-header]"}'
 \`\`\`
 
 ### ISSUE (intent: bug)
 When you find a bug. Include screenshot_url from \`live-view-screenshot\` with \`upload:true\`:
 \`\`\`bash
-subtext raw comment-add '{"session_id":"<session_id>","intent":"bug","screenshot_url":"<signed_url>","body":"ISSUE [p1]: Avatar upload button not responding on mobile viewport (375px).\\nSteps: 1. Navigate to /profile 2. Tap avatar 3. Nothing happens\\nExpected: File picker opens"}'
+subtext raw comment-add '{"session_id":"<session_id>","intent":"bug","screenshot_url":"<signed_url>","text":"ISSUE [p1]: Avatar upload button not responding on mobile viewport (375px).\\nSteps: 1. Navigate to /profile 2. Tap avatar 3. Nothing happens\\nExpected: File picker opens"}'
 \`\`\`
 
 ### VERIFIED (intent: looks-good)
 When you confirm an acceptance criterion works. Include screenshot_url:
 \`\`\`bash
-subtext raw comment-add '{"session_id":"<session_id>","intent":"looks-good","screenshot_url":"<signed_url>","body":"VERIFIED: Arc detail page renders correctly -- confirmed after 5 back/forward navigations. Zero console errors."}'
+subtext raw comment-add '{"session_id":"<session_id>","intent":"looks-good","screenshot_url":"<signed_url>","text":"VERIFIED: Arc detail page renders correctly -- confirmed after 5 back/forward navigations. Zero console errors."}'
 \`\`\`
 Leave one VERIFIED comment per acceptance criterion tested.
 
 ### SESSION SUMMARY (intent: looks-good)
 Leave at disconnect -- handoff note for the next agent or reviewer:
 \`\`\`bash
-subtext raw comment-add '{"session_id":"<session_id>","intent":"looks-good","body":"SESSION SUMMARY:\\nTested: Arc detail page rendering, branch realtime updates\\nPassed: 3/3 acceptance criteria\\nFailed: 0\\nSightmap updates: 1\\nNext steps: None -- ready for PR"}'
+subtext raw comment-add '{"session_id":"<session_id>","intent":"looks-good","text":"SESSION SUMMARY:\\nTested: Arc detail page rendering, branch realtime updates\\nPassed: 3/3 acceptance criteria\\nFailed: 0\\nSightmap updates: 1\\nNext steps: None -- ready for PR"}'
 \`\`\`
 
 ---
