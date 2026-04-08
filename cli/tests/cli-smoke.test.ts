@@ -63,4 +63,27 @@ describe("CLI smoke tests", () => {
       "stderr should mention SECRET_SUBTEXT_API_KEY"
     );
   });
+
+  it("connect --no-hooks flag is accepted", async () => {
+    const { stderr } = await run(
+      ["connect", "--no-hooks", "https://example.com"],
+      { SECRET_SUBTEXT_API_KEY: "" }
+    );
+    // Should fail for missing API key, NOT for unknown argument
+    assert.ok(
+      !stderr.includes("Unknown argument"),
+      "stderr should not contain 'Unknown argument'"
+    );
+  });
+
+  it("sightmap upload without url shows error", async () => {
+    const { code, stderr } = await run(["sightmap", "upload"]);
+    assert.notEqual(code, 0, "should exit non-zero");
+    assert.ok(stderr.length > 0, "stderr should contain an error message");
+  });
+
+  it("sightmap show --help exits 0", async () => {
+    const { code } = await run(["sightmap", "show", "--help"]);
+    assert.equal(code, 0);
+  });
 });

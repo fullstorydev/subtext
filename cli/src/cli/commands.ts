@@ -1,4 +1,10 @@
 import { SubtextClient, ToolResult } from "../sdk/index.js";
+import {
+  autoUploadSightmap,
+  findSightmapRoot,
+  collectComponents,
+  collectMemory,
+} from "../sdk/sightmap.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -11,7 +17,7 @@ function handler(fn: (argv: any) => Promise<void>): (argv: any) => void {
   };
 }
 
-function getClient(): SubtextClient {
+function getClient(options?: { hooks?: boolean }): SubtextClient {
   const apiKey = process.env.SECRET_SUBTEXT_API_KEY;
   if (!apiKey) {
     console.error("Error: SECRET_SUBTEXT_API_KEY is not set.");
@@ -23,6 +29,7 @@ function getClient(): SubtextClient {
   return new SubtextClient({
     apiKey,
     apiUrl: process.env.SUBTEXT_API_URL,
+    hooks: options?.hooks,
   });
 }
 
@@ -57,9 +64,14 @@ export function registerCommands(yargs: any): void {
     .command(
       "connect <url>",
       "Open browser, navigate to URL",
-      {},
+      (yargs: any) =>
+        yargs.option("hooks", {
+          type: "boolean",
+          default: true,
+          description: "Run post-connect hooks (sightmap upload)",
+        }),
       handler(async (argv: any) => {
-        const result = await getClient().connect(argv.url);
+        const result = await getClient({ hooks: argv.hooks }).connect(argv.url);
         printResult(result);
       })
     )
@@ -349,5 +361,35 @@ export function registerCommands(yargs: any): void {
         const result = await getClient().raw(argv.tool_name, params);
         printResult(result);
       })
-    );
+    )
+    .command("sightmap", "Sightmap management commands", (yargs: any) => {
+      yargs
+        .command(
+          "upload <url>",
+          "Upload sightmap to the given URL",
+          {},
+          handler(async (argv: any) => {
+            await autoUploadSightmap(argv.url, process.cwd());
+          })
+        )
+        .command(
+          "show",
+          "Show local sightmap summary",
+          {},
+          handler(async () => {
+            const root = findSightmapRoot(process.cwd());
+            if (!root) {
+              console.log("No .sightmap/ directory found.");
+              return;
+            }
+            const components = collectComponents(root);
+            const memory = collectMemory(root);
+            console.log(`Sightmap: ${root}`);
+            console.log(`Components: ${components.length}`);
+            console.log(`Memory entries: ${memory.length}`);
+          })
+        )
+        .demandCommand(1, "Please specify a sightmap subcommand: upload or show")
+        .strict();
+    });
 }
