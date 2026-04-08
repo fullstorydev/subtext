@@ -88,8 +88,9 @@ type IncomingMessage = ReadyMessage | RequestMessage | PingMessage;
  * The proxy runs until `close()` is called or the WebSocket drops.
  */
 // Use native WebSocket (Node 22+) or fall back to ws package (Node 20)
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const WS: typeof WebSocket = globalThis.WebSocket ?? require("ws");
+import { createRequire } from "node:module";
+const _require = createRequire(import.meta.url);
+const WS: typeof WebSocket = globalThis.WebSocket ?? _require("ws");
 
 export function startTunnelProxy(options: TunnelProxyOptions): TunnelProxy {
   const { relayUrl, target, onReady, onError, onClose } = options;
