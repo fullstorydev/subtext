@@ -72,7 +72,7 @@ Parameter schemas are visible in the tool definition at call time.
 
 Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
 
-- **fs_session_url** — the raw FullStory session URL.
+- **fs_session_url** — the raw Fullstory session URL.
 - **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
 After every `live-connect`, output the viewer URL on its own line:

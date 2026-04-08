@@ -19,8 +19,7 @@ If the user already has a session URL (they mention one or it was passed in), sk
 
 Before starting, confirm:
 1. **Dev server is running** — the user must have their app running locally (or provide a deployed URL)
-2. **Subtext snippet is installed** — the snippet must be loaded on the target site for session capture to work
-3. **Tunnel if localhost** — use `live-tunnel` + `tunnel-connect` (tunnel-first flow, no `connectionId`) to set up a reverse tunnel; grab the `connectionId` from the `tunnel-connect` response and pass it as `connection_id` to `live-connect`
+2. **Tunnel if localhost** — use `live-tunnel` + `tunnel-connect` (tunnel-first flow, no `connectionId`) to set up a reverse tunnel; grab the `connectionId` from the `tunnel-connect` response and pass it as `connection_id` to `live-connect`
 
 ## Input
 
