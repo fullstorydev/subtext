@@ -109,4 +109,17 @@ describe("CLI smoke tests", () => {
     const { code } = await run(["sightmap", "show", "--help"]);
     assert.equal(code, 0);
   });
+
+  it("get-skill prints skill content", async () => {
+    const { code, stdout } = await run(["get-skill"]);
+    assert.equal(code, 0);
+    assert.ok(stdout.includes("Subtext CLI"), "should contain skill content");
+  });
+
+  it("get-skill --json wraps in JSON", async () => {
+    const { code, stdout } = await run(["get-skill", "--json"]);
+    assert.equal(code, 0);
+    const parsed = JSON.parse(stdout);
+    assert.ok(parsed.skill, "should have skill key");
+  });
 });

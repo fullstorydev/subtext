@@ -9,6 +9,7 @@ import { isLocalUrl } from "../sdk/tunnel.js";
 import { startTunnelProxy } from "../sdk/tunnel-proxy.js";
 import { callTool } from "../sdk/transport.js";
 import type { SubtextConfig } from "../sdk/transport.js";
+import { SKILL_CONTENT } from "../skill-content.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -542,5 +543,23 @@ export function registerCommands(yargs: any): void {
         )
         .demandCommand(1, "Please specify a sightmap subcommand: upload or show")
         .strict();
-    });
+    })
+    .command(
+      "get-skill",
+      "Print the embedded agent skill to stdout",
+      (y: any) =>
+        y.option("json", {
+          type: "boolean",
+          description: "Wrap in JSON { skill: string }",
+        }),
+      (argv: any) => {
+        if (argv.json) {
+          process.stdout.write(
+            JSON.stringify({ skill: SKILL_CONTENT }, null, 2) + "\n"
+          );
+        } else {
+          process.stdout.write(SKILL_CONTENT + "\n");
+        }
+      }
+    );
 }

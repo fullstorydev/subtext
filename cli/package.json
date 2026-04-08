@@ -15,7 +15,8 @@
     }
   },
   "files": [
-    "build/src/"
+    "build/src/",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",
