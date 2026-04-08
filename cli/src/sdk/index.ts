@@ -17,3 +17,6 @@ export type {
   FlatComponent,
   UploadResult,
 } from "./sightmap.js";
+export { isLocalUrl } from "./tunnel.js";
+export { createHooks, extractSightmapUploadUrl } from "./hooks.js";
+export type { HookContext } from "./hooks.js";
