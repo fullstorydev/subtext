@@ -110,6 +110,12 @@ describe("CLI smoke tests", () => {
     assert.equal(code, 0);
   });
 
+  it("comments watch --help exits 0", async () => {
+    const { code, stdout } = await run(["comments", "watch", "--help"]);
+    assert.equal(code, 0);
+    assert.ok(stdout.includes("session_id"));
+  });
+
   it("get-skill prints skill content", async () => {
     const { code, stdout } = await run(["get-skill"]);
     assert.equal(code, 0);

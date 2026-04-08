@@ -13,6 +13,41 @@ import { SKILL_CONTENT } from "../skill-content.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+interface ParsedComment {
+  id: string;
+  author: string;
+  intent: string;
+  text: string;
+  resolved: boolean;
+}
+
+function parseComments(result: ToolResult): ParsedComment[] {
+  const comments: ParsedComment[] = [];
+  const text = result.content
+    .filter((c) => c.type === "text" && c.text)
+    .map((c) => c.text!)
+    .join("\n");
+
+  // Parse lines like: - [ID] author (TYPE): text
+  // and: - [ID] [RESOLVED] author (TYPE): text
+  const lines = text.split("\n").filter((l) => l.startsWith("- ["));
+  for (const line of lines) {
+    const match = line.match(
+      /^- \[(\w+)\]\s*(\[RESOLVED\]\s*)?(\S+)\s*\((\w+)\):\s*(.*)/
+    );
+    if (match) {
+      comments.push({
+        id: match[1],
+        resolved: !!match[2],
+        author: match[3],
+        intent: match[4],
+        text: match[5].trim(),
+      });
+    }
+  }
+  return comments;
+}
+
 function handler(fn: (argv: any) => Promise<void>): (argv: any) => void {
   return (argv) => {
     fn(argv).catch((err: Error) => {
@@ -546,6 +581,91 @@ export function registerCommands(yargs: any): void {
           })
         )
         .demandCommand(1, "Please specify a sightmap subcommand: upload or show")
+        .strict();
+    })
+    .command("comments", "Comment tools", (yargs: any) => {
+      yargs
+        .command(
+          "watch <session_id>",
+          "Poll for new comments (prints as they arrive)",
+          (y: any) =>
+            y
+              .positional("session_id", { type: "string" })
+              .option("interval", {
+                type: "number",
+                default: 10,
+                description: "Poll interval in seconds",
+              })
+              .option("new-only", {
+                type: "boolean",
+                default: false,
+                description: "Skip existing comments, only show new",
+              }),
+          handler(async (argv: any) => {
+            const config = getConfig();
+            const sessionId = String(argv.session_id);
+            const interval = argv.interval * 1000;
+            const seen = new Set<string>();
+
+            // Initial fetch
+            const initial = await callTool(config, "comment-list", {
+              session_id: sessionId,
+            });
+            const initialComments = parseComments(initial);
+
+            if (!argv.newOnly) {
+              for (const c of initialComments) {
+                console.log(
+                  `[COMMENT ${c.id}] ${c.author} (${c.intent}): ${c.text}`
+                );
+                seen.add(c.id);
+              }
+              if (initialComments.length > 0) {
+                console.log(
+                  `--- ${initialComments.length} existing comment(s) loaded ---`
+                );
+              } else {
+                console.log(
+                  "--- No existing comments. Watching for new... ---"
+                );
+              }
+            } else {
+              for (const c of initialComments) seen.add(c.id);
+              console.log(
+                `--- Watching for new comments (${initialComments.length} existing skipped) ---`
+              );
+            }
+
+            // Poll loop
+            const cleanup = () => {
+              console.log("\n--- Comment watch stopped ---");
+              process.exit(0);
+            };
+            process.on("SIGINT", cleanup);
+            process.on("SIGTERM", cleanup);
+
+            while (true) {
+              await new Promise((r) => setTimeout(r, interval));
+              try {
+                const result = await callTool(config, "comment-list", {
+                  session_id: sessionId,
+                });
+                const comments = parseComments(result);
+                for (const c of comments) {
+                  if (!seen.has(c.id)) {
+                    console.log(
+                      `[NEW] [COMMENT ${c.id}] ${c.author} (${c.intent}): ${c.text}`
+                    );
+                    seen.add(c.id);
+                  }
+                }
+              } catch {
+                // Silently retry on next interval
+              }
+            }
+          })
+        )
+        .demandCommand(1, "Please specify a comments subcommand: watch")
         .strict();
     })
     .command(

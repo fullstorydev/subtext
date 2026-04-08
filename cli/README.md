@@ -267,6 +267,34 @@ Close a specific tab.
 subtext close-tab conn_abc123 view_789
 ```
 
+### Comments
+
+#### `comments watch <session_id>`
+
+Long-running command that polls for new comments on a session and prints them as they arrive. Deduplicates by comment ID.
+
+```bash
+subtext comments watch abc123:def456
+subtext comments watch abc123:def456 --interval 5
+subtext comments watch abc123:def456 --new-only
+```
+
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--interval <seconds>` | `10` | Poll interval in seconds |
+| `--new-only` | `false` | Skip existing comments, only print new arrivals |
+
+**Output format:**
+
+```
+[COMMENT <id>] <author> (<intent>): <text>         # existing comments on start
+[NEW] [COMMENT <id>] <author> (<intent>): <text>   # new comments during watch
+```
+
+Runs until Ctrl+C.
+
 ### Sightmap
 
 #### `sightmap show`

@@ -137,6 +137,13 @@ subtext resize <conn> 768 1024    # tablet
 subtext resize <conn> 375 812     # mobile
 \`\`\`
 
+### Comments
+| Command | Description |
+|---------|-------------|
+| \`subtext comments watch <session_id>\` | Poll every 10s, print new comments |
+| \`subtext comments watch <session_id> --interval 5\` | Poll every 5s |
+| \`subtext comments watch <session_id> --new-only\` | Skip existing, only show new |
+
 ### Sightmap
 | Command | Description |
 |---------|-------------|
