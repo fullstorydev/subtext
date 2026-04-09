@@ -500,6 +500,76 @@ export function registerCommands(yargs: any): void {
       })
     )
     .command(
+      "embed-token",
+      "Mint a short-lived playback token and print embed URL",
+      (yargs: any) =>
+        yargs
+          .option("session-url", {
+            type: "string",
+            description: "FullStory session URL to embed",
+          })
+          .option("org", {
+            type: "string",
+            description: "Org ID (alternative to --session-url)",
+          })
+          .option("session", {
+            type: "string",
+            description: "Session sexp userId:sessionId (alternative to --session-url)",
+          })
+          .option("html", {
+            type: "boolean",
+            description: "Output a copy-pasteable <iframe> snippet",
+          })
+          .option("url-only", {
+            type: "boolean",
+            description: "Output only the embed URL",
+          })
+          .check((argv: any) => {
+            if (!argv.sessionUrl && !(argv.org && argv.session)) {
+              throw new Error("Provide --session-url or both --org and --session");
+            }
+            return true;
+          }),
+      handler(async (argv: any) => {
+        const client = getClient();
+
+        let orgId: string;
+        let sexp: string;
+
+        if (argv.sessionUrl) {
+          const url = new URL(argv.sessionUrl);
+          const parts = url.pathname.split("/").filter(Boolean);
+          const sessionIdx = parts.indexOf("session");
+          if (sessionIdx < 1 || sessionIdx >= parts.length - 1) {
+            console.error("Error: could not parse org and session from URL");
+            console.error("Expected format: .../orgId/session/userId:sessionId");
+            process.exit(1);
+          }
+          orgId = parts[sessionIdx - 1];
+          sexp = parts[sessionIdx + 1];
+        } else {
+          orgId = argv.org;
+          sexp = argv.session;
+        }
+
+        const { accessToken } = await client.getEmbedToken();
+
+        const mcpUrl = process.env.SUBTEXT_API_URL ?? "https://api.fullstory.com/mcp/subtext";
+        const appHost = mcpUrl.replace(/api\./, "app.").replace(/\/mcp\/subtext$/, "");
+        const embedUrl = `${appHost}/subtext/${orgId}/embed/${sexp}?embed=true#token=${accessToken}`;
+
+        if (argv.urlOnly) {
+          console.log(embedUrl);
+        } else if (argv.html) {
+          console.log(`<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  style="border: none; border-radius: 8px;"\n  allow="clipboard-write"\n  title="Subtext Session Replay"\n></iframe>`);
+        } else {
+          console.log(`Token: ${accessToken}`);
+          console.log(`Expires: ~5 minutes\n`);
+          console.log(`Embed URL:\n${embedUrl}`);
+        }
+      })
+    )
+    .command(
       "tunnel <relayUrl>",
       "Start a tunnel proxy to relay HTTP from a WebSocket to localhost",
       (yargs: any) =>

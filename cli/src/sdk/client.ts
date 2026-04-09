@@ -128,4 +128,28 @@ export class SubtextClient {
   async raw(tool: string, params: Record<string, unknown>): Promise<ToolResult> {
     return callTool(this.config, tool, params);
   }
+
+  /**
+   * Mint a short-lived playback token using the Subtext API key.
+   * Calls GET /auth/v1/seats:playbackToken on the FullStory API.
+   */
+  async getEmbedToken(): Promise<{ accessToken: string }> {
+    // Derive the API base from the MCP URL or use default
+    const mcpUrl = this.config.apiUrl ?? "https://api.fullstory.com/mcp/subtext";
+    const apiBase = mcpUrl.replace(/\/mcp\/subtext$/, "");
+    const url = `${apiBase}/auth/v1/seats:playbackToken`;
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Failed to get embed token: HTTP ${res.status} — ${body}`);
+    }
+    const data = (await res.json()) as { access_token: string };
+    return { accessToken: data.access_token };
+  }
 }
