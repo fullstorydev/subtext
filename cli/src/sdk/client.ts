@@ -70,8 +70,8 @@ export class SubtextClient {
     return callTool(this.config, "live-view-list", { connection_id: connectionId });
   }
 
-  async emulate(connectionId: string, device: string): Promise<ToolResult> {
-    return callTool(this.config, "live-emulate", { connection_id: connectionId, device });
+  async emulate(connectionId: string, preset: string): Promise<ToolResult> {
+    return callTool(this.config, "live-emulate", { connection_id: connectionId, preset });
   }
 
   async resize(connectionId: string, width: number, height: number): Promise<ToolResult> {
@@ -191,27 +191,4 @@ export class SubtextClient {
     return callTool(this.config, tool, params);
   }
 
-  /**
-   * Mint a short-lived playback token using the Subtext API key.
-   * Calls GET /auth/v1/seats:playbackToken on the FullStory API.
-   */
-  async getEmbedToken(): Promise<{ accessToken: string }> {
-    // Derive the API base from the MCP URL or use default
-    const mcpUrl = this.config.apiUrl ?? "https://api.fullstory.com/mcp/subtext";
-    const apiBase = mcpUrl.replace(/\/mcp\/subtext$/, "");
-    const url = `${apiBase}/auth/v1/seats:playbackToken`;
-
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Failed to get embed token: HTTP ${res.status} — ${body}`);
-    }
-    const data = (await res.json()) as { access_token: string };
-    return { accessToken: data.access_token };
-  }
 }
