@@ -1,6 +1,6 @@
 ---
 name: subtext:first-session
-description: Agent explores the user's site via hosted DevTools, leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, viewer URL, and metrics.
+description: Agent explores the user's site via hosted broswer (live), leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, viewer URL, and metrics.
 metadata:
   requires:
     skills: ["subtext:shared", "subtext:live", "subtext:tunnel", "subtext:comments"]
@@ -19,8 +19,7 @@ If the user already has a session URL (they mention one or it was passed in), sk
 
 Before starting, confirm:
 1. **Dev server is running** — the user must have their app running locally (or provide a deployed URL)
-2. **Subtext snippet is installed** — the snippet must be loaded on the target site for session capture to work
-3. **Tunnel if localhost** — use the tunnel-first flow: `live-tunnel` → `tunnel-connect` → `live-view-new` (see `subtext:tunnel`). Do **not** use `live-connect` for localhost URLs.
+2. **Tunnel if localhost** — use the tunnel-first flow: `live-tunnel` → `tunnel-connect` → `live-view-new` (see `subtext:tunnel`). Do **not** use `live-connect` for localhost URLs.
 
 ## Input
 

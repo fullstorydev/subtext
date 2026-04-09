@@ -28,9 +28,9 @@ Four tiers: atomics describe tools, workflows compose them with decision logic, 
 
 ## Onboarding — "getting started"
 
-- **subtext:onboard** — Guided setup: plugin → snippet → session → review → sightmap
+- **subtext:onboard** — Guided setup: plugin → session → review → sightmap
 - **subtext:setup-plugin** — Install plugin, configure MCP, verify API key
-- **subtext:setup-snippet** — Framework-aware FullStory snippet installation
+- **subtext:setup-snippet** — Production site Fullstory snippet installation
 - **subtext:first-session** — Capture first session via hosted browser
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: subtext:onboard
-description: Guided onboarding for new Subtext users. Installs the plugin, adds the Subtext snippet, agent explores the site, reviews the session, bootstraps sightmap, configures privacy rules, then reproduces with metrics — all as an interactive conversation.
+description: Guided onboarding for new Subtext users. Installs the plugin, agent explores the site, reviews the session, bootstraps sightmap, then reproduces with metrics — all as an interactive conversation.
 metadata:
   platform: claude-code
   requires:
@@ -15,7 +15,7 @@ Welcome new users to Subtext through a guided, conversational setup experience.
 
 **Complete each step fully before moving to the next.** Do NOT pre-check, parallelize, or look ahead to subsequent steps. Each step has its own pre-check logic — trust the sub-skill to handle detection and skip if already done. Wait for the user's acknowledgment before proceeding.
 
-**Steps 3 and 7 run as subagents** so the orchestrator can capture usage metrics (tokens, time, interactions) for the comparison in Step 8.
+**Steps 2 and 5 run as subagents** so the orchestrator can capture usage metrics (tokens, time, interactions) for the comparison in Step 6.
 
 ### Step announcements
 
@@ -24,7 +24,7 @@ Before each step, print a prominent banner so the user can see progress through 
 ```
 ---
 
-## Step N of 8: Title
+## Step N of 6: Title
 
 Brief description of what this step does.
 
@@ -39,10 +39,8 @@ Greet the user:
 
 "Welcome to Subtext! I'm going to walk you through getting set up. By the end, you'll have:
 - The Subtext plugin installed and connected
-- The Subtext snippet capturing sessions in your app
 - An agent-driven session exploring your site with comments you can review via viewer URL
 - A sightmap giving your components semantic names
-- Privacy rules auto-configured from PII detection
 - A metrics comparison showing the value of sightmap enrichment
 
 Let's get started."
@@ -53,7 +51,7 @@ Print:
 ```
 ---
 
-## Step 1 of 8: Plugin Setup
+## Step 1 of 6: Plugin Setup
 
 Checking that the Subtext plugin and MCP servers are installed and connected.
 
@@ -65,24 +63,11 @@ Checking that the Subtext plugin and MCP servers are installed and connected.
 If not complete → invoke `subtext:setup-plugin`
 If complete → "Plugin's already set up. Moving on."
 
-## Step 2: Snippet Installation
-
-Print:
-```
----
-
-## Step 2 of 8: Subtext Snippet
-
-Installing the Subtext capture snippet into your app.
-
----
-```
-
-Invoke `subtext:setup-snippet` immediately. Do NOT search the codebase yourself first — the skill has its own pre-check and will skip installation if the snippet is already present.
+## Step 2: First Session (Blind Exploration)
 
 ### Dev server gate
 
-After the snippet is installed (or confirmed present), detect and start the dev server automatically:
+Before exploring, detect and start the dev server automatically:
 
 1. Read `package.json` scripts to find the dev command (e.g., `dev`, `start`, `serve`)
 2. Check if the server is already running — try `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000` (and common ports: 3000, 3001, 5173, 8080)
@@ -92,13 +77,11 @@ After the snippet is installed (or confirmed present), detect and start the dev 
 
 Do NOT ask the user if the server is running — figure it out.
 
-## Step 3: First Session (Blind Exploration)
-
 Print:
 ```
 ---
 
-## Step 3 of 8: First Session
+## Step 2 of 6: First Session
 
 The agent will explore your site and capture a session — no sightmap yet.
 
@@ -112,7 +95,7 @@ Ask the user:
 **Describe a flow you'd like me to explore** (e.g., 'sign up for an account and browse the dashboard'), or say **'I'm feeling lucky'** and I'll figure it out from the site's content."
 
 **Run as subagent.** Dispatch `subtext:first-session` with:
-- The app URL from Step 2
+- The app URL from the dev server gate
 - The user's flow description (or "feeling lucky")
 
 **Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
@@ -125,13 +108,13 @@ After the subagent completes, tell the user:
 
 Now let me analyze what I found."
 
-## Step 4: Session Review
+## Step 3: Session Review
 
 Print:
 ```
 ---
 
-## Step 4 of 8: Session Review
+## Step 3 of 6: Session Review
 
 Analyzing the session from my exploration.
 
@@ -140,17 +123,17 @@ Analyzing the session from my exploration.
 
 Invoke `subtext:session-analysis-workflow` with the captured session URL.
 
-**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 7.
+**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 5.
 
 After the review, explain: "That's what Subtext sees when it analyzes a session. It maps interactions to your source code, identifies friction, and spots issues — all from a single session. The agent's own difficulty notes are part of the timeline."
 
-## Step 5: Sightmap Bootstrap
+## Step 4: Sightmap Bootstrap
 
 Print:
 ```
 ---
 
-## Step 5 of 8: Sightmap
+## Step 4 of 6: Sightmap
 
 Building semantic component definitions and memories for your app.
 
@@ -166,7 +149,7 @@ After setup, explain: "Your sightmap replaces generic element identifiers with m
 
 ### Memories
 
-After creating the initial sightmap, add `memory` entries to key components. Use the **high-difficulty notes from Step 3** as primary input — elements where the agent struggled become memory entries.
+After creating the initial sightmap, add `memory` entries to key components. Use the **high-difficulty notes from Step 2** as primary input — elements where the agent struggled become memory entries.
 
 Memories are contextual notes that appear in a `[Guide]` section at the top of every session snapshot. They give agents instant understanding of how components work without reading source code.
 
@@ -193,32 +176,13 @@ Example:
     - "Audience toggle switches ALL copy between 'For Builders' and 'For Agents' perspectives"
 ```
 
-## Step 6: Privacy Setup
+## Step 5: Informed Reproduction (Pass 2)
 
 Print:
 ```
 ---
 
-## Step 6 of 8: Privacy
-
-Auto-detecting PII and creating privacy rules from the seed session.
-
----
-```
-
-Use the session captured in Step 3 as the seed for PII detection. Follow `subtext:recipe-privacy-setup` — the full detect → create → validate → promote flow.
-
-If no PII is detected, explain: "No PII was detected in the seed session. This is common for apps that use test data during development. Privacy rules can be added later as real user data flows through — the self-healing pipeline will automatically detect and propose new rules."
-
-After privacy setup is complete (rules promoted), ask the user if they'd like to proceed to reproduction.
-
-## Step 7: Informed Reproduction (Pass 2)
-
-Print:
-```
----
-
-## Step 7 of 8: Reproduction
+## Step 5 of 6: Reproduction
 
 Reproducing the same flow — this time with sightmap enrichment.
 
@@ -226,7 +190,7 @@ Reproducing the same flow — this time with sightmap enrichment.
 ```
 
 **Run as subagent.** Dispatch `subtext:reproduce-workflow` with:
-- The reproduction steps extracted from Step 4
+- The reproduction steps extracted from Step 3
 - The sightmap is uploaded automatically after `review-open`/`live-connect` (see `subtext:shared`)
 - The same app URL
 
@@ -234,19 +198,19 @@ Reproducing the same flow — this time with sightmap enrichment.
 
 **Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
 
-After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. The session was captured with preview privacy rules applied. You can review the replay with agent comments here:
+After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. You can review the replay with agent comments here:
 
 {viewer_url}
 
 Now let's see how the two passes compare."
 
-## Step 8: Results
+## Step 6: Results
 
 Print:
 ```
 ---
 
-## Step 8 of 8: Results
+## Step 6 of 6: Results
 
 Here's the impact your sightmap had on agent performance.
 
@@ -255,7 +219,7 @@ Here's the impact your sightmap had on agent performance.
 
 ### Metrics comparison
 
-Present the delta between Pass 1 (Step 3) and Pass 2 (Step 7):
+Present the delta between Pass 1 (Step 2) and Pass 2 (Step 5):
 
 ```
 | Metric            | Pass 1 (Blind) | Pass 2 (Sightmap) | Delta    |
@@ -286,13 +250,11 @@ Present both viewer URLs so the user can review each session with agent comments
 
 "You're all set! Here's what we accomplished:
 1. **Plugin** — Subtext skills, MCP servers, and hooks are installed
-2. **Snippet** — Subtext is capturing sessions in your app
-3. **Exploration** — Agent explored your site blind, leaving comments as it went
-4. **Session Review** — Analyzed the session and extracted reproduction steps
-5. **Sightmap** — Your components have semantic names and memories
-6. **Privacy** — Auto-detected PII, validated masking, and promoted rules to production
-7. **Reproduction** — Reproduced the same flow with sightmap enrichment and privacy preview
-8. **Results** — Measured the concrete improvement in tokens, time, and interactions
+2. **Exploration** — Agent explored your site blind, leaving comments as it went
+3. **Session Review** — Analyzed the session and extracted reproduction steps
+4. **Sightmap** — Your components have semantic names and memories
+5. **Reproduction** — Reproduced the same flow with sightmap enrichment
+6. **Results** — Measured the concrete improvement in tokens, time, and interactions
 
 You can review both sessions with agent comments via the viewer URLs above.
 
