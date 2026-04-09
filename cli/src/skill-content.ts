@@ -121,6 +121,8 @@ subtext disconnect <conn_id>
 | \`subtext keypress <conn> <key> [component_id]\` | Press a key |
 | \`subtext drag <conn> <component_id> <dx> <dy>\` | Drag component by pixel offset |
 | \`subtext wait <conn> <type> <value>\` | Wait for condition (selector, text) |
+| \`subtext dialog <conn> <action> [text]\` | Handle browser dialogs (accept/dismiss) |
+| \`subtext upload <conn> <component_id> <file_path>\` | Upload file to a file input |
 
 ### Viewport & Device
 | Command | Description |
@@ -137,9 +139,21 @@ subtext resize <conn> 768 1024    # tablet
 subtext resize <conn> 375 812     # mobile
 \`\`\`
 
+### Review
+| Command | Description |
+|---------|-------------|
+| \`subtext review open <session_url>\` | Open a session for review, returns review_id |
+| \`subtext review view <review_id> [page_index]\` | View a page from a review (screenshot + tree) |
+| \`subtext review diff <review_id>\` | Get before/after diff of a review |
+| \`subtext review close <review_id>\` | Close a review session |
+
 ### Comments
 | Command | Description |
 |---------|-------------|
+| \`subtext comments list <session_id>\` | List all comments on a session |
+| \`subtext comments add <session_id> <text>\` | Add a comment (--intent, --screenshot-url) |
+| \`subtext comments reply <session_id> <comment_id> <text>\` | Reply to a comment |
+| \`subtext comments resolve <session_id> <comment_id>\` | Resolve a comment thread |
 | \`subtext comments watch <session_id>\` | Poll every 10s, print new comments |
 | \`subtext comments watch <session_id> --interval 5\` | Poll every 5s |
 | \`subtext comments watch <session_id> --new-only\` | Skip existing, only show new |

@@ -124,6 +124,56 @@ export class SubtextClient {
     return callTool(this.config, "live-net-list", params);
   }
 
+  // Interactions (additional)
+  async dialog(connectionId: string, action: string, text?: string): Promise<ToolResult> {
+    const params: Record<string, unknown> = { connection_id: connectionId, action };
+    if (text !== undefined) params.text = text;
+    return callTool(this.config, "live-act-dialog", params);
+  }
+
+  async upload(connectionId: string, componentId: string, filePath: string): Promise<ToolResult> {
+    return callTool(this.config, "live-act-upload", { connection_id: connectionId, component_id: componentId, file_path: filePath });
+  }
+
+  // Review
+  async reviewOpen(sessionUrl: string): Promise<ToolResult> {
+    return callTool(this.config, "review-open", { session_url: sessionUrl });
+  }
+
+  async reviewView(reviewId: string, pageIndex?: number): Promise<ToolResult> {
+    const params: Record<string, unknown> = { review_id: reviewId };
+    if (pageIndex !== undefined) params.page_index = pageIndex;
+    return callTool(this.config, "review-view", params);
+  }
+
+  async reviewDiff(reviewId: string): Promise<ToolResult> {
+    return callTool(this.config, "review-diff", { review_id: reviewId });
+  }
+
+  async reviewClose(reviewId: string): Promise<ToolResult> {
+    return callTool(this.config, "review-close", { review_id: reviewId });
+  }
+
+  // Comments
+  async commentList(sessionId: string): Promise<ToolResult> {
+    return callTool(this.config, "comment-list", { session_id: sessionId });
+  }
+
+  async commentAdd(sessionId: string, text: string, intent?: string, screenshotUrl?: string): Promise<ToolResult> {
+    const params: Record<string, unknown> = { session_id: sessionId, text };
+    if (intent) params.intent = intent;
+    if (screenshotUrl) params.screenshot_url = screenshotUrl;
+    return callTool(this.config, "comment-add", params);
+  }
+
+  async commentReply(sessionId: string, commentId: string, text: string): Promise<ToolResult> {
+    return callTool(this.config, "comment-reply", { session_id: sessionId, comment_id: commentId, text });
+  }
+
+  async commentResolve(sessionId: string, commentId: string): Promise<ToolResult> {
+    return callTool(this.config, "comment-resolve", { session_id: sessionId, comment_id: commentId });
+  }
+
   // Raw escape hatch
   async raw(tool: string, params: Record<string, unknown>): Promise<ToolResult> {
     return callTool(this.config, tool, params);

@@ -412,6 +412,36 @@ export function registerCommands(yargs: any): void {
       })
     )
     .command(
+      "dialog <connection_id> <action> [text]",
+      "Handle browser dialogs (accept/dismiss)",
+      (y: any) =>
+        y.positional("action", {
+          type: "string",
+          description: "Dialog action: accept or dismiss",
+        }),
+      handler(async (argv: any) => {
+        const result = await getClient().dialog(
+          argv.connection_id,
+          argv.action,
+          argv.text ? String(argv.text) : undefined
+        );
+        printResult(result);
+      })
+    )
+    .command(
+      "upload <connection_id> <component_id> <file_path>",
+      "Upload a file to a file input",
+      (y: any) => y.positional("component_id", { type: "string" }),
+      handler(async (argv: any) => {
+        const result = await getClient().upload(
+          argv.connection_id,
+          String(argv.component_id),
+          argv.file_path
+        );
+        printResult(result);
+      })
+    )
+    .command(
       "eval <connection_id> <expression>",
       "Execute JS in page",
       {},
@@ -555,7 +585,7 @@ export function registerCommands(yargs: any): void {
         const { accessToken } = await client.getEmbedToken();
 
         const mcpUrl = process.env.SUBTEXT_API_URL ?? "https://api.fullstory.com/mcp/subtext";
-        const appHost = mcpUrl.replace(/api\./, "app.").replace(/\/mcp\/subtext$/, "");
+        const appHost = mcpUrl.replace(/\/mcp\/subtext$/, "").replace(/\/\/api\./, "//app.");
         const embedUrl = `${appHost}/subtext/${orgId}/embed/${sexp}?embed=true#token=${accessToken}`;
 
         if (argv.urlOnly) {
@@ -616,6 +646,50 @@ export function registerCommands(yargs: any): void {
         await new Promise(() => {});
       })
     )
+    .command("review", "Session review commands", (yargs: any) => {
+      yargs
+        .command(
+          "open <session_url>",
+          "Open a session for review",
+          {},
+          handler(async (argv: any) => {
+            const result = await getClient().reviewOpen(argv.session_url);
+            printResult(result);
+          })
+        )
+        .command(
+          "view <review_id> [page_index]",
+          "View a page from a review session",
+          {},
+          handler(async (argv: any) => {
+            const result = await getClient().reviewView(
+              argv.review_id,
+              argv.page_index !== undefined ? Number(argv.page_index) : undefined
+            );
+            printResult(result);
+          })
+        )
+        .command(
+          "diff <review_id>",
+          "Get a diff view of changes in a review",
+          {},
+          handler(async (argv: any) => {
+            const result = await getClient().reviewDiff(argv.review_id);
+            printResult(result);
+          })
+        )
+        .command(
+          "close <review_id>",
+          "Close a review session",
+          {},
+          handler(async (argv: any) => {
+            const result = await getClient().reviewClose(argv.review_id);
+            printResult(result);
+          })
+        )
+        .demandCommand(1, "Please specify a review subcommand: open, view, diff, close")
+        .strict();
+    })
     .command("sightmap", "Sightmap management commands", (yargs: any) => {
       yargs
         .command(
@@ -655,6 +729,73 @@ export function registerCommands(yargs: any): void {
     })
     .command("comments", "Comment tools", (yargs: any) => {
       yargs
+        .command(
+          "list <session_id>",
+          "List comments on a session",
+          (y: any) => y.positional("session_id", { type: "string" }),
+          handler(async (argv: any) => {
+            const result = await getClient().commentList(String(argv.session_id));
+            printResult(result);
+          })
+        )
+        .command(
+          "add <session_id> <text>",
+          "Add a comment to a session",
+          (y: any) =>
+            y
+              .positional("session_id", { type: "string" })
+              .positional("text", { type: "string" })
+              .option("intent", {
+                type: "string",
+                default: "looks-good",
+                description: "Comment intent: bug, tweak, ask, looks-good",
+              })
+              .option("screenshot-url", {
+                type: "string",
+                description: "Screenshot URL to attach",
+              }),
+          handler(async (argv: any) => {
+            const result = await getClient().commentAdd(
+              String(argv.session_id),
+              argv.text,
+              argv.intent,
+              argv.screenshotUrl
+            );
+            printResult(result);
+          })
+        )
+        .command(
+          "reply <session_id> <comment_id> <text>",
+          "Reply to a comment",
+          (y: any) =>
+            y
+              .positional("session_id", { type: "string" })
+              .positional("comment_id", { type: "string" })
+              .positional("text", { type: "string" }),
+          handler(async (argv: any) => {
+            const result = await getClient().commentReply(
+              String(argv.session_id),
+              String(argv.comment_id),
+              argv.text
+            );
+            printResult(result);
+          })
+        )
+        .command(
+          "resolve <session_id> <comment_id>",
+          "Resolve a comment thread",
+          (y: any) =>
+            y
+              .positional("session_id", { type: "string" })
+              .positional("comment_id", { type: "string" }),
+          handler(async (argv: any) => {
+            const result = await getClient().commentResolve(
+              String(argv.session_id),
+              String(argv.comment_id)
+            );
+            printResult(result);
+          })
+        )
         .command(
           "watch <session_id>",
           "Poll for new comments (prints as they arrive)",
@@ -735,7 +876,7 @@ export function registerCommands(yargs: any): void {
             }
           })
         )
-        .demandCommand(1, "Please specify a comments subcommand: watch")
+        .demandCommand(1, "Please specify a comments subcommand: list, add, reply, resolve, watch")
         .strict();
     })
     .command(

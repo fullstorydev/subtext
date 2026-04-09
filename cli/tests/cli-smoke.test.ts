@@ -122,6 +122,56 @@ describe("CLI smoke tests", () => {
     assert.ok(stdout.includes("Subtext CLI"), "should contain skill content");
   });
 
+  it("dialog --help exits 0", async () => {
+    const { code } = await run(["dialog", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("upload --help exits 0", async () => {
+    const { code } = await run(["upload", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("review open --help exits 0", async () => {
+    const { code } = await run(["review", "open", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("review view --help exits 0", async () => {
+    const { code } = await run(["review", "view", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("review diff --help exits 0", async () => {
+    const { code } = await run(["review", "diff", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("review close --help exits 0", async () => {
+    const { code } = await run(["review", "close", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("comments list --help exits 0", async () => {
+    const { code } = await run(["comments", "list", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("comments add --help exits 0", async () => {
+    const { code } = await run(["comments", "add", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("comments reply --help exits 0", async () => {
+    const { code } = await run(["comments", "reply", "--help"]);
+    assert.equal(code, 0);
+  });
+
+  it("comments resolve --help exits 0", async () => {
+    const { code } = await run(["comments", "resolve", "--help"]);
+    assert.equal(code, 0);
+  });
+
   it("get-skill --json wraps in JSON", async () => {
     const { code, stdout } = await run(["get-skill", "--json"]);
     assert.equal(code, 0);

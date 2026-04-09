@@ -195,6 +195,59 @@ subtext wait conn_abc123 selector ".loading-done"
 subtext wait conn_abc123 text "Welcome back"
 ```
 
+#### `dialog <connection_id> <action> [text]`
+
+Handle browser dialogs (alert, confirm, prompt). Action is `accept` or `dismiss`. For prompt dialogs, pass the text to enter.
+
+```bash
+subtext dialog conn_abc123 accept
+subtext dialog conn_abc123 accept "my input"
+subtext dialog conn_abc123 dismiss
+```
+
+#### `upload <connection_id> <component_id> <file_path>`
+
+Upload a file to a file input element.
+
+```bash
+subtext upload conn_abc123 file_input_1 ./photo.png
+```
+
+### Review
+
+#### `review open <session_url>`
+
+Open a FullStory session recording for review. Returns a review_id.
+
+```bash
+subtext review open "https://app.fullstory.com/org/session/user:sess"
+```
+
+#### `review view <review_id> [page_index]`
+
+View a page from an open review. Returns screenshot + component tree.
+
+```bash
+subtext review view rev_abc123
+subtext review view rev_abc123 2
+```
+
+#### `review diff <review_id>`
+
+Get before/after diff of a review session.
+
+```bash
+subtext review diff rev_abc123
+```
+
+#### `review close <review_id>`
+
+Close a review session and free resources.
+
+```bash
+subtext review close rev_abc123
+```
+
 ### Screenshots & Artifacts
 
 #### Saving screenshots locally
@@ -268,6 +321,40 @@ subtext close-tab conn_abc123 view_789
 ```
 
 ### Comments
+
+#### `comments list <session_id>`
+
+List all comments on a session.
+
+```bash
+subtext comments list abc123:def456
+```
+
+#### `comments add <session_id> <text>`
+
+Add a comment. Use `--intent` (bug, tweak, ask, looks-good) and `--screenshot-url`.
+
+```bash
+subtext comments add abc123:def456 "VERIFIED: Login works"
+subtext comments add abc123:def456 "ISSUE: Button misaligned" --intent bug
+subtext comments add abc123:def456 "Looks great" --intent looks-good --screenshot-url "https://..."
+```
+
+#### `comments reply <session_id> <comment_id> <text>`
+
+Reply to an existing comment.
+
+```bash
+subtext comments reply abc123:def456 comment_1 "Fixed in latest commit"
+```
+
+#### `comments resolve <session_id> <comment_id>`
+
+Mark a comment thread as resolved.
+
+```bash
+subtext comments resolve abc123:def456 comment_1
+```
 
 #### `comments watch <session_id>`
 
@@ -665,6 +752,16 @@ await client.disconnect("conn_abc123");
 | `eval(connectionId, expression)` | Execute JS in page |
 | `logs(connectionId, level?, limit?)` | Console messages |
 | `network(connectionId, pattern?, limit?)` | Network requests |
+| `dialog(connectionId, action, text?)` | Handle browser dialogs |
+| `upload(connectionId, componentId, filePath)` | Upload file to input |
+| `reviewOpen(sessionUrl)` | Open session for review |
+| `reviewView(reviewId, pageIndex?)` | View review page |
+| `reviewDiff(reviewId)` | Get review diff |
+| `reviewClose(reviewId)` | Close review session |
+| `commentList(sessionId)` | List comments |
+| `commentAdd(sessionId, text, intent?, screenshotUrl?)` | Add comment |
+| `commentReply(sessionId, commentId, text)` | Reply to comment |
+| `commentResolve(sessionId, commentId)` | Resolve comment |
 | `raw(tool, params)` | Call any MCP tool |
 
 ### Additional SDK exports
