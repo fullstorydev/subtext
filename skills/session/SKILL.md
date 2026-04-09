@@ -18,6 +18,7 @@ API catalog for the session replay tools (all prefixed `review-`). These tools l
 |------|-------------|
 | `review-open` | Open a session for analysis. Returns event summaries, metadata, timestamps. |
 | `review-view` | Capture UI state at a timestamp — component tree + screenshot |
+| `review-inspect` | Component tree with full CSS selectors — for sightmap authoring only, not general use |
 | `review-diff` | Compare UI state between two timestamps |
 | `review-close` | Close the session and free resources |
 
