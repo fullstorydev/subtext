@@ -142,10 +142,10 @@ subtext resize <conn> 375 812     # mobile
 ### Review
 | Command | Description |
 |---------|-------------|
-| \`subtext review open <session_url>\` | Open a session for review, returns review_id |
-| \`subtext review view <review_id> [page_index]\` | View a page from a review (screenshot + tree) |
-| \`subtext review diff <review_id>\` | Get before/after diff of a review |
-| \`subtext review close <review_id>\` | Close a review session |
+| \`subtext review open <session_url>\` | Open a session for review, returns client_id + page list |
+| \`subtext review view <client_id> <page_id> <timestamp>\` | View page at timestamp (ms). Use --upload for signed URL |
+| \`subtext review diff <client_id> <page_id> <from_ts> <to_ts>\` | Show changes between two timestamps |
+| \`subtext review close <client_id>\` | Close review. Use --use-case and --helpful flags |
 
 ### Comments
 | Command | Description |

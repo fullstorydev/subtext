@@ -658,32 +658,54 @@ export function registerCommands(yargs: any): void {
           })
         )
         .command(
-          "view <review_id> [page_index]",
-          "View a page from a review session",
-          {},
+          "view <client_id> <page_id> <timestamp>",
+          "View a session page at a specific timestamp",
+          (y: any) => y
+            .positional("timestamp", { type: "number" })
+            .option("upload", { type: "boolean", default: false, description: "Upload screenshot and return signed URL" }),
           handler(async (argv: any) => {
             const result = await getClient().reviewView(
-              argv.review_id,
-              argv.page_index !== undefined ? Number(argv.page_index) : undefined
+              argv.client_id,
+              argv.page_id,
+              Number(argv.timestamp),
+              argv.upload
             );
             printResult(result);
           })
         )
         .command(
-          "diff <review_id>",
-          "Get a diff view of changes in a review",
-          {},
+          "diff <client_id> <page_id> <from_ts> <to_ts>",
+          "Show changes between two timestamps",
+          (y: any) => y
+            .positional("from_ts", { type: "number" })
+            .positional("to_ts", { type: "number" }),
           handler(async (argv: any) => {
-            const result = await getClient().reviewDiff(argv.review_id);
+            const result = await getClient().reviewDiff(
+              argv.client_id,
+              argv.page_id,
+              Number(argv.from_ts),
+              Number(argv.to_ts)
+            );
             printResult(result);
           })
         )
         .command(
-          "close <review_id>",
-          "Close a review session",
-          {},
+          "close <client_id>",
+          "Close a review session and free resources",
+          (y: any) => y
+            .option("use-case", {
+              type: "string",
+              choices: ["bug_diagnosis", "ux_review", "support", "testing", "other"],
+              default: "testing",
+              description: "What the review was used for",
+            })
+            .option("helpful", { type: "boolean", default: true, description: "Was the review helpful?" }),
           handler(async (argv: any) => {
-            const result = await getClient().reviewClose(argv.review_id);
+            const result = await getClient().reviewClose(
+              argv.client_id,
+              argv.useCase,
+              argv.helpful
+            );
             printResult(result);
           })
         )

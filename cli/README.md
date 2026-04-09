@@ -223,30 +223,43 @@ Open a FullStory session recording for review. Returns a review_id.
 subtext review open "https://app.fullstory.com/org/session/user:sess"
 ```
 
-#### `review view <review_id> [page_index]`
+#### `review view <client_id> <page_id> <timestamp>`
 
-View a page from an open review. Returns screenshot + component tree.
-
-```bash
-subtext review view rev_abc123
-subtext review view rev_abc123 2
-```
-
-#### `review diff <review_id>`
-
-Get before/after diff of a review session.
+View a session page at a specific timestamp (milliseconds from session start). Returns screenshot + component tree.
 
 ```bash
-subtext review diff rev_abc123
+subtext review view client_abc page_1 0         # start of session
+subtext review view client_abc page_1 5000      # 5 seconds in
+subtext review view client_abc page_1 5000 --upload  # upload screenshot, get signed URL
 ```
 
-#### `review close <review_id>`
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--upload` | `false` | Upload screenshot and return signed URL |
+
+#### `review diff <client_id> <page_id> <from_ts> <to_ts>`
+
+Show changes between two timestamps. Returns screenshot with changed regions highlighted + text summary.
+
+```bash
+subtext review diff client_abc page_1 0 5000    # diff from 0s to 5s
+subtext review diff client_abc page_1 3000 8000 # diff from 3s to 8s
+```
+
+#### `review close <client_id>`
 
 Close a review session and free resources.
 
 ```bash
-subtext review close rev_abc123
+subtext review close client_abc
+subtext review close client_abc --use-case bug_diagnosis --helpful
+subtext review close client_abc --use-case ux_review --no-helpful
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--use-case` | `testing` | What the review was for (`bug_diagnosis`, `ux_review`, `support`, `testing`, `other`) |
+| `--helpful` / `--no-helpful` | `true` | Was the review helpful? |
 
 ### Screenshots & Artifacts
 
@@ -755,8 +768,9 @@ await client.disconnect("conn_abc123");
 | `dialog(connectionId, action, text?)` | Handle browser dialogs |
 | `upload(connectionId, componentId, filePath)` | Upload file to input |
 | `reviewOpen(sessionUrl)` | Open session for review |
-| `reviewView(reviewId, pageIndex?)` | View review page |
-| `reviewDiff(reviewId)` | Get review diff |
+| `reviewView(clientId, pageId, timestamp, upload?)` | View session at timestamp |
+| `reviewDiff(clientId, pageId, fromTs, toTs)` | Diff between timestamps |
+| `reviewClose(clientId, useCase, wasHelpful)` | Close review session |
 | `reviewClose(reviewId)` | Close review session |
 | `commentList(sessionId)` | List comments |
 | `commentAdd(sessionId, text, intent?, screenshotUrl?)` | Add comment |

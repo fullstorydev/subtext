@@ -140,18 +140,30 @@ export class SubtextClient {
     return callTool(this.config, "review-open", { session_url: sessionUrl });
   }
 
-  async reviewView(reviewId: string, pageIndex?: number): Promise<ToolResult> {
-    const params: Record<string, unknown> = { review_id: reviewId };
-    if (pageIndex !== undefined) params.page_index = pageIndex;
-    return callTool(this.config, "review-view", params);
+  async reviewView(clientId: string, pageId: string, timestamp: number, upload?: boolean): Promise<ToolResult> {
+    return callTool(this.config, "review-view", {
+      client_id: clientId,
+      page_id: pageId,
+      timestamp,
+      upload: upload ?? false,
+    });
   }
 
-  async reviewDiff(reviewId: string): Promise<ToolResult> {
-    return callTool(this.config, "review-diff", { review_id: reviewId });
+  async reviewDiff(clientId: string, pageId: string, fromTs: number, toTs: number): Promise<ToolResult> {
+    return callTool(this.config, "review-diff", {
+      client_id: clientId,
+      page_id: pageId,
+      from_ts: fromTs,
+      to_ts: toTs,
+    });
   }
 
-  async reviewClose(reviewId: string): Promise<ToolResult> {
-    return callTool(this.config, "review-close", { review_id: reviewId });
+  async reviewClose(clientId: string, useCase: string, wasHelpful: boolean): Promise<ToolResult> {
+    return callTool(this.config, "review-close", {
+      client_id: clientId,
+      use_case: useCase,
+      was_helpful: wasHelpful,
+    });
   }
 
   // Comments
