@@ -9,6 +9,7 @@ metadata:
 # Live Browser
 
 > **PREREQUISITE:** Read `subtext:shared` for MCP conventions and sightmap upload.
+> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it before connecting — it specifies which MCP server prefix to use for live tools.
 
 API catalog for live browser tools (all prefixed `live-`) on the unified subtext MCP server. These tools let you open browser connections, navigate views, interact with elements, and inspect console/network activity.
 
