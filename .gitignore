@@ -2,3 +2,4 @@
 .envrc
 __pycache__/
 *.pyc
+bench/results/

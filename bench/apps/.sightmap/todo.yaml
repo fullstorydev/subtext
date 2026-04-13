@@ -1,0 +1,139 @@
+version: 1
+
+memory:
+  - "HOW TO USE: (1) Fill input, press Enter or click Add. (2) Click checkbox to toggle done. (3) Hover item first, then click Delete to remove. (4) Footer filters: All/Active/Completed. (5) 'Clear completed' removes all done items permanently."
+  - "Scenarios via ?scenario= param: empty (0 items), basic (3), productivity (7: 4 active + 3 completed), overdue (5), completed (7: 6 completed + 1 active). Navigating resets all state."
+
+components:
+  - name: TodoApp
+    selector: ".todo-app"
+    source: apps/todo/components/TodoApp.tsx
+    description: >
+      Root container for the Todo application. Full-viewport flex column layout
+      with fixed header, scrollable item list, and fixed footer. Uses Preact
+      signals for state management via StateManager.
+    memory:
+      - "All state is in-memory. Navigating to /apps/todo/?scenario=X resets everything."
+    children:
+      - name: TodoHeader
+        selector: ".todo-app .header"
+        description: >
+          Fixed header pinned to top of viewport. Contains the app title "Todo List"
+          and the new-todo input form. Has bottom border and shadow. z-index:10.
+        children:
+          - name: TodoTitle
+            selector: ".header h1"
+            description: "Heading text 'Todo List', font-size 1.875rem, font-weight 700"
+          - name: InputGroup
+            selector: ".input-group"
+            description: >
+              Flex row containing the text input and add button. Wrapped in a <form>
+              element so pressing Enter submits.
+            memory:
+              - "Fill input, then Enter or click Add."
+            children:
+              - name: NewTodoInput
+                selector: ".new-todo"
+                description: >
+                  Text input field. placeholder="What needs to be done?". Flex:1 to
+                  fill available width. Value is controlled by Preact state.
+                memory:
+                  - "Fill text, press Enter to add. Input clears automatically."
+              - name: AddButton
+                selector: ".add-btn"
+                description: >
+                  Submit button labeled "Add". Green background (--primary).
+                  type="submit" so it also triggers on form Enter.
+                memory:
+                  - "Disabled when input empty. Click or press Enter in input."
+
+      - name: TodoItemsList
+        selector: ".todo-items"
+        description: >
+          Scrollable container holding all visible todo items. Has padding-top:160px
+          to clear the fixed header and padding-bottom:60px for the footer. Max-width
+          600px centered. Items are rendered via the List component.
+
+      - name: TodoFooter
+        selector: ".todo-app .footer"
+        description: >
+          Fixed footer at bottom of viewport. Flex row with item count on left,
+          filter buttons centered, and clear-completed on right.
+        children:
+          - name: ItemCount
+            selector: ".count"
+            description: >
+              Shows "{n} item(s) left" where n = number of uncompleted todos.
+              Uses singular "item" when n===1, plural "items" otherwise.
+            memory:
+              - "Shows active (uncompleted) count regardless of current filter."
+          - name: Filters
+            selector: ".filters"
+            description: "Flex row of 3 filter buttons with gap spacing"
+            children:
+              - name: FilterButton
+                selector: ".filter-btn"
+                description: >
+                  One of: All, Active, Completed. The active filter has class .active
+                  with green border and text color.
+                memory:
+                  - "Click to filter: All, Active (unchecked), Completed (checked). Active filter has .active class."
+              - name: ActiveFilterButton
+                selector: ".filter-btn.active"
+                description: "The currently selected filter — has green border and text"
+          - name: ClearCompletedButton
+            selector: ".clear-completed"
+            description: >
+              Button labeled "Clear completed". Removes all todos where done===true.
+            memory:
+              - "Removes ALL completed items permanently. No undo."
+
+  - name: TodoItem
+    selector: ".todo-item"
+    source: apps/todo/components/TodoItem.tsx
+    description: >
+      Single todo item row. Flex row with checkbox, text, and delete button.
+      Bottom border separates items. When completed, has additional class .done.
+    memory:
+      - "Checkbox toggles done. Delete button only visible on hover — hover item first."
+    children:
+      - name: CompletedTodoItem
+        selector: ".todo-item.done"
+        description: >
+          A completed todo item. The .todo-text child gets text-decoration:line-through
+          and color changes to --text-tertiary.
+      - name: TodoCheckbox
+        selector: ".todo-checkbox"
+        description: >
+          Native checkbox input. Width/height 1.25rem. Checked state reflects item.done.
+        memory:
+          - "Use click tool (NOT fill) to toggle. Toggles .done class on parent."
+      - name: TodoText
+        selector: ".todo-text"
+        description: >
+          Span containing the todo text. Flex:1. When parent has .done class, gets
+          line-through decoration and tertiary text color.
+      - name: TodoDeleteButton
+        selector: ".todo-delete"
+        description: >
+          Button labeled "Delete". Hidden by default (opacity:0), only visible on
+          parent .todo-item hover.
+        memory:
+          - "Hidden until parent is hovered. Hover .todo-item first, then click Delete. No confirmation."
+
+  - name: EmptyState
+    selector: ".empty-state"
+    source: apps/todo/components/List.tsx
+    description: >
+      Shown when the filtered list has zero items. Centered text with tertiary color.
+    memory:
+      - "If visible, switch to 'All' filter to confirm items exist."
+
+views:
+  - name: TodoList
+    route: "/apps/todo/"
+    description: >
+      Main and only view. Load scenarios via ?scenario= URL param.
+      Available scenarios: empty (0 items), basic (3 items), productivity (7 items,
+      4 active + 3 completed), overdue (5 items with old dates), completed (7 items,
+      6 completed + 1 active). Navigating to the URL reloads scenario state fresh.

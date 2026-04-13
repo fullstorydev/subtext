@@ -1,0 +1,36 @@
+# Events:
+
+- Navigate: /dashboard/
+- Screenshot: [dashboard-00.png]
+- Click (post a job)
+- Navigate: /job-post/new
+- Screenshot: [job-post-00.png]
+- Change (job title): "Grunt work"
+- Click (next): "Next: Skills"
+- Screenshot: [job-post-01.png]
+- Click (skill): "TypeScript"
+- Screenshot: [job-post-02.png]
+- Change (skill search): "Animal Husbandry"
+- Submit (skill form)
+- Screenshot: [job-post-03.png]
+- Click (next): "Next: Scope"
+- Screenshot: [job-post-04.png]
+- Click (estimate size): "Medium"
+- Click (estimate time): "1 to 3 months"
+- Click (estimate level experience): "Intermediate"
+- Click (estimate hire opportunity): "No"
+- Screenshot: [job-post-05.png]
+- Click (next): "Next: Budget"
+- Screenshot: [job-post-06.png]
+- Click (budget type): "Fixed price"
+- Screenshot: [job-post-07.png]
+- Click (budget type): "Hourly rate"
+- Change (hourly rate from): "15"
+- Change (hourly rate to): "35"
+- Screenshot: [job-post-08.png]
+- Click (next): "Next: Description"
+- Screenshot: [job-post-09.png]
+- Change (job description): "Grunt work involving animal husbandry, written in typescript."
+- Click (next): "Submit Job Post"
+- Navigate: /dashboard/
+- Screenshot: [dashboard-00.png]

@@ -1,0 +1,1188 @@
+version: 1
+
+memory:
+  - "QUICK REFERENCE: (1) TEXT INPUTS — fill then Tab before clicking Next/Submit (Preact blur validation). (2) CONVERSATIONS — sidebar clicks fail; use URL: /apps/topwork/messages/?scenario={scenario}&id={freelancerId}. IDs: charlesdavis, sarahw, mikej, briank, carola, chriso. (3) RADIOS — click .radio-label card, not the input. (4) JOB SELECT — click to focus, press first letter (e.g. 'e' for E-commerce). (5) RATE INPUTS — if pre-filled, Control+A before fill to avoid appending."
+  - "Preact fires onChange only on blur. After fill on any text/number input, press Tab to trigger validation. Without this, Next/Submit buttons stay disabled. This applies in the JobPostWizard only — SendOffer reads values on click and does NOT need Tab."
+  - "Scenarios via ?scenario= param: default (4 jobs, 6 freelancers), hiringFlow (2 jobs, 3 freelancers, pending contract with Charles D.). Navigating resets all in-memory state."
+
+components:
+  # ========================================
+  # LAYOUT
+  # ========================================
+
+  - name: TopworkApp
+    selector: ".topwork-app"
+    source: apps/topwork/components/TopworkApp.tsx
+    description: >
+      Root container for the TopWork freelancing platform. Min-height 100vh,
+      light gray background (#f7f7f7). Contains Header, MainContent, and Footer.
+      Manages all app state and SPA routing via pushState.
+    memory:
+      - "STATE: All data is in-memory. Refreshing or navigating to /apps/topwork/?scenario=X resets everything. Within a session, use Logo clicks or nav links to move between pages. Exception: Messages requires URL navigation — always include ?scenario= to preserve state (see Messages memory)."
+      - "Use MCP devtools tools only. Do not fall back to Playwright, Bash, or evaluate_script workarounds."
+    children:
+      - name: MainContent
+        selector: ".main-content"
+        description: >
+          Page content area between header and footer. Max-width 1440px, centered.
+          Renders one page component at a time based on current route.
+
+  # ========================================
+  # HEADER
+  # ========================================
+
+  - name: Header
+    selector: ".topwork-app > .header"
+    source: apps/topwork/components/Header.tsx
+    description: >
+      Sticky top navigation bar (position:sticky, z-index:100). White background
+      with bottom border. Contains logo, search, navigation, and action buttons.
+    children:
+      - name: HeaderContent
+        selector: ".header-content"
+        description: "Inner flex container, max-width 1440px, padding 16px 20px"
+      - name: Logo
+        selector: ".logo"
+        description: >
+          SVG logo with green circle and "Topwork" text. Clickable — navigates
+          back to the dashboard.
+        memory:
+          - "Click to return to dashboard. Preserves current scenario state."
+      - name: SearchContainer
+        selector: ".search-container"
+        description: >
+          Search box with green-tinted background, rounded corners. Contains text
+          input and type selector. Width 300px.
+        memory:
+          - "STUB: not functional."
+        children:
+          - name: SearchInput
+            selector: ".search-input"
+            description: "Text input, placeholder='Search'. No border, transparent background."
+            memory:
+              - "STUB: not functional."
+          - name: SearchTypeSelector
+            selector: ".search-type-selector"
+            description: "Dropdown trigger container, position:relative"
+          - name: SearchTypeButton
+            selector: ".search-type-btn"
+            description: >
+              Shows current search type ("Jobs" or "Projects") with down arrow.
+              Opens dropdown on hover (not click).
+            memory:
+              - "STUB: hover opens dropdown but search is non-functional."
+          - name: SearchDropdown
+            selector: ".search-dropdown"
+            description: >
+              Appears on hover. Contains Jobs, Projects, and Talent options.
+      - name: MainNav
+        selector: ".main-nav"
+        description: >
+          Primary navigation with 4 items: Jobs, Talent, Reports (all have hover
+          dropdowns), and Messages (direct link). Flex:1 to fill middle space.
+        memory:
+          - "Dropdowns open on HOVER, not click. Only 'Post a job' and 'Messages' actually navigate — all others are stubs."
+        children:
+          - name: NavItem
+            selector: ".nav-item"
+            description: >
+              Wrapper div with position:relative for dropdown positioning.
+              Dropdown opens on mouseEnter, closes on mouseLeave.
+          - name: NavLink
+            selector: ".nav-link"
+            description: "Navigation text link. Color #5e6d55, transitions to #001e00 on hover."
+          - name: ActiveNavLink
+            selector: ".nav-link.active"
+            description: "Currently active nav link. Color #001e00, green bottom border."
+          - name: NavDropdown
+            selector: ".nav-dropdown"
+            description: >
+              Dropdown submenu, appears below nav item on hover. White background,
+              rounded corners, shadow. Contains .dropdown-item links.
+            memory:
+              - "Only 'Post a job' works. All other items are stubs."
+          - name: DropdownItem
+            selector: ".dropdown-item"
+            description: "Menu item in any dropdown. Padding 8px 12px, border-radius 4px."
+          - name: DropdownDivider
+            selector: ".dropdown-divider"
+            description: "1px horizontal line separating dropdown sections"
+      - name: HeaderActions
+        selector: ".header-actions"
+        description: "Right-side flex group: Post Job button, notifications, user menu"
+        children:
+          - name: HeaderPostJobButton
+            selector: ".header-actions .post-job-btn"
+            description: >
+              Green button labeled "Post a job". Background #14a800, white text, rounded corners.
+            memory:
+              - "Click to open the job post wizard."
+          - name: NotificationsIcon
+            selector: ".notifications"
+            description: "Bell SVG icon. Color #5e6d55, darkens on hover."
+            memory:
+              - "STUB: not functional."
+          - name: UserMenu
+            selector: ".user-menu"
+            description: "Container for user avatar."
+            memory:
+              - "STUB: not functional."
+            children:
+              - name: HeaderAvatar
+                selector: ".user-menu .avatar"
+                description: "32x32 green circle with white initial letter of user name."
+
+  # ========================================
+  # DASHBOARD
+  # ========================================
+
+  - name: Dashboard
+    selector: ".dashboard"
+    source: apps/topwork/components/Dashboard.tsx
+    description: >
+      Main dashboard view. Three sections: Your Jobs (grid of job cards),
+      Your Hires (grid of freelancer cards), and Goals consultation. Padding 20px.
+    memory:
+      - "Freelancer cards are CLICKABLE → profile. Job cards are display-only."
+    children:
+      - name: JobsSection
+        selector: ".jobs-section"
+        description: "Section containing job postings header and grid"
+      - name: HiresSection
+        selector: ".hires-section"
+        description: "Section containing freelancer cards header and grid"
+      - name: SectionHeader
+        selector: ".section-header"
+        description: >
+          Flex row with section title (h2, 24px, weight 500) on left and
+          action links on right. Used in both jobs and hires sections.
+      - name: SectionActions
+        selector: ".section-actions"
+        description: "Flex group of action links/buttons in section header"
+      - name: PostJobButtonSmall
+        selector: ".post-job-btn-small"
+        description: >
+          Small green pill button labeled "+ Post a job" in jobs section header.
+        memory:
+          - "Click to open the job post wizard."
+      - name: ViewAllLink
+        selector: ".view-all"
+        description: "Green text link labeled 'View all postings' or 'View all hires'."
+        memory:
+          - "STUB: not functional."
+      - name: JobsGrid
+        selector: ".jobs-grid"
+        description: >
+          CSS grid of job cards. auto-fill columns, minmax(300px, 1fr), gap 20px.
+          Shows empty state if no jobs.
+      - name: JobCard
+        selector: ".job-card"
+        description: >
+          White card with border and rounded corners. Shows job title (h3),
+          meta info, and status badge.
+        memory:
+          - "Display-only — not clickable."
+        children:
+          - name: JobCardTitle
+            selector: ".job-card h3"
+            description: "Job title, 16px font, weight 500"
+          - name: JobMeta
+            selector: ".job-meta"
+            description: >
+              Flex row showing posted time (e.g. "2 hours ago") and proposal
+              count (e.g. "12 proposals"). Color #5e6d55.
+          - name: PostedTime
+            selector: ".posted"
+            description: "When the job was posted"
+          - name: ProposalCount
+            selector: ".proposals"
+            description: "Number of proposals received"
+          - name: JobStatus
+            selector: ".job-status"
+            description: "Container for status badge"
+          - name: StatusBadge
+            selector: ".status"
+            description: >
+              Pill badge showing job status. Default gray background.
+              Has .open class for green background.
+          - name: OpenStatusBadge
+            selector: ".status.open"
+            description: "Green status badge indicating an open job posting"
+      - name: FreelancersGrid
+        selector: ".freelancers-grid"
+        description: "CSS grid of freelancer cards. Same layout as jobs grid."
+      - name: FreelancerCard
+        selector: ".dashboard .freelancer-card"
+        description: >
+          White card showing freelancer info. Hover lifts with shadow. Contains
+          avatar, name, title, location, rate, stats, skills, and optional rehire button.
+        memory:
+          - "Click anywhere → profile page. Only first 3 skills shown; profile has all."
+        children:
+          - name: FreelancerCardHeader
+            selector: ".freelancer-header"
+            description: "Flex row with avatar circle and name/title"
+          - name: FreelancerCardAvatar
+            selector: ".freelancer-card .avatar"
+            description: "48x48 green circle with first initial, font-size 18px"
+          - name: FreelancerCardInfo
+            selector: ".freelancer-info"
+            description: "Name (h3) and title (.title paragraph)"
+          - name: FreelancerCardTitle
+            selector: ".freelancer-info .title"
+            description: "Job title text, 14px, color #5e6d55"
+          - name: FreelancerMeta
+            selector: ".freelancer-meta"
+            description: >
+              Flex row, space-between. Shows location (left, gray) and
+              hourly rate (right, bold).
+          - name: FreelancerLocation
+            selector: ".location"
+            description: "City, state text. Color #5e6d55."
+          - name: FreelancerRate
+            selector: ".rate"
+            description: "Hourly rate, e.g. '$30/hr'. Font-weight 600."
+          - name: FreelancerStats
+            selector: ".freelancer-stats"
+            description: "Flex row with earnings and star rating"
+          - name: FreelancerEarnings
+            selector: ".earnings"
+            description: "Total earnings text, e.g. '$10k+ earned'"
+          - name: FreelancerRating
+            selector: ".rating"
+            description: "Star rating, e.g. '★ 4.9'. Color #ff9800 (orange)."
+          - name: FreelancerSkills
+            selector: ".freelancer-skills"
+            description: "Flex-wrap row of skill pills. Only first 3 shown on dashboard."
+          - name: SkillTag
+            selector: ".skill-tag"
+            description: "Gray pill (#f2f2f2 background) with skill name. 12px font."
+          - name: RehireButton
+            selector: ".rehire-btn"
+            description: >
+              Full-width button labeled "Available for rehire". Green border, white background.
+              Only shown when freelancer.available is true.
+            memory:
+              - "STUB: not functional."
+      - name: DashboardEmptyState
+        selector: ".dashboard .empty-state"
+        description: >
+          Shown when jobs array is empty. Centered text "No active jobs" with
+          a "Post your first job" button below.
+        memory:
+          - "'Post your first job' button works — opens the wizard."
+      - name: GoalsSection
+        selector: ".goals-section"
+        description: >
+          Expert consultation section. White card with title, subtitle, and
+          3 expert cards.
+        memory:
+          - "STUB: not functional."
+      - name: ExpertsGrid
+        selector: ".experts-grid"
+        description: "Grid of 3 expert consultation cards"
+      - name: ExpertCard
+        selector: ".expert-card"
+        description: >
+          Consultation card with emoji icon, title, description, and
+          "Book a consultation" link. Three types: Project Strategy, Talent Matching,
+          Budget Planning.
+        memory:
+          - "STUB: not functional."
+
+  # ========================================
+  # FREELANCER PROFILE
+  # ========================================
+
+  - name: FreelancerProfile
+    selector: ".freelancer-profile"
+    source: apps/topwork/components/FreelancerProfile.tsx
+    description: >
+      Full freelancer profile page. Two-column layout: sidebar (left, 350px)
+      with header, actions, and stats; main content (right) with description,
+      skills, employment history, and education.
+    memory:
+      - "Navigate via dashboard card click or direct URL: /freelancer/?id={freelancerId}. IDs: charlesdavis, sarahw, mikej, briank, carola, chriso. Direct URL is faster for multi-profile browsing."
+    children:
+      - name: ProfileContainer
+        selector: ".profile-container"
+        description: "Flex row layout for sidebar + main content"
+      - name: ProfileSidebar
+        selector: ".profile-sidebar"
+        description: "Left column (350px) with profile header, actions, and stats"
+        children:
+          - name: ProfileHeader
+            selector: ".profile-header"
+            description: >
+              Large avatar (80x80), freelancer name (h1), and location text.
+              Centered layout.
+          - name: LargeAvatar
+            selector: ".avatar-large"
+            description: "80x80 green circle with initial, centered, 32px font"
+          - name: ProfileLocation
+            selector: ".freelancer-profile .location"
+            description: "City, state text below name"
+          - name: ActionButtons
+            selector: ".action-buttons"
+            description: "Row of 3 action buttons: Hire, Message, Share"
+            memory:
+              - "Hire and Message work. Share is a STUB."
+            children:
+              - name: HireButton
+                selector: ".hire-btn"
+                description: "Green button labeled 'Hire'. Background #14a800."
+                memory:
+                  - "Click → Send Offer page (/platform/offer/?id={freelancerId})."
+              - name: MessageButton
+                selector: ".message-btn"
+                description: "Outline button labeled 'Message'."
+                memory:
+                  - "Click → Messages page with this freelancer's conversation."
+              - name: ShareButton
+                selector: ".share-btn"
+                description: "Outline button labeled 'Share'."
+                memory:
+                  - "STUB: not functional."
+          - name: ProfileSection
+            selector: ".profile-section"
+            description: "Labeled section within sidebar (overview, rate info)"
+          - name: StatsGrid
+            selector: ".stats-grid"
+            description: >
+              2x2 grid showing: Jobs Completed, Hours Worked, Total Earnings,
+              Success Rate. Each stat has .stat-value and .stat-label.
+          - name: StatValue
+            selector: ".stat-value"
+            description: "Bold numeric value in stats grid"
+          - name: StatLabel
+            selector: ".stat-label"
+            description: "Gray label text below stat value"
+          - name: ProfileRateInfo
+            selector: ".profile-sidebar .rate-info"
+            description: "Shows hourly rate, star rating, and availability status."
+          - name: AvailabilityStatus
+            selector: ".availability"
+            description: >
+              Text showing "Available now" (green) or "Not available" based on
+              freelancer.available boolean.
+      - name: ProfileMain
+        selector: ".profile-main"
+        description: "Right column with description, skills, work history, education"
+        children:
+          - name: ProfileDescription
+            selector: ".description"
+            description: "Freelancer's bio/description paragraph"
+          - name: ProfileSkillsList
+            selector: ".skills-list"
+            description: "Flex-wrap row of ALL skill tags (dashboard only shows 3)."
+          - name: ProfileSkillTag
+            selector: ".profile-main .skill-tag"
+            description: "Gray pill with skill name. Shows full skills list."
+          - name: EmploymentList
+            selector: ".employment-list"
+            description: "Vertical list of past employment items."
+            memory:
+              - "Each item is clickable → opens detail modal."
+          - name: EmploymentItem
+            selector: ".employment-item"
+            description: >
+              Card showing past job: title (h3), company + dates, star rating,
+              feedback quote, and description preview.
+            memory:
+              - "Click anywhere → opens EmploymentModal with full details."
+          - name: EmploymentMeta
+            selector: ".employment-meta"
+            description: "Company name and date range (e.g. 'Jun 2023 - Dec 2023')"
+          - name: EmploymentRating
+            selector: ".employment-rating"
+            description: "Star icons and numeric rating for the employment"
+          - name: EmploymentFeedback
+            selector: ".feedback"
+            description: "Client feedback quote text, italic"
+          - name: EducationList
+            selector: ".education-list"
+            description: "Vertical list of education entries"
+          - name: EducationItem
+            selector: ".education-item"
+            description: >
+              Education entry: degree + field (h3), school name (.school),
+              year range (.years). Not clickable.
+      - name: EmploymentModal
+        selector: ".modal-overlay"
+        description: >
+          Full-screen semi-transparent overlay containing the employment detail
+          modal. Clicking the overlay (outside .modal) closes it.
+        memory:
+          - "Close via X button or click outside the modal on the dark overlay."
+        children:
+          - name: ModalDialog
+            selector: ".modal"
+            description: >
+              White modal dialog, max-width 700px, centered. Contains header with
+              title and close button, then scrollable content.
+          - name: ModalHeader
+            selector: ".modal-header"
+            description: "Flex row with job title (h2) and close button"
+          - name: ModalCloseButton
+            selector: ".close-btn"
+            description: "Button labeled '✕'. Click to close the modal."
+            memory:
+              - "Click to close modal. Or click overlay background."
+          - name: ModalContent
+            selector: ".modal-content"
+            description: >
+              Scrollable content area with job info, description,
+              rating breakdown, and client feedback.
+          - name: JobInfoSection
+            selector: ".job-info-section"
+            description: "Job details: type, duration, rate, total earned"
+          - name: FeedbackSection
+            selector: ".feedback-section"
+            description: "Client rating and feedback text"
+          - name: OverallRating
+            selector: ".overall-rating"
+            description: "Large star rating display with numeric value"
+          - name: SkillRatings
+            selector: ".skill-ratings"
+            description: "Breakdown of ratings by skill area (bar chart style)"
+
+  # ========================================
+  # SEND OFFER
+  # ========================================
+
+  - name: SendOffer
+    selector: ".send-offer"
+    source: apps/topwork/components/SendOffer.tsx
+    description: >
+      Form page for sending a contract offer to a freelancer. Two-column layout:
+      main form (left) and FAQ (right). All form fields are functional.
+    memory:
+      - "HOW TO USE: (1) Click job select → press first letter of job name → snapshot to verify. (2) Fill contract title. (3) Click RadioLabel for payment type. (4) Fill rate/price — Control+A first if pre-filled, to avoid appending. (5) Fill description. (6) Click Continue. Tab is NOT needed here — Continue reads values on click."
+      - "Navigate here via Hire button on profile or URL /platform/offer/?id={freelancerId}."
+    children:
+      - name: OfferContainer
+        selector: ".offer-container"
+        description: "Centered container for the offer form"
+      - name: OfferHeading
+        selector: ".send-offer h1"
+        description: "Page heading 'Send an offer'"
+      - name: FreelancerSummary
+        selector: ".freelancer-summary"
+        description: >
+          Small card showing avatar, name, and title of the freelancer being offered.
+      - name: OfferForm
+        selector: ".offer-form"
+        description: >
+          The main form element containing all contract fields. It's a <form> tag
+          but submission is via the Continue button's onClick, not form submit.
+        memory:
+          - "Does NOT submit on Enter — click Continue button."
+        children:
+          - name: JobSelectSection
+            selector: ".send-offer .form-section:first-child"
+            description: "Dropdown to select which job this contract is for."
+            memory:
+              - "Click to focus, press first letter of option (e.g. 'e' for E-commerce). Snapshot to verify selection before proceeding."
+              - "hiringFlow jobs: 'job-ecom' (E-commerce Platform Development), 'job-mobile' (Mobile App Development)."
+          - name: ContractTitleSection
+            selector: ".send-offer .form-section:nth-child(2)"
+            description: "Text input for contract title."
+            memory:
+              - "Fill title text. Continue button enables when non-empty. Tab NOT required — Continue reads values on click."
+          - name: HiringTeamSection
+            selector: ".send-offer .form-section:nth-child(3)"
+            description: "Text input for hiring team/manager name. Default: 'Shaun VanWeldeen'."
+          - name: PaymentTypeSection
+            selector: ".send-offer .form-section:nth-child(4)"
+            description: "Radio buttons for payment type: 'Pay by the hour' or 'Pay a fixed price'."
+            memory:
+              - "Click RadioLabel to select. Default is hourly; click 'Pay a fixed price' to switch."
+          - name: RadioLabel
+            selector: ".radio-label"
+            description: >
+              Label wrapping a radio input. Contains <strong> for label text
+              and <p> for description.
+            memory:
+              - "Click label to select — do not click the radio input directly."
+          - name: PaymentDetails
+            selector: ".payment-details"
+            description: >
+              Conditional section showing either hourly rate fields or fixed price
+              fields based on selected payment type.
+            memory:
+              - "Enter numbers only (e.g. '50' or '5000'). Currency formatting is automatic. Control+A before fill if field has a pre-existing value."
+          - name: InputGroup
+            selector: ".send-offer .input-group"
+            description: "Flex row with currency prefix/suffix and input field."
+          - name: CurrencySymbol
+            selector: ".currency"
+            description: "Dollar sign ($) prefix in rate/price inputs"
+          - name: RateSuffix
+            selector: ".suffix"
+            description: "Suffix text like '/hr' after hourly rate input"
+          - name: WeeklyLimitCheckbox
+            selector: ".weekly-limit input[type='checkbox']"
+            description: "Checkbox to enable weekly hour limit"
+            memory:
+              - "Optional. Click to toggle."
+          - name: AutoPaymentCheckbox
+            selector: ".automatic-payment input[type='checkbox']"
+            description: "Checkbox to enable automatic milestone payment"
+            memory:
+              - "Optional. Only visible for Fixed Price. Click to toggle."
+          - name: DescriptionTextarea
+            selector: ".send-offer textarea"
+            description: "Large textarea for contract description / work requirements."
+            memory:
+              - "Fill with description text."
+          - name: AttachLink
+            selector: ".attach-link"
+            description: "Link labeled 'Attach a file'."
+            memory:
+              - "STUB: not functional."
+          - name: FormActions
+            selector: ".form-actions"
+            description: "Flex row with Cancel and Continue buttons"
+            children:
+              - name: CancelButton
+                selector: ".cancel-btn"
+                description: "Outline button. Navigates back to previous page."
+                memory:
+                  - "Click to go back to the freelancer profile."
+              - name: ContinueButton
+                selector: ".continue-btn"
+                description: "Green submit button. Disabled when contract title is empty."
+                memory:
+                  - "Click to submit. Disabled until contract title has text. Redirects to Messages with contract notice."
+      - name: SendOfferFAQ
+        selector: ".send-offer .faq-section"
+        description: >
+          Accordion FAQ section using native <details>/<summary> elements.
+        memory:
+          - "Click <summary> to expand/collapse. Static content."
+
+  # ========================================
+  # MESSAGES
+  # ========================================
+
+  - name: Messages
+    selector: ".messages"
+    source: apps/topwork/components/Messages.tsx
+    description: >
+      Three-pane messaging interface. Left: conversation list. Center: chat area.
+      Right: freelancer/contract details. Height fills viewport.
+    memory:
+      - "HOW TO USE: Switch conversations via URL only — sidebar clicks always fail. Navigate to /apps/topwork/messages/?scenario={scenario}&id={freelancerId}. Always include ?scenario= to preserve loaded data (without it, contract notices and message history disappear). IDs: charlesdavis, sarahw, mikej, briank, carola, chriso."
+      - "Navigate here via Messages nav link, Message button on a profile, or after submitting an offer."
+    children:
+      - name: MessagesContainer
+        selector: ".messages-container"
+        description: "Flex row containing all three panes"
+      - name: ConversationsSidebar
+        selector: ".conversations-sidebar"
+        description: >
+          Left pane, fixed width. Header with "Messages" title and search input,
+          then scrollable conversation list.
+        children:
+          - name: SidebarHeader
+            selector: ".sidebar-header"
+            description: "'Messages' title and search input"
+          - name: SidebarSearch
+            selector: ".sidebar-header input"
+            description: "Search input, placeholder='Search messages...'."
+            memory:
+              - "STUB: not functional."
+          - name: ConversationsList
+            selector: ".conversations-list"
+            description: "Scrollable list of conversation previews"
+          - name: ConversationItem
+            selector: ".conversation-item"
+            description: >
+              Preview of one conversation. Shows avatar, freelancer name (h4),
+              and last message snippet. Has .active class when selected.
+            memory:
+              - "SKIP: role=none, clicks always fail (even evaluate_script .click()). Use URL navigation: /apps/topwork/messages/?scenario={scenario}&id={freelancerId}."
+          - name: ActiveConversation
+            selector: ".conversation-item.active"
+            description: "Currently selected conversation — highlighted background"
+          - name: ConversationAvatar
+            selector: ".conversation-item .avatar"
+            description: "Small avatar circle in conversation list"
+          - name: ConversationInfo
+            selector: ".conversation-info"
+            description: "Name and last message preview text"
+          - name: LastMessage
+            selector: ".last-message"
+            description: "Truncated preview of the most recent message"
+      - name: ChatArea
+        selector: ".chat-area"
+        description: "Center pane with chat header, messages, and input area"
+        children:
+          - name: ChatHeader
+            selector: ".chat-header"
+            description: "Top bar showing current conversation partner's name and title"
+          - name: ChatHeaderInfo
+            selector: ".chat-header-info"
+            description: "Name (h3) and title (p) of chat partner"
+          - name: MessagesList
+            selector: ".messages-list"
+            description: "Scrollable area of message bubbles, ordered chronologically"
+          - name: MessageBubble
+            selector: ".message"
+            description: >
+              Individual message. Has .sent (right-aligned, green) or .received
+              (left-aligned, white) class.
+          - name: SentMessage
+            selector: ".message.sent"
+            description: "Message sent by current user — right-aligned, green"
+          - name: ReceivedMessage
+            selector: ".message.received"
+            description: "Message from freelancer — left-aligned, white/gray"
+          - name: MessageContent
+            selector: ".message-content"
+            description: "Bubble wrapper containing message text paragraph"
+          - name: ContractNotice
+            selector: ".contract-notice"
+            description: >
+              Inline notification within a message indicating a contract was sent.
+              Contains contract info (title, type) and a "View details" button.
+            memory:
+              - "Shows contract title/type. Click 'View details' → OfferSent page."
+          - name: ViewDetailsButton
+            selector: ".contract-notice button"
+            description: "Button inside contract notice. Navigates to OfferSent page."
+            memory:
+              - "Click → OfferSent page."
+          - name: MessageTimestamp
+            selector: ".timestamp"
+            description: "Time text below each message bubble"
+          - name: MessageInputArea
+            selector: ".message-input-area"
+            description: >
+              Bottom input area with toolbar buttons, textarea, and send button.
+            memory:
+              - "STUB: Send button does not work. Cannot send new messages."
+            children:
+              - name: InputToolbar
+                selector: ".input-toolbar"
+                description: "Formatting buttons (Bold, Italic, Attach)"
+                memory:
+                  - "STUB: not functional."
+              - name: ToolbarButton
+                selector: ".toolbar-btn"
+                description: "Individual toolbar button — non-functional"
+              - name: MessageTextarea
+                selector: ".message-input-area textarea"
+                description: "Textarea for composing messages."
+                memory:
+                  - "STUB: accepts input but Send does nothing."
+              - name: SendButton
+                selector: ".send-btn"
+                description: "Green 'Send' button."
+                memory:
+                  - "STUB: No onClick handler. Clicking does nothing. Do not attempt to send messages."
+      - name: NoConversation
+        selector: ".no-conversation"
+        description: "Empty state shown when no conversation is selected"
+      - name: DetailsSidebar
+        selector: ".details-sidebar"
+        description: >
+          Right pane showing details about the selected freelancer and any
+          active contract.
+        memory:
+          - "Collapsible sections: click header to toggle. Personal Notepad is in the last section."
+        children:
+          - name: FreelancerDetails
+            selector: ".freelancer-details"
+            description: "Large avatar, name, title, rate, and location of conversation partner."
+          - name: ContractDetails
+            selector: ".contract-details"
+            description: >
+              Active contract summary showing type, status, and "View details" link.
+              Only shown when a contract exists with this freelancer.
+            memory:
+              - "Only visible with active contract. Click 'View details' → OfferSent page."
+          - name: ContractType
+            selector: ".contract-type"
+            description: "Contract type badge (e.g. 'Fixed Price', 'Hourly')"
+          - name: ViewDetailsLink
+            selector: ".view-details-link"
+            description: "Link to view full contract details — navigates to OfferSent"
+            memory:
+              - "Click → OfferSent page for this contract."
+          - name: CollapsibleSections
+            selector: ".collapsible-sections"
+            description: >
+              Expandable sidebar sections: Status, Search, People, Files & Links,
+              Personal Notepad. Each has a header with chevron.
+          - name: CollapsibleSection
+            selector: ".details-sidebar .section"
+            description: "Individual collapsible section in details sidebar"
+          - name: SectionHeaderToggle
+            selector: ".details-sidebar .section-header"
+            description: "Clickable header that toggles section expansion."
+            memory:
+              - "Click to expand/collapse. Chevron rotates to show state."
+          - name: Chevron
+            selector: ".chevron"
+            description: "Arrow indicator, has .expanded class when section is open"
+          - name: SectionContent
+            selector: ".section-content"
+            description: "Content area revealed when section is expanded"
+          - name: NotepadTextarea
+            selector: ".notepad-textarea"
+            description: "Editable textarea in Personal Notepad section"
+            memory:
+              - "Fill to add notes. In-memory only — lost on reload."
+          - name: SidebarSkillsSection
+            selector: ".skills-section"
+            description: "Skills list in the sidebar details for current freelancer"
+
+  # ========================================
+  # OFFER SENT
+  # ========================================
+
+  - name: OfferSent
+    selector: ".offer-sent"
+    source: apps/topwork/components/OfferSent.tsx
+    description: >
+      Confirmation page after sending a contract offer. Two-column layout:
+      main content (left) with success message, contract summary, and FAQ;
+      sidebar (right) with action cards.
+    memory:
+      - "HOW TO USE: Read contract summary in DetailsGrid. Click SeeFullOffer for expanded terms. Click FAQ questions to expand answers. Use sidebar 'Chat with {name}' button to return to Messages."
+      - "Reached via SendOffer submit or 'View details' on a contract notice in Messages."
+    children:
+      - name: OfferSentContainer
+        selector: ".offer-sent .container"
+        description: "Flex row layout for main content and sidebar"
+      - name: OfferSentMainContent
+        selector: ".offer-sent .main-content"
+        description: "Left column with success header, summary, and FAQ"
+      - name: SuccessHeader
+        selector: ".success-header"
+        description: "Green checkmark icon, heading 'Offer sent!', and subtitle text."
+      - name: SuccessIcon
+        selector: ".success-icon"
+        description: "Large green checkmark circle"
+      - name: ContractSummary
+        selector: ".contract-summary"
+        description: "Section with contract details in a grid layout"
+        children:
+          - name: DetailsGrid
+            selector: ".details-grid"
+            description: >
+              Key-value grid of contract details: Contract Type, Hire,
+              Contract Amount, Status.
+          - name: DetailRow
+            selector: ".detail-row"
+            description: "Single key-value pair in the details grid"
+          - name: DetailLabel
+            selector: ".label"
+            description: "Gray label text for a detail field"
+          - name: DetailValue
+            selector: ".value"
+            description: "Bold value text for a detail field"
+          - name: SeeFullOffer
+            selector: ".see-full-offer"
+            description: "Toggle button that shows/hides the full offer details section."
+            memory:
+              - "Click to toggle expanded contract details."
+          - name: FullOffer
+            selector: ".full-offer"
+            description: "Expanded details section with job title, description, payment terms."
+      - name: OfferSentFAQ
+        selector: ".offer-sent .faq-section"
+        description: "FAQ section with expandable questions."
+        memory:
+          - "Click question buttons to expand/collapse answers."
+        children:
+          - name: FAQItem
+            selector: ".faq-item"
+            description: "Single FAQ entry with question button and answer"
+          - name: FAQQuestion
+            selector: ".faq-question"
+            description: "Clickable question text that toggles answer visibility"
+            memory:
+              - "Click to toggle answer visibility."
+          - name: FAQToggle
+            selector: ".toggle"
+            description: "Plus/minus symbol indicating expanded state"
+          - name: FAQAnswer
+            selector: ".faq-answer"
+            description: "Answer text revealed when question is expanded"
+      - name: OfferSentSidebar
+        selector: ".offer-sent .sidebar"
+        description: "Right column with action, freelancer, and help cards"
+        children:
+          - name: ActionCard
+            selector: ".action-card"
+            description: "Card with 'Chat with {name}' button and 'View contact' button."
+            memory:
+              - "'Chat' button → Messages. 'View contact' is a STUB."
+          - name: ChatButton
+            selector: ".chat-btn"
+            description: "Green button to navigate to Messages page"
+            memory:
+              - "Click → Messages with this freelancer selected."
+          - name: ViewContactButton
+            selector: ".view-contact-btn"
+            description: "Outline button."
+            memory:
+              - "STUB: No handler. Clicking does nothing."
+          - name: SidebarFreelancerCard
+            selector: ".offer-sent .freelancer-card"
+            description: "Compact freelancer info card: avatar, name, title, location, stats."
+          - name: HelpCard
+            selector: ".help-card"
+            description: "Card with help links (Help Center, etc)."
+            memory:
+              - "STUB: All links are non-functional."
+
+  # ========================================
+  # JOB POST WIZARD
+  # ========================================
+
+  - name: JobPostWizard
+    selector: ".job-post-wizard"
+    source: apps/topwork/components/JobPostWizard.tsx
+    description: >
+      Multi-step wizard for creating a new job posting. 5 steps with validation
+      gates — Next button disabled until required fields are filled. Progress
+      indicator shows current step. Final submit creates the job and redirects.
+    memory:
+      - "HOW TO USE: Title → Skills (3+) → Scope (3 radios) → Budget (type + amount) → Description → Submit. Each step gates Next until validation passes."
+      - "BLUR RULE: Every text/number input requires Tab after fill before Next/Submit enables. Preact fires onChange only on blur — fill alone doesn't trigger it."
+    children:
+      - name: WizardProgress
+        selector: ".wizard-progress"
+        description: "Step indicator showing 'N/5' and 'Job post' label."
+        children:
+          - name: StepIndicator
+            selector: ".step-indicator"
+            description: "Current step number"
+          - name: StepTitle
+            selector: ".step-title"
+            description: "Title text 'Job post'"
+      - name: WizardContent
+        selector: ".wizard-content"
+        description: "Container rendering the current step component"
+
+  - name: JobPostTitle
+    selector: ".job-post-title"
+    source: apps/topwork/components/JobPostTitle.tsx
+    description: >
+      Step 1: Enter job title. Heading with subtitle text. Single text input
+      with example titles below.
+    memory:
+      - "Fill title, Tab, then Next."
+    children:
+      - name: TitleHeading
+        selector: ".job-post-title h1"
+        description: "Page heading for step 1"
+      - name: TitleSubtitle
+        selector: ".job-post-title .subtitle"
+        description: "Helper text explaining what makes a good title"
+      - name: TitleFormSection
+        selector: ".job-post-title .form-section"
+        description: "Form section with label and input"
+      - name: TitleInput
+        selector: ".title-input"
+        description: "Text input for job title."
+        memory:
+          - "Fill, then Tab to trigger blur validation. Next enables only after blur fires."
+      - name: ExampleTitles
+        selector: ".example-titles"
+        description: "Section with sample titles for inspiration. Not interactive."
+      - name: TitleWizardActions
+        selector: ".job-post-title .wizard-actions"
+        description: "Back and Next buttons"
+        children:
+          - name: TitleBackButton
+            selector: ".job-post-title .back-btn"
+            description: "Back button — returns to dashboard"
+          - name: TitleNextButton
+            selector: ".job-post-title .next-btn"
+            description: "Next button labeled 'Next: Skills'."
+            memory:
+              - "Disabled until title blur fires. If still disabled after Tab, re-fill and Tab again — do NOT try evaluate_script workarounds."
+
+  - name: JobPostSkills
+    selector: ".job-post-skills"
+    source: apps/topwork/components/JobPostSkills.tsx
+    description: >
+      Step 2: Select required skills. Search box, add button, selected skills list,
+      and popular skills grid. Need 3+ skills to proceed.
+    memory:
+      - "Need 3+ skills. Fastest: click pills from the popular categories grid. Or type in search + Enter."
+    children:
+      - name: SkillsHeading
+        selector: ".job-post-skills h1"
+        description: "Page heading for step 2"
+      - name: SkillSearchSection
+        selector: ".search-section"
+        description: "Search form section with input and add button"
+      - name: SkillSearchForm
+        selector: ".search-form"
+        description: "Form wrapping search input and add button. Enter submits."
+      - name: SkillSearchInput
+        selector: ".job-post-skills .search-input"
+        description: "Text input for searching/adding skills."
+        memory:
+          - "Type skill name, press Enter to add. WARNING: Two '.search-input' on page — use SkillSearchInput uid from snapshot."
+      - name: SkillAddButton
+        selector: ".job-post-skills .add-btn"
+        description: "Button to add the typed skill. Disabled when input is empty."
+        memory:
+          - "Click to add typed skill. Or just press Enter in the input."
+      - name: HelperText
+        selector: ".helper-text"
+        description: "Text hint like 'You need at least 3 skills'"
+      - name: SelectedSkills
+        selector: ".selected-skills"
+        description: "Section showing currently selected skill tags with remove buttons."
+        memory:
+          - "Click X on any tag to remove it."
+        children:
+          - name: SelectedSkillTag
+            selector: ".skill-tag.selected"
+            description: "Selected skill with active styling"
+          - name: RemoveSkill
+            selector: ".remove-skill"
+            description: "X button to remove a selected skill"
+            memory:
+              - "Click to remove this skill."
+      - name: PopularSkills
+        selector: ".popular-skills"
+        description: >
+          Grid of popular skill categories (Development, Design, Marketing, etc).
+        memory:
+          - "Click any pill to add it. Fastest way to reach 3 skills."
+        children:
+          - name: SkillsCategory
+            selector: ".skills-category"
+            description: "Category group with heading and skill grid"
+          - name: SkillsGrid
+            selector: ".skills-grid"
+            description: "Flex-wrap grid of clickable skill pills"
+      - name: NoResults
+        selector: ".no-results"
+        description: "Shown when search query doesn't match any popular skills."
+        memory:
+          - "Click 'Add custom skill' button to add search text as a skill."
+      - name: AddCustomButton
+        selector: ".add-custom-btn"
+        description: "Button to add the search query as a custom skill"
+        memory:
+          - "Click to add search text as custom skill."
+      - name: SkillsWizardActions
+        selector: ".job-post-skills .wizard-actions"
+        description: "Back and Next buttons."
+        memory:
+          - "Disabled until 3+ skills selected."
+
+  - name: JobPostScope
+    selector: ".job-post-scope"
+    source: apps/topwork/components/JobPostScope.tsx
+    description: >
+      Step 3: Define project scope. Three radio button groups: project size,
+      duration, and experience level. ALL three must be selected before Next enables.
+    memory:
+      - "Select one from EACH of 3 groups: Size, Duration, Experience. Click the .radio-option card, not the radio input."
+    children:
+      - name: ScopeHeading
+        selector: ".job-post-scope h1"
+        description: "Page heading for step 3"
+      - name: ScopeSection
+        selector: ".scope-section"
+        description: >
+          One of the 3 radio groups. Each has a heading (h3), optional subtitle,
+          and radio options.
+      - name: RadioGroup
+        selector: ".radio-group"
+        description: "Container for radio option buttons"
+      - name: RadioOption
+        selector: ".radio-option"
+        description: "Clickable radio option card with radio input, label, and description."
+        memory:
+          - "Click anywhere on card to select."
+      - name: RadioInput
+        selector: ".radio-option input[type='radio']"
+        description: "Native radio input within the option card"
+      - name: RadioContent
+        selector: ".radio-content"
+        description: "Label and description text within radio option"
+      - name: ScopeWizardActions
+        selector: ".job-post-scope .wizard-actions"
+        description: "Back and Next buttons."
+        memory:
+          - "Disabled until all 3 groups have a selection."
+
+  - name: JobPostBudget
+    selector: ".job-post-budget"
+    source: apps/topwork/components/JobPostBudget.tsx
+    description: >
+      Step 4: Set budget. Toggle between Hourly and Fixed-Price. Hourly shows
+      two rate inputs (From/To). Fixed shows a single price input.
+    memory:
+      - "Click budget type button (Hourly or Fixed-Price), then fill rate/price inputs. Tab after each input."
+    children:
+      - name: BudgetHeading
+        selector: ".job-post-budget h1"
+        description: "Page heading for step 4"
+      - name: BudgetTypeSelector
+        selector: ".budget-type-selector"
+        description: "Row of 2 toggle buttons: Hourly and Fixed-Price."
+      - name: BudgetTypeButton
+        selector: ".budget-type-btn"
+        description: "Toggle button for budget type. Has .active class when selected."
+        memory:
+          - "Click to select. Other type deselects. Rate/price inputs appear below."
+      - name: ActiveBudgetType
+        selector: ".budget-type-btn.active"
+        description: "Currently selected budget type — green border and text"
+      - name: HourlySection
+        selector: ".hourly-section"
+        description: "Shown when Hourly is selected. Contains From and To rate inputs."
+        memory:
+          - "Fill both From and To with numbers (e.g. '30' and '60'). Tab after each."
+        children:
+          - name: RateInputs
+            selector: ".rate-inputs"
+            description: "Flex row with From and To rate input groups"
+          - name: RateInputGroup
+            selector: ".rate-input-group"
+            description: "Labeled input with '$' prefix and '/hr' suffix. Input type='number'."
+            memory:
+              - "Fill number only (e.g. '50'). Tab after fill. $/hr formatting is automatic."
+      - name: FixedPriceSection
+        selector: ".fixed-price-section"
+        description: "Shown when Fixed-Price is selected. Single price input."
+        memory:
+          - "Fill number only (e.g. '5000'). Tab after fill. $ prefix is automatic."
+        children:
+          - name: PriceInputGroup
+            selector: ".price-input-group"
+            description: "Labeled input with '$' prefix. Input type='number'."
+            memory:
+              - "Fill number only. Tab after fill."
+      - name: RateChart
+        selector: ".rate-chart"
+        description: "Visual bar chart showing market rate ranges. Informational only."
+      - name: BudgetWizardActions
+        selector: ".job-post-budget .wizard-actions"
+        description: "Back and Next buttons."
+        memory:
+          - "Disabled until budget type selected AND rate/price inputs filled + blurred."
+
+  - name: JobPostDescription
+    selector: ".job-post-description"
+    source: apps/topwork/components/JobPostDescription.tsx
+    description: >
+      Step 5: Write job description and submit. Shows talent summary, large
+      textarea, character count, and Submit button.
+    memory:
+      - "Fill description, Tab, then Submit. Redirects to dashboard with new job in grid."
+    children:
+      - name: DescriptionHeading
+        selector: ".job-post-description h1"
+        description: "Page heading for step 5"
+      - name: TalentLookingFor
+        selector: ".talent-looking-for"
+        description: "Summary of skills, scope, and budget from previous steps."
+      - name: DescriptionSection
+        selector: ".description-section"
+        description: "Label and textarea for job description"
+      - name: DescriptionTextarea
+        selector: ".description-textarea"
+        description: "Large textarea for writing the job description."
+        memory:
+          - "Fill text, then Tab to trigger blur. Submit enables only after blur fires."
+      - name: CharacterCount
+        selector: ".character-count"
+        description: "Live character count, e.g. '156 characters'"
+      - name: HelpSection
+        selector: ".help-section"
+        description: "Writing tips section."
+        memory:
+          - "STUB: not functional."
+      - name: AttachmentSection
+        selector: ".attachment-section"
+        description: "File attachment area with 'Attach a file' button."
+        memory:
+          - "STUB: not functional."
+      - name: DescriptionWizardActions
+        selector: ".job-post-description .wizard-actions"
+        description: "Back and Submit buttons"
+        children:
+          - name: DescriptionBackButton
+            selector: ".job-post-description .back-btn"
+            description: "Back button to return to Budget step"
+          - name: SubmitButton
+            selector: ".submit-btn"
+            description: "Final submit button. Disabled when description is empty."
+            memory:
+              - "Creates job and redirects to dashboard. Disabled until description blur fires."
+
+  # ========================================
+  # FOOTER
+  # ========================================
+
+  - name: Footer
+    selector: ".topwork-app > .footer"
+    source: apps/topwork/components/Footer.tsx
+    description: >
+      Site-wide footer. Dark background with 4 link columns, social links,
+      mobile app links, and copyright bar.
+    memory:
+      - "STUB: All links non-functional. Do not click."
+    children:
+      - name: FooterContent
+        selector: ".footer-content"
+        description: "Flex row of footer sections"
+      - name: FooterSection
+        selector: ".footer-section"
+        description: "Column of links with heading (h4)."
+      - name: FooterLinks
+        selector: ".footer-section a"
+        description: "Individual footer link. All are stubs."
+      - name: FooterRight
+        selector: ".footer-right"
+        description: "Right section with social links and mobile app links"
+      - name: SocialLinks
+        selector: ".social-links"
+        description: "Row of social media icon links — all stubs"
+      - name: MobileApp
+        selector: ".mobile-app"
+        description: "Mobile app download section"
+      - name: AppLinks
+        selector: ".app-links"
+        description: "App Store and Google Play links — stubs"
+      - name: FooterBottom
+        selector: ".footer-bottom"
+        description: "Copyright bar"
+
+views:
+  - name: Dashboard
+    route: "/apps/topwork/?scenario={scenario}"
+    description: "Scenarios: default, hiringFlow. Navigating resets all state."
+
+  - name: FreelancerProfile
+    route: "/freelancer/?id={freelancerId}"
+    description: "IDs: charlesdavis, sarahw, mikej, briank, carola, chriso."
+
+  - name: SendOffer
+    route: "/platform/offer/?id={freelancerId}"
+    description: "Reached via Hire button on profile."
+
+  - name: Messages
+    route: "/apps/topwork/messages/?scenario={scenario}&id={freelancerId}"
+    description: "ALWAYS include ?scenario= to preserve data. Sidebar clicks fail; use URL only."
+
+  - name: OfferSent
+    route: "/offer/sent/?id={contractId}"
+    description: "Reached via SendOffer submit or 'View details' on contract notices."
+
+  - name: JobPostWizard
+    route: "/job-post/new?step={step}"
+    description: "Steps: Title → Skills → Scope → Budget → Description."

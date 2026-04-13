@@ -1,0 +1,33 @@
+# Events:
+
+- Navigate: /dashboard/
+- Screenshot: [dashboard-00.png]
+- Click (freelancer card): "Charles D."
+- Navigate: /freelancer/?id=charlesdavis
+- Screenshot: [freelancer-00.png]
+- Click: "Full-Stack Developer for E-commerce Application"
+- Screenshot: [freelancer-01.png]
+- Click (button): "Close"
+- Screenshot: [freelancer-00.png]
+- Click (button): "Hire"
+- Navigate: /platform/offer/?id=charlesdavis
+- Screenshot: [offer-00.png]
+- Change (hiring team): "Shaun VanWeldeen"
+- Change (pay a fixed price): true
+- Change (pay a fixed price for your project): 500
+- Click (add automatic weekly payments)
+- Change (set an automatic weekly payment): 100
+- Change (work description): "Please make it 'Dia de los Muertos' themed."
+- Screenshot: [offer-01.png]
+- Click (button): "Continue"
+- Navigate: /messages/?id=charlesdavis
+- Screenshot: [chat-01.png]
+- Click: "View details"
+- Navigate: /offer/sent/?id=4ea77024-5c19-4fc6-b1cc-6c95e0db7d7d
+- Screenshot: [offer-sent-00.png]
+- Click (expand): "How do hourly contracts work?"
+- Click: (button): "See full offer"
+- Screenshot: [offer-sent-01.png]
+- Click (logo)
+- Navigate: /dashboard/
+- Screenshot: [dashboard-00.png]

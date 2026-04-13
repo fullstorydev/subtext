@@ -1,0 +1,19 @@
+{
+  "name": "@subtextdev/bench-apps",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "preact": "^10.19.3",
+    "@preact/signals": "^1.2.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.8.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  }
+}

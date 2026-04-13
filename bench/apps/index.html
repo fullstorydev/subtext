@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Potemkin - App Launcher</title>
+    <link rel="stylesheet" href="/shared/styles/base.css" />
+    <style>
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .launcher {
+        text-align: center;
+        max-width: 600px;
+      }
+
+      h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+      }
+
+      .subtitle {
+        font-size: 1.25rem;
+        color: var(--text-secondary);
+        margin-bottom: 3rem;
+      }
+
+      .apps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .app-card {
+        display: block;
+        padding: 2rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all var(--transition);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .app-card:hover {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+      }
+
+      .app-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      .app-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .app-description {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+      }
+
+      .info {
+        padding: 1rem;
+        background: var(--surface-tertiary);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="launcher">
+      <h1>Potemkin</h1>
+      <p class="subtitle">Interactive Façades for Agent Evaluation</p>
+
+      <div class="apps">
+        <a href="/apps/todo/" class="app-card">
+          <div class="app-icon">✓</div>
+          <div class="app-name">Todo List</div>
+          <div class="app-description">
+            Task management with filtering and scenarios
+          </div>
+        </a>
+
+        <a href="/apps/topwork/" class="app-card">
+          <div class="app-icon">💼</div>
+          <div class="app-name">TopWork</div>
+          <div class="app-description">
+            Freelance marketplace with profiles and offers
+          </div>
+        </a>
+
+        <a href="/apps/medcart/" class="app-card">
+          <div class="app-icon">🏥</div>
+          <div class="app-name">MedCart</div>
+          <div class="app-description">
+            Patient portal with medical records, orders, and PII
+          </div>
+        </a>
+
+        <!-- More apps will be added here -->
+      </div>
+
+      <div class="info">
+        <p>
+          Select an app to launch it in isolation. Each app maintains its own
+          state and can be reset independently.
+        </p>
+        <p style="margin-top: 0.5rem">
+          <a href="/test-scenarios.html" style="color: var(--primary)"
+            >View test scenarios →</a
+          >
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
