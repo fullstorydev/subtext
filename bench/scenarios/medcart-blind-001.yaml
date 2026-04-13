@@ -1,0 +1,43 @@
+id: medcart-blind-001
+description: "MedCart chat and order review — send message, inspect order details (blind)"
+app: medcart
+tags: [workflow, blind]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Use the chat feature and review orders on a medical cart application.
+
+  The app is at: {{app_base_url}}/apps/medcart/
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot to verify the MedCart application loads.
+  3. Use the sidebar to open the Chat section.
+  4. Take a snapshot to verify the Chat view is displayed.
+  5. Type a message in the message input field, such as
+     "Can you confirm the status of my latest order?"
+  6. Send the message (click the send button or press Enter).
+  7. Take a snapshot to verify the message was sent.
+  8. Use the sidebar to navigate to the Orders section.
+  9. Take a snapshot to verify the Orders view is displayed.
+  10. Review the order details shown — note order IDs, statuses,
+      items, and any other relevant information.
+  11. Take a snapshot of the order details.
+
+  REPORT:
+  12. Produce a final report describing:
+      - The message you sent in Chat
+      - The order details you found (IDs, statuses, items)
+      - Any observations about the Chat and Orders interfaces
+
+acceptance_criteria: |
+  1. Agent navigated to the MedCart app successfully
+  2. Opened the Chat section and found the message input
+  3. Sent a message in the Chat interface
+  4. Navigated to the Orders section via the sidebar
+  5. Reviewed and reported order details accurately
+  6. Final report contains both chat and order information
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

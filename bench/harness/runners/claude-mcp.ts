@@ -71,21 +71,36 @@ export class ClaudeMcpRunner implements Runner {
         stderr += data.toString();
       });
 
+      let settled = false;
+
       proc.on('close', (code) => {
-        writeFileSync(agentLogPath, output);
-        if (stderr) {
-          writeFileSync(join(outDir, 'agent.stderr.log'), stderr);
+        clearTimeout(timer);
+        if (!settled) {
+          settled = true;
+          writeFileSync(agentLogPath, output);
+          if (stderr) {
+            writeFileSync(join(outDir, 'agent.stderr.log'), stderr);
+          }
+          resolvePromise(output);
         }
-        resolvePromise(output);
       });
 
-      proc.on('error', reject);
+      proc.on('error', (err) => {
+        clearTimeout(timer);
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      });
 
       // Timeout
       const timeoutMs = parseTimeout(scenario.timeout ?? config.timeout);
-      setTimeout(() => {
-        proc.kill('SIGTERM');
-        reject(new Error(`Timeout after ${timeoutMs}ms`));
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          proc.kill('SIGTERM');
+          reject(new Error(`Timeout after ${timeoutMs}ms`));
+        }
       }, timeoutMs);
     });
 
@@ -121,7 +136,7 @@ export class ClaudeMcpRunner implements Runner {
   }
 }
 
-function buildPrompt(scenario: Scenario, profile: Profile, config: BenchConfig): string {
+export function buildPrompt(scenario: Scenario, profile: Profile, config: BenchConfig): string {
   const task = scenario.task.replace(/\{\{app_base_url\}\}/g, config.app_base_url);
   return [
     '## Task',

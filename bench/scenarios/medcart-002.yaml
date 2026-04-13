@@ -1,0 +1,37 @@
+id: medcart-002
+description: "MedCart update patient address — edit address field, verify change"
+app: medcart
+tags: [workflow, trained]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Update a patient's address on a medical cart application and verify the change.
+
+  The app is at: {{app_base_url}}/apps/medcart/
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot to verify the MedCart application loads.
+  3. Use the sidebar to navigate to the Addresses section.
+  4. Take a snapshot to verify the Addresses view is displayed.
+  5. Update an address field (e.g., change the street address or city).
+  6. Take a snapshot to confirm the edit was made.
+  7. Navigate back to the patient dashboard using the sidebar.
+  8. Take a snapshot to verify the dashboard reflects the updated address.
+
+  REPORT:
+  9. Produce a final report describing which address field was changed,
+     the old value, the new value, and whether the change was reflected
+     on the dashboard.
+
+acceptance_criteria: |
+  1. Agent navigated to the MedCart app successfully
+  2. Navigated to the Addresses section via the sidebar
+  3. Updated an address field with a new value
+  4. Navigated back to the patient dashboard
+  5. Verified the address change is reflected on the dashboard
+  6. Final report accurately describes the change
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

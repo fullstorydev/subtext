@@ -1,6 +1,8 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildComparison } from '../compare.js';
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { buildComparison, saveResult, loadLatestResult } from '../compare.js';
 import { formatComparison, formatSingleRun } from '../format.js';
 import type { RunResult } from '../types.js';
 
@@ -122,5 +124,53 @@ describe('formatSingleRun', () => {
     assert.ok(output.includes('15'));
     assert.ok(output.includes('1.0m'));
     assert.ok(output.includes('1'));
+  });
+});
+
+describe('saveResult / loadLatestResult round-trip', () => {
+  const testSpecId = '__test-roundtrip-spec';
+
+  afterEach(() => {
+    // Clean up temp results directory
+    const resultsDir = resolve(import.meta.dirname, '..', '..', '..', 'results', 'runs', testSpecId);
+    try {
+      rmSync(resultsDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('saves and loads a result, preserving all fields', () => {
+    const original = makeResult({
+      spec_id: testSpecId,
+      scenario_id: 'roundtrip-scenario',
+      profile_id: 'roundtrip-profile',
+      score: 0.77,
+      turns: 12,
+      total_input_tokens: 8000,
+      total_output_tokens: 2000,
+      total_tokens: 10000,
+      wall_time_ms: 45000,
+      error_count: 2,
+      judge_reasoning: 'Round-trip test reasoning',
+    });
+
+    saveResult(original);
+    const loaded = loadLatestResult(testSpecId);
+
+    assert.ok(loaded, 'Expected to load a result');
+    assert.strictEqual(loaded!.spec_id, original.spec_id);
+    assert.strictEqual(loaded!.scenario_id, original.scenario_id);
+    assert.strictEqual(loaded!.profile_id, original.profile_id);
+    assert.strictEqual(loaded!.score, original.score);
+    assert.strictEqual(loaded!.turns, original.turns);
+    assert.strictEqual(loaded!.total_input_tokens, original.total_input_tokens);
+    assert.strictEqual(loaded!.total_output_tokens, original.total_output_tokens);
+    assert.strictEqual(loaded!.total_tokens, original.total_tokens);
+    assert.strictEqual(loaded!.wall_time_ms, original.wall_time_ms);
+    assert.strictEqual(loaded!.error_count, original.error_count);
+    assert.strictEqual(loaded!.judge_reasoning, original.judge_reasoning);
+    assert.strictEqual(loaded!.model, original.model);
+    assert.strictEqual(loaded!.git_sha, original.git_sha);
   });
 });

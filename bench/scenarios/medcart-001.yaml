@@ -1,0 +1,33 @@
+id: medcart-001
+description: "MedCart patient record lookup — navigate sidebar, view records tab"
+app: medcart
+tags: [workflow, trained]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Look up patient records on a medical cart application.
+
+  The app is at: {{app_base_url}}/apps/medcart/
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot to verify the MedCart application loads.
+  3. Use the sidebar to navigate to the patient dashboard.
+  4. Take a snapshot to verify the patient dashboard is displayed.
+  5. Click on the Records tab to view patient records.
+  6. Take a snapshot to verify patient records are displayed.
+  7. Note the patient information shown in the records view.
+
+  REPORT:
+  8. Produce a final report listing the patient information found in the records.
+
+acceptance_criteria: |
+  1. Agent navigated to the MedCart app successfully
+  2. Used the sidebar to reach the patient dashboard
+  3. Opened the Records tab
+  4. Patient information is displayed and reported accurately
+  5. Snapshots confirm successful navigation at each step
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

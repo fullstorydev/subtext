@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getRunner } from '../runner.js';
-import { parseClaudeOutput, parseTimeout } from '../runners/claude-mcp.js';
+import { parseClaudeOutput, parseTimeout, buildPrompt } from '../runners/claude-mcp.js';
+import type { Scenario, Profile, BenchConfig } from '../types.js';
 
 describe('getRunner', () => {
   it('returns ClaudeMcpRunner for claude-mcp profile', async () => {
@@ -74,6 +75,39 @@ describe('parseClaudeOutput', () => {
     const output = 'some text\n{"type":"assistant","content":"ok"}\nmore text\n';
     const result = parseClaudeOutput(output);
     assert.strictEqual(result.turns, 1);
+  });
+});
+
+describe('buildPrompt', () => {
+  it('replaces {{app_base_url}} template variable', () => {
+    const scenario: Scenario = {
+      id: 'test-001',
+      description: 'test',
+      app: 'todo',
+      tags: [],
+      task: 'Navigate to {{app_base_url}}/apps/todo/ and do stuff at {{app_base_url}}/other',
+      acceptance_criteria: 'done',
+      profiles: [],
+    };
+    const profile: Profile = {
+      id: 'test-profile',
+      runner: 'claude-mcp',
+      prompt_insert: '',
+      tags: [],
+    };
+    const config: BenchConfig = {
+      model: 'sonnet',
+      judge_model: 'haiku',
+      timeout: '10m',
+      max_budget: 3,
+      app_port: 5173,
+      app_base_url: 'http://localhost:9999',
+    };
+
+    const prompt = buildPrompt(scenario, profile, config);
+    assert.ok(prompt.includes('http://localhost:9999/apps/todo/'), 'First occurrence should be replaced');
+    assert.ok(prompt.includes('http://localhost:9999/other'), 'Second occurrence should be replaced');
+    assert.ok(!prompt.includes('{{app_base_url}}'), 'No template variables should remain');
   });
 });
 

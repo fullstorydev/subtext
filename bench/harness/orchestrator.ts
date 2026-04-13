@@ -22,7 +22,12 @@ export async function runSingle(
 
   // Judge the result
   console.log(`Judging ${scenarioId} x ${profileId}...`);
-  const agentOutput = readFileSync(result.agent_log_path, 'utf-8');
+  let agentOutput: string;
+  try {
+    agentOutput = readFileSync(result.agent_log_path, 'utf-8');
+  } catch {
+    agentOutput = '[Agent log not available - runner may have timed out]';
+  }
   const judgeResult = await judgeRun(result, scenario, agentOutput, config.judge_model);
   result.score = judgeResult.score;
   result.judge_reasoning = judgeResult.reasoning;

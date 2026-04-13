@@ -1,0 +1,4 @@
+# Ignore run results but keep baselines
+*
+!baselines/
+!.gitignore
