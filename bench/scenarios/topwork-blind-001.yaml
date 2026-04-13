@@ -1,0 +1,51 @@
+id: topwork-blind-001
+description: "TopWork contract review — navigate messages, inspect offer details, use notepad"
+app: topwork
+tags: [workflow, blind]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Review an existing contract on a freelancing platform, explore the offer details,
+  and take notes.
+
+  The app is at: {{app_base_url}}/apps/topwork/?scenario=hiringFlow
+  This loads a hiring scenario with freelancers, jobs, messages, and a pending contract
+  with Charles D.
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Go to the Messages page for Charles D.'s conversation.
+  3. Take a snapshot. Find the contract notice in the chat messages.
+  4. Click "View details" on the contract notice to navigate to the offer confirmation page.
+  5. Take a snapshot of the offer confirmation page. Note the contract summary
+     (contract type, hire name, amount, status).
+  6. Click "See full offer" to expand the full contract details. Take a snapshot
+     and note the job title, description, and payment terms.
+  7. Open at least 2 of the FAQ items by clicking on their questions. Note what
+     each FAQ answer says.
+  8. Click the "Chat with Charles" button to return to the Messages page.
+  9. Take a snapshot to verify you're back on Messages.
+  10. In the right sidebar, find the "Personal Notepad" collapsible section.
+      Click its header to expand it.
+  11. In the notepad textarea, type a summary of the contract terms you just reviewed
+      (include contract type, amount, and freelancer name).
+  12. Navigate to Sarah W.'s conversation (use URL navigation to
+      {{app_base_url}}/apps/topwork/messages/?id=sarahw).
+  13. Take a snapshot. Note Sarah's last message and whether she has a contract notice.
+
+  REPORT:
+  14. Produce a final report with all findings.
+
+acceptance_criteria: |
+  1. Found contract notice and clicked "View details"
+  2. Accurately reported contract summary (type, hire, amount, status)
+  3. Expanded "See full offer" and read additional details
+  4. Opened 2+ FAQ items and reported their content
+  5. Returned to Messages via Chat button (not browser back)
+  6. Expanded Notepad section and wrote meaningful notes
+  7. Navigated to Sarah's conversation via URL navigation
+  8. Final report contains accurate contract terms and FAQ content
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

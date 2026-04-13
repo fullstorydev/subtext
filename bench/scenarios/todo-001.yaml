@@ -1,0 +1,40 @@
+id: todo-001
+description: "Todo app — add, complete, filter, clear"
+app: todo
+tags: [workflow, trained]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Complete the following task management workflow on a Todo app.
+
+  The app is at: {{app_base_url}}/apps/todo/?scenario=productivity
+  This loads a pre-populated todo list with 7 items (4 active, 3 completed).
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot to verify you see the todo list with 7 items.
+  3. Add three new todos (type text in the input, click Add):
+     - "Deploy staging build"
+     - "Write quarterly report"
+     - "Schedule team lunch"
+  4. After adding all three, take a snapshot and verify 10 total items are visible.
+  5. Mark "Update documentation" as completed (click its checkbox).
+  6. Mark "Call dentist for appointment" as completed (click its checkbox).
+  7. Click the "Active" filter button.
+  8. Take a snapshot — you should see only the remaining active items (the 3 new ones
+     plus "Finish project proposal" and "Plan weekend trip" = 5 active items).
+  9. Click "All" to go back to all items.
+  10. Click "Clear completed" to remove all completed items.
+  11. Take a final snapshot — verify that only 5 active items remain and no completed
+      items are shown.
+
+acceptance_criteria: |
+  1. All 3 todos were added (visible in snapshots)
+  2. The two specified items were toggled to completed
+  3. The Active filter was used and showed correct items
+  4. Clear completed removed all done items
+  5. Final state shows exactly 5 active todos
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

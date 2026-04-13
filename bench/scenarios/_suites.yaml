@@ -1,0 +1,11 @@
+trained:
+  description: "All trained scenarios — sightmap optimization targets"
+  scenarios: [todo-001, topwork-001, topwork-002, topwork-003]
+
+blind:
+  description: "Blind scenarios — generalization tests"
+  scenarios: [topwork-blind-001, topwork-blind-002]
+
+all:
+  description: "All scenarios"
+  scenarios: [todo-001, topwork-001, topwork-002, topwork-003, topwork-blind-001, topwork-blind-002]

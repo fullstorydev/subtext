@@ -1,0 +1,66 @@
+id: topwork-002
+description: "TopWork job posting wizard — complete 5-step job creation flow"
+app: topwork
+tags: [workflow, trained, wizard]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Complete the entire 5-step job posting wizard on a freelancing platform.
+
+  The app is at: {{app_base_url}}/apps/topwork/?scenario=default
+  This loads the default scenario with existing jobs and freelancers.
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot of the dashboard.
+  3. Click the "Post a job" button (in the header or on the dashboard).
+  4. You should see Step 1 of the wizard: "Let's start with a strong title."
+
+  STEP 1 — Title:
+  5. Type the title: "Senior React Developer for Real-Time Dashboard"
+  6. Click "Next: Skills"
+
+  STEP 2 — Skills:
+  7. Search for and add these skills (use the search box and click to add, or click
+     from the popular skills grid):
+     - React
+     - TypeScript
+     - WebSocket
+  8. Verify you have at least 3 skills selected, then click Next.
+
+  STEP 3 — Scope:
+  9. Select these options:
+     - Project size: "Large" (multi-milestone project)
+     - Duration: "3 to 6 months"
+     - Experience level: "Expert"
+  10. Click Next.
+
+  STEP 4 — Budget:
+  11. Select "Hourly" budget type.
+  12. Set the "From" rate to 60 and "To" rate to 90.
+  13. Click Next.
+
+  STEP 5 — Description:
+  14. Type this description:
+      "We need a senior React developer to build a real-time analytics dashboard.
+      The dashboard will display live data from WebSocket feeds, support customizable
+      widgets, and handle 10K+ concurrent data points. Experience with D3.js or
+      Recharts is a plus. Must write comprehensive tests."
+  15. Click "Submit" (or "Post Job").
+
+  FINAL:
+  16. You should be redirected back to the dashboard. Take a snapshot and verify that
+      the new job "Senior React Developer for Real-Time Dashboard" appears in the jobs grid.
+
+acceptance_criteria: |
+  1. All 5 wizard steps were completed (not skipped)
+  2. Title was set correctly
+  3. At least 3 skills were added
+  4. Scope selections were made (project size, duration, experience)
+  5. Budget was set to hourly with a rate range
+  6. Description was filled in
+  7. Job was submitted and appeared on the dashboard
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

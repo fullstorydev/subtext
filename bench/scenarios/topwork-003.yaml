@@ -1,0 +1,52 @@
+id: topwork-003
+description: "TopWork cross-page data gathering — compare freelancers and review messages"
+app: topwork
+tags: [workflow, trained, navigation]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Gather information across multiple pages of a freelancing platform and produce
+  a structured comparison report.
+
+  The app is at: {{app_base_url}}/apps/topwork/?scenario=hiringFlow
+  This loads a hiring scenario with freelancers, jobs, and message history.
+
+  Steps to perform:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot of the dashboard. Note how many job postings and freelancers
+     are displayed.
+
+  FREELANCER RESEARCH:
+  3. Click on the first freelancer card (Charles D.). Take a snapshot of his profile.
+     Record: name, title, hourly rate, rating, number of jobs completed, skills list.
+  4. Navigate back to the dashboard (click the logo or use browser back).
+  5. Click on the second freelancer card (Sarah W.). Take a snapshot of her profile.
+     Record: same fields as above.
+  6. Navigate back to the dashboard.
+  7. Click on the third freelancer (Mike J.). Take a snapshot. Record same fields.
+     Note: Mike is marked as unavailable.
+  8. Navigate back to the dashboard.
+
+  MESSAGE REVIEW:
+  9. Click "Messages" in the top navigation bar.
+  10. Take a snapshot of the messages page. Note how many conversations are listed.
+  11. Click on the conversation with Charles D. (if not already selected).
+  12. Take a snapshot of the chat. Count the total messages and note the last message.
+  13. Click on the conversation with Sarah W.
+  14. Take a snapshot of that chat. Count messages and note the last message.
+  15. Check if there is a contract notice in either conversation.
+
+  REPORT:
+  16. Produce the comparison report as your final output.
+
+acceptance_criteria: |
+  1. Visited all 3 freelancer profiles (not just the dashboard cards)
+  2. Accurately reported rates, ratings, and skills for each freelancer
+  3. Noted Mike J.'s unavailable status
+  4. Navigated to Messages and reviewed at least 2 conversations
+  5. Identified the contract notification in Charles D.'s conversation
+  6. Final report contains structured, accurate data
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

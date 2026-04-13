@@ -1,0 +1,63 @@
+id: topwork-blind-002
+description: "TopWork multi-profile deep dive — compare untested freelancers, send hourly offer"
+app: topwork
+tags: [workflow, blind]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Evaluate two freelancers by doing deep-dive profile reviews, then hire the better
+  one with an hourly-rate offer.
+
+  The app is at: {{app_base_url}}/apps/topwork/?scenario=default
+  This loads the full dataset with 4 jobs and 6 freelancers.
+
+  Steps to perform IN ORDER:
+
+  PROFILE DEEP DIVE — Brian K.:
+  1. Navigate to the app URL above.
+  2. Navigate directly to Brian K.'s profile via URL: {{app_base_url}}/freelancer/?id=briank
+     (do NOT click through the dashboard — use direct URL navigation).
+  3. Take a snapshot. Record: name, title, hourly rate, rating, jobs completed,
+     hours worked, total earnings, success rate, availability, and ALL skills.
+  4. Scroll down to employment history. Click on EACH employment history item
+     one by one. For each:
+     - Take a snapshot of the modal
+     - Note: job title, company, dates, rating, and client feedback
+     - Close the modal (X button or overlay click)
+  5. After reviewing all employment items, note how many total items Brian has.
+
+  PROFILE DEEP DIVE — Carol A.:
+  6. Navigate directly to Carol A.'s profile via URL: {{app_base_url}}/freelancer/?id=carola
+  7. Take a snapshot. Record the same fields as Brian.
+  8. Click on EACH employment history item and review each modal (same process
+     as Brian — open, snapshot, note details, close).
+
+  COMPARISON & DECISION:
+  9. Compare Brian and Carol across: rate, rating, jobs completed, availability,
+     skills overlap, and employment history quality (ratings, feedback).
+  10. Choose the better candidate for a web development project. Justify your choice.
+
+  SEND OFFER:
+  11. From the chosen freelancer's profile, click the "Hire" button.
+  12. On the Send Offer page, fill out the form:
+      - Select a job from the dropdown (any available job)
+      - Enter a contract title describing the engagement
+      - Choose "Pay by the hour" payment type
+      - Set the hourly rate: From $40, To $70
+      - Write a 2-3 sentence description of the work
+  13. Click "Continue" to submit the offer.
+  14. Take a final snapshot. You should be on the Messages page with a contract
+      notification visible.
+
+acceptance_criteria: |
+  1. Used direct URL navigation to both profiles (not dashboard card clicks)
+  2. Accurately reported stats for both Brian K. and Carol A.
+  3. Opened 2+ employment modals per profile (not just the first)
+  4. Noted employment ratings and feedback from modals
+  5. Provided a reasoned comparison with a clear hiring recommendation
+  6. Selected "Pay by the hour" (not fixed price) on the Send Offer form
+  7. Set hourly rate range (From and To values)
+  8. Submitted offer and ended on Messages page with contract notification
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]

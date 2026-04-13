@@ -1,0 +1,42 @@
+id: topwork-001
+description: "TopWork hiring workflow — browse freelancer, review history, send offer"
+app: topwork
+tags: [workflow, trained]
+timeout: 10m
+max_budget: 3
+
+task: |
+  Complete a full hiring workflow on a freelancing platform.
+
+  The app is at: {{app_base_url}}/apps/topwork/?scenario=hiringFlow
+  This loads a hiring scenario with freelancers, jobs, messages, and a pending contract.
+
+  Steps to perform IN ORDER:
+
+  1. Navigate to the app URL above.
+  2. Take a snapshot of the dashboard. You should see job postings and freelancer cards.
+  3. Find and click on the freelancer card for "Sarah W." (the UI/UX Designer).
+  4. On her profile page, take a snapshot. Note her hourly rate, rating, and skills.
+  5. Click on her first employment history item to open the detail modal.
+  6. Take a snapshot of the modal. Note the job title, company, and feedback text.
+  7. Close the modal (click the X or the overlay).
+  8. Click the "Hire" button on Sarah's profile.
+  9. You should now be on the Send Offer page. Take a snapshot to verify.
+  10. Fill out the offer form:
+      - Select the "E-commerce Platform Development" job from the job dropdown
+      - The title should auto-fill or be set to the job title
+      - Set payment type to "Fixed Price"
+      - Set the fixed price amount to 5000
+      - In the description, type: "UI/UX design for our e-commerce platform. Focus on checkout flow and product pages."
+  11. Click "Continue" to submit the offer.
+  12. Take a final snapshot. You should be on the Messages page with a contract
+      notification visible in the conversation.
+
+acceptance_criteria: |
+  1. Navigated to the correct freelancer (Sarah W., UI/UX Designer)
+  2. Viewed the employment history modal and noted details
+  3. Successfully filled out the Send Offer form with all required fields
+  4. Offer was submitted (Continue button clicked)
+  5. Ended up on Messages page with contract confirmation visible
+
+profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
