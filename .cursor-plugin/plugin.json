@@ -1,12 +1,12 @@
 {
   "name": "subtext",
-  "description": "Session analysis tools for debugging user issues with Fullstory",
+  "description": "Tools that let coding agents verify and show their work against your running application",
   "version": "0.1.46",
   "license": "MIT",
   "author": {
     "name": "Subtext",
     "email": "subtext@fullstory.com"
   },
-  "keywords": ["subtext", "session-replay", "debugging", "analytics"],
+  "keywords": ["subtext", "automation", "verification", "testing", "session-replay", "debugging", "fullstory"],
   "logo": "assets/logo.svg"
 }

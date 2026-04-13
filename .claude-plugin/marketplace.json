@@ -10,9 +10,9 @@
       "name": "subtext",
       "source": "./",
       "version": "0.1.46",
-      "description": "Tools for agents to build with Subtext",
+      "description": "Tools that let coding agents verify and show their work against your running application",
       "category": "development",
-      "keywords": ["subtext", "session-replay", "debugging"],
+      "keywords": ["subtext", "automation", "verification", "testing", "session-replay", "debugging", "fullstory"],
       "homepage": "https://github.com/fullstorydev/subtext"
     }
   ]
