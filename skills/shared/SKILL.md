@@ -28,7 +28,7 @@ Tools within the subtext server are grouped by prefix:
 | Prefix | Tools |
 |--------|-------|
 | `review-` | Session replay: `review-open`, `review-view`, `review-diff`, `review-close` |
-| `live-` | Browser automation: `live-connect`, `live-disconnect`, `live-view-*`, `live-act-*`, `live-log-*`, `live-net-*`, `live-tunnel`, `live-emulate`, `live-eval-script` |
+| `live-` | Browser automation: `live-connect`, `live-disconnect`, `live-view-*`, `live-act-*`, `live-log-*`, `live-net-*`, `live-emulate`, `live-eval-script` |
 | `comment-` | Comments: `comment-add`, `comment-list`, `comment-reply`, `comment-resolve` |
 | `privacy-` | Privacy rules: `privacy-propose`, `privacy-create`, `privacy-list`, `privacy-delete`, `privacy-promote` |
 

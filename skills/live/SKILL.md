@@ -58,12 +58,6 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-net-list` | List network requests |
 | `live-net-get` | Get details of a specific network request |
 
-### Tunnel
-
-| Tool | Description |
-|------|-------------|
-| `live-tunnel` | Get tunnel relay URL for connecting to localhost |
-
 ## Discovering Parameters
 
 Parameter schemas are visible in the tool definition at call time.
@@ -99,13 +93,13 @@ After every `live-connect`, check `capture_status` and respond as follows:
 
 ## Tunnel Setup
 
-When the hosted browser needs to reach `localhost` or local dev URLs, use the tunnel-first flow:
+`live-connect` handles all URLs — public and local. For localhost URLs, it returns `tunnel_required` instantly with setup instructions.
 
-1. Call `live-tunnel` — allocates a browser connection and returns `relayUrl` + `connectionId`
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target`
-3. Call `live-view-new` with the `connection_id` and localhost URL
+1. Call `live-connect({ url })` — if local (localhost, 127.0.0.1, *.localhost, *.test), returns `tunnel_required` with `connection_id` and `relayUrl`
+2. Call `tunnel-connect({ relayUrl, target })` on the **subtext-tunnel** MCP server
+3. Call `live-connect({ url, connection_id })` — navigates through the tunnel, returns screenshot + viewer_url
 
-Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details.
+See `subtext:tunnel` for full details.
 
 ## See Also
 

@@ -4,7 +4,6 @@ import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES, RECONNECT_BASE_MS, RECONNECT_MAX
 export class TunnelClient {
     #relayUrl;
     #target;
-    #initialConnectionId;
     #connectionId;
     #upgradeHeaders;
     #log;
@@ -21,8 +20,6 @@ export class TunnelClient {
     constructor(opts) {
         this.#relayUrl = opts.relayUrl;
         this.#target = opts.target;
-        this.#initialConnectionId = opts.connectionId;
-        this.#connectionId = opts.connectionId;
         this.#log = opts.log;
         this.#upgradeHeaders = opts.headers ?? {};
     }
@@ -49,26 +46,17 @@ export class TunnelClient {
     }
     #doConnect() {
         this.#state = 'connecting';
-        const wsUrl = new URL(this.#relayUrl);
-        if (this.#initialConnectionId) {
-            wsUrl.searchParams.set('connection_id', this.#initialConnectionId);
-        }
-        this.#log(`Connecting to ${wsUrl}`);
-        const ws = new WebSocket(wsUrl.toString(), {
+        // The relay URL already contains the connection_id as a query parameter
+        // (set by the server in the tunnel_required response). No need to append it.
+        this.#log(`Connecting to ${this.#relayUrl}`);
+        const ws = new WebSocket(this.#relayUrl, {
             headers: this.#upgradeHeaders,
         });
         ws.on('open', () => {
             this.#state = 'connected';
             this.#connectedSince = Date.now();
             this.#log('WebSocket open, sending hello');
-            const hello = {
-                type: 'hello',
-                target: this.#target,
-            };
-            if (this.#initialConnectionId) {
-                hello.connectionId = this.#initialConnectionId;
-            }
-            this.#send(hello);
+            this.#send({ type: 'hello', target: this.#target });
             this.#resetStaleTimer();
         });
         ws.on('message', (data) => {

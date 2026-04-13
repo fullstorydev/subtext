@@ -19,24 +19,19 @@ const server = new McpServer({
     version: VERSION,
 }, { capabilities: {} });
 server.registerTool("tunnel-connect", {
-    description: "Connect a tunnel to the relay. Multiple tunnels can be active simultaneously " +
-        "(e.g. one per target). Call live-tunnel on the subtext MCP server first to obtain the relayUrl.",
+    description: "Connect a local server to the tunnel relay. Call live-connect on the subtext MCP server " +
+        "first — if the URL is local, it returns tunnel_required with a relayUrl and connection_id. " +
+        "Pass that relayUrl here along with the local origin to proxy to.",
     inputSchema: z.object({
         relayUrl: z
             .string()
-            .describe("WebSocket URL of the relay (from live-tunnel)"),
-        connectionId: z
-            .string()
-            .optional()
-            .describe("Connection ID to bind this tunnel to. Required for connection-first flow " +
-            "(pass the connection_id from open_connection). Omit for tunnel-first flow " +
-            "(the server mints one and returns it in the response)."),
+            .describe("WebSocket relay URL (from live-connect tunnel_required response)"),
         target: z
             .string()
             .optional()
-            .describe("Local origin to proxy to (overrides --target flag)"),
+            .describe("Local origin to proxy to, e.g. http://localhost:3000 (overrides --target flag)"),
     }),
-}, async ({ relayUrl, connectionId, target }) => {
+}, async ({ relayUrl, target }) => {
     const t = target ?? defaultTarget;
     if (!t) {
         return {
@@ -54,7 +49,6 @@ server.registerTool("tunnel-connect", {
     const client = new TunnelClient({
         relayUrl,
         target: t,
-        connectionId,
         log,
     });
     client.connect();

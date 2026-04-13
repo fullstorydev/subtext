@@ -19,7 +19,7 @@ If the user already has a session URL (they mention one or it was passed in), sk
 
 Before starting, confirm:
 1. **Dev server is running** — the user must have their app running locally (or provide a deployed URL)
-2. **Tunnel if localhost** — use the tunnel-first flow: `live-tunnel` → `tunnel-connect` → `live-view-new` (see `subtext:tunnel`). Do **not** use `live-connect` for localhost URLs.
+2. **Tunnel if localhost** — call `live-connect` with the URL. If it returns `tunnel_required`, follow the tunnel setup flow (see `subtext:tunnel`) then retry `live-connect` with the `connection_id`.
 
 ## Input
 
@@ -30,7 +30,7 @@ The orchestrator provides:
 ## Exploration Loop
 
 ```
-1. Connect to app URL (live-connect for remote, or tunnel-first flow for localhost — see Prerequisites)
+1. Connect to app URL with live-connect (handles both public and localhost — see Prerequisites for tunnel setup if needed)
 2. live-view-snapshot to see the page
 3. Optionally comment-add with an observation about the page or what just happened, if noteworthy
 4. Choose an interaction:

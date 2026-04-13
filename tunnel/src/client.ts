@@ -23,7 +23,6 @@ import {
 export interface TunnelClientOptions {
   relayUrl: string;
   target: string;
-  connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
 }
@@ -31,7 +30,6 @@ export interface TunnelClientOptions {
 export class TunnelClient {
   readonly #relayUrl: string;
   readonly #target: string;
-  readonly #initialConnectionId: string | undefined;
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
   readonly #log: (msg: string) => void;
@@ -50,8 +48,6 @@ export class TunnelClient {
   constructor(opts: TunnelClientOptions) {
     this.#relayUrl = opts.relayUrl;
     this.#target = opts.target;
-    this.#initialConnectionId = opts.connectionId;
-    this.#connectionId = opts.connectionId;
     this.#log = opts.log;
 
     this.#upgradeHeaders = opts.headers ?? {};
@@ -87,14 +83,11 @@ export class TunnelClient {
   #doConnect(): void {
     this.#state = 'connecting';
 
-    const wsUrl = new URL(this.#relayUrl);
-    if (this.#initialConnectionId) {
-      wsUrl.searchParams.set('connection_id', this.#initialConnectionId);
-    }
+    // The relay URL already contains the connection_id as a query parameter
+    // (set by the server in the tunnel_required response). No need to append it.
+    this.#log(`Connecting to ${this.#relayUrl}`);
 
-    this.#log(`Connecting to ${wsUrl}`);
-
-    const ws = new WebSocket(wsUrl.toString(), {
+    const ws = new WebSocket(this.#relayUrl, {
       headers: this.#upgradeHeaders,
     });
 
@@ -102,14 +95,7 @@ export class TunnelClient {
       this.#state = 'connected';
       this.#connectedSince = Date.now();
       this.#log('WebSocket open, sending hello');
-      const hello: {type: 'hello'; target: string; connectionId?: string} = {
-        type: 'hello',
-        target: this.#target,
-      };
-      if (this.#initialConnectionId) {
-        hello.connectionId = this.#initialConnectionId;
-      }
-      this.#send(hello);
+      this.#send({type: 'hello', target: this.#target});
       this.#resetStaleTimer();
     });
 

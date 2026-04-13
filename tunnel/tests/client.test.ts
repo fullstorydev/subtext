@@ -86,7 +86,6 @@ describe('TunnelClient', () => {
     return new TunnelClient({
       relayUrl,
       target,
-      connectionId: 'test-connection-id',
       log: msg => logs.push(msg),
     });
   }
@@ -107,25 +106,23 @@ describe('TunnelClient', () => {
     client.connect();
     assert.equal(client.state, 'connecting');
 
-    const {ws: relayWs, req} = await connectionPromise;
-
-    // Verify connection_id is passed as a query param on the upgrade request
-    console.log(req.url!)
-    const upgradeUrl = new URL(req.url!, `http://${req.headers.host}`);
-    assert.equal(upgradeUrl.searchParams.get('connection_id'), 'test-connection-id');
+    const {ws: relayWs} = await connectionPromise;
 
     const hello = (await nextMessage(relayWs)) as HelloMessage;
 
     assert.equal(hello.type, 'hello');
     assert.equal(hello.target, 'http://localhost:9999');
-    assert.equal(hello.connectionId, 'test-connection-id');
+    // connection_id is embedded in the relay URL by the server — client does not
+    // add it to the hello message; the relay reads it from the URL query param.
+    assert.equal(hello.connectionId, undefined);
     assert.equal(client.state, 'connected');
 
-    relayWs.send(JSON.stringify({type: 'ready', tunnelId: 't_test123', connectionId: 'test-connection-id'}));
+    relayWs.send(JSON.stringify({type: 'ready', tunnelId: 't_test123', connectionId: 'server-minted-id'}));
     await waitFor(() => client.state === 'ready');
 
     assert.equal(client.tunnelId, 't_test123');
-    assert.equal(client.connectionId, 'test-connection-id');
+    // connectionId is learned from the ready message (server-minted or echoed).
+    assert.equal(client.connectionId, 'server-minted-id');
 
     client.disconnect();
     assert.equal(client.state, 'disconnected');
@@ -384,12 +381,14 @@ describe('TunnelClient', () => {
     client.disconnect();
   });
 
-  it('connection-first: appends connection_id query param to relay URL', async () => {
+  it('relay URL with embedded connection_id is used as-is', async () => {
+    // The relay URL is pre-built by the server with connection_id embedded.
+    // The client passes it through unchanged — it does not modify the URL.
+    const relayUrlWithConn = `${relayUrl}?connection_id=my-conn-id`;
     logs = [];
     const client = new TunnelClient({
-      relayUrl,
+      relayUrl: relayUrlWithConn,
       target: 'http://localhost:9999',
-      connectionId: 'my-conn-id',
       log: msg => logs.push(msg),
     });
 

@@ -3,7 +3,7 @@
 - `.claude-plugin/` — Claude Code plugin manifest and marketplace config
 - `.cursor-plugin/` — Cursor plugin manifest
 - `.codex-plugin/` — Codex plugin manifest
-- `.mcp.json` — MCP server configuration (subtext server + live-tunnel).
+- `.mcp.json` — MCP server configuration (subtext server + subtext-tunnel client).
 - `skills/` — Skill definitions (SKILL.md files), see "Skills" below
 - `tunnel/` — Live tunnel client MCP server (see the subtext:tunnel skill)
 
