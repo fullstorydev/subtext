@@ -2,7 +2,7 @@
 // See docs/design.md for the full protocol specification.
 // Limits
 export const MAX_INFLIGHT = 20;
-export const MAX_RESPONSE_BODY_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_RESPONSE_BODY_BYTES = 200 * 1024 * 1024; // 200 MB
 export const REQUEST_TIMEOUT_MS = 30_000; // 30s
 export const RECONNECT_BASE_MS = 1_000; // 1s
 export const RECONNECT_MAX_MS = 30_000; // 30s
