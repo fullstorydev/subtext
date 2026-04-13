@@ -1,0 +1,17 @@
+runner: claude-mcp
+mcp_config: |
+  {
+    "mcpServers": {
+      "subtext": {
+        "command": "npx",
+        "args": ["-y", "@subtextdev/subtext-cli", "--mcp"]
+      }
+    }
+  }
+tool_prefix: "mcp__subtext"
+# No sightmap_files — this is the control profile
+prompt_insert: |
+  Use the `subtext` MCP tools for all browser interaction.
+  You have NO sightmap — use snapshots to understand the UI
+  and interact via element UIDs.
+tags: [control]

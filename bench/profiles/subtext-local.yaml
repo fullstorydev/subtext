@@ -1,0 +1,22 @@
+runner: claude-mcp
+mcp_config: |
+  {
+    "mcpServers": {
+      "subtext": {
+        "command": "npx",
+        "args": ["-y", "@subtextdev/subtext-cli", "--mcp"]
+      }
+    }
+  }
+tool_prefix: "mcp__subtext"
+sightmap_files:
+  - bench/apps/.sightmap/todo.yaml
+  - bench/apps/.sightmap/topwork.yaml
+  - bench/apps/apps/medcart/.sightmap/medcart.yaml
+prompt_insert: |
+  Use the `subtext` MCP tools for all browser interaction.
+  Subtext enriches snapshots with semantic component names from
+  the sightmap. Elements appear as named components instead of generic a11y roles.
+  Read snapshot headers — [Memory] and [Component Guide] sections contain
+  actionable tips for each component.
+tags: [mcp, subtext]

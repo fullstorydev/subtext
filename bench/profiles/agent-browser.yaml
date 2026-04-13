@@ -1,0 +1,7 @@
+runner: agent-browser
+command: agent-browser
+prompt_insert: |
+  Use the `agent-browser` CLI for all browser interaction.
+  Run `agent-browser snapshot` to see the page state.
+  Interact via element refs (e.g., `agent-browser click @e13`).
+tags: [competitor, baseline]

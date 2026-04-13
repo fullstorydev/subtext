@@ -3,7 +3,8 @@ import { resolve, join } from 'node:path';
 import yaml from 'js-yaml';
 import type { BenchConfig, Profile, Scenario, Suite } from './types.js';
 
-const BENCH_ROOT = resolve(import.meta.dirname, '..');
+// At runtime, this file lives at build/harness/config.js, so go up two levels.
+const BENCH_ROOT = resolve(import.meta.dirname, '..', '..');
 
 export function loadConfig(): BenchConfig {
   const configPath = join(BENCH_ROOT, 'bench.config.yaml');

@@ -1,0 +1,17 @@
+runner: claude-mcp
+mcp_config: |
+  {
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest"]
+      }
+    }
+  }
+tool_prefix: "mcp__playwright"
+prompt_insert: |
+  Use the `playwright` MCP tools for all browser interaction.
+  You have NO sightmap or component map — use browser_snapshot to
+  understand the UI, and interact via the element refs (e.g., ref="e13").
+  Prefer browser_snapshot over browser_take_screenshot for understanding page state.
+tags: [baseline]

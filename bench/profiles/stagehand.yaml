@@ -1,0 +1,5 @@
+runner: stagehand
+prompt_insert: |
+  Complete the task using the browser. You can see and interact with
+  the page directly.
+tags: [competitor, llm-in-loop]
