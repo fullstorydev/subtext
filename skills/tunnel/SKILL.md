@@ -52,7 +52,7 @@ live-connect({ url: "http://localhost:3000", connection_id: "abc-123" })
 
 ## Notes
 
-- **Never fabricate a `connection_id`** — only use IDs returned from `live-connect`.
+- **Never fabricate a `connection_id`** — only use IDs returned from `live-connect` or `tunnel-connect`.
 - The tunnel stays connected across multiple views — you only need to set it up once per connection.
 - If the tunnel disconnects, it reconnects automatically. Call `tunnel-status` to check.
 - Only local URLs need tunneling. Public URLs (e.g. `https://example.com`) work directly without a tunnel.
