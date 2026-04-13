@@ -1,6 +1,6 @@
 {
   "name": "subtext",
-  "version": "0.1.38",
+  "version": "0.1.46",
   "description": "Session analysis tools for debugging user issues with Fullstory",
   "author": {
     "name": "Subtext",

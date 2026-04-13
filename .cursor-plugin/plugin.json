@@ -1,11 +1,11 @@
 {
   "name": "subtext",
   "description": "Session analysis tools for debugging user issues with Fullstory",
-  "version": "0.1.38",
+  "version": "0.1.46",
   "license": "MIT",
   "author": {
     "name": "Subtext",
-    "url": "https://subtext.fullstory.com"
+    "email": "subtext@fullstory.com"
   },
   "keywords": ["subtext", "session-replay", "debugging", "analytics"],
   "logo": "assets/logo.svg"
