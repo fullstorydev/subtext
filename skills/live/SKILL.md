@@ -18,7 +18,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `viewer_url`, and `capture_status`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, and `viewer_url`. |
 | `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
@@ -58,6 +58,12 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-net-list` | List network requests |
 | `live-net-get` | Get details of a specific network request |
 
+### Signals
+
+| Tool | Description |
+|------|-------------|
+| `live-poll` | Check for pending signals (new comments, control changes) without taking a screenshot. Lightweight heartbeat. |
+
 ### Tunnel
 
 | Tool | Description |
@@ -72,7 +78,7 @@ Parameter schemas are visible in the tool definition at call time.
 
 Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
 
-- **fs_session_url** — the raw Fullstory session URL.
+- **fs_session_url** — the raw FullStory session URL.
 - **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
 After every `live-connect`, output the viewer URL on its own line:
@@ -81,15 +87,6 @@ After every `live-connect`, output the viewer URL on its own line:
 Viewer: {viewer_url}
 ```
 
-## `live-connect` Capture Status
-
-After every `live-connect`, check `capture_status` and respond as follows:
-
-- `active`: proceed normally.
-- `blocked`: tell the user to check capture quota and verify the target domain is allow listed in Subtext data capture settings.
-- `snippet_not_found` or `api_unavailable`: tell the user something went wrong during setup and they should run onboarding again.
-- any other status: something went wrong, try again
-
 ## Tips
 
 - Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
@@ -97,15 +94,39 @@ After every `live-connect`, check `capture_status` and respond as follows:
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
 - Close connections when done to free server resources.
 
+## Pending Signals
+
+The server piggybacks **pending signals** on every tool response. When a human leaves a comment or changes control state, a `[pending_signals]` block appears at the end of the next tool response:
+
+```
+[pending_signals]
+- new_comment: from chip@fullstory.com: "Try the other flow"
+- control_change: human_driving — input tools are blocked
+```
+
+**Between actions, call `live-poll`** to check for signals without the overhead of a screenshot. This is your heartbeat — call it between every few actions in a live session to stay aware of human feedback.
+
+**When you see a `new_comment` signal:**
+1. Read the comment text — it may contain instructions, bug reports, or redirections
+2. Use `comment-list` if you need full context (the signal only shows a preview)
+3. Use `comment-reply` to acknowledge or respond
+4. Adjust your plan based on the feedback
+
+**When you see a `control_change: human_driving` signal:**
+1. Input tools (click, fill, keypress) will return errors — don't retry them
+2. Read-only tools (screenshot, snapshot, log-list, poll) still work
+3. Keep polling — you'll see a `control_change: agent_driving` signal when control is returned
+4. Resume your work after control is returned
+
 ## Tunnel Setup
 
-When the hosted browser needs to reach `localhost` or local dev URLs, use the tunnel-first flow:
+When the hosted browser needs to reach `localhost` or local dev URLs, set up a tunnel first:
 
-1. Call `live-tunnel` — allocates a browser connection and returns `relayUrl` + `connectionId`
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target`
-3. Call `live-view-new` with the `connection_id` and localhost URL
+1. Call `live-tunnel` to get the relay URL
+2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl`, `connectionId`, and `target`
+3. Then call `live-connect` with the localhost URL — traffic routes through the tunnel
 
-Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details.
+See `subtext:tunnel` for the full tunnel setup flow.
 
 ## See Also
 
