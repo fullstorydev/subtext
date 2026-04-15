@@ -8,6 +8,8 @@ metadata:
 
 # Tunnel Setup for Hosted Browser
 
+> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it before connecting — it specifies which MCP server prefix to use for live and tunnel tools.
+
 When the hosted browser needs to load a page from the user's local dev server (e.g. `http://localhost:3000`), a reverse tunnel is required. The hosted browser cannot reach localhost directly — the tunnel proxies requests from the hosted infrastructure back to the user's machine.
 
 ## MCP Tools
