@@ -15,14 +15,8 @@ metadata:
 1. **Navigate to the page**: `live-view-navigate(url=...)` or `live-view-new(url=...)`
 2. **Take a baseline snapshot**: `live-view-snapshot()` to see the current a11y tree with generic roles
 3. **Identify key UI components** in the snapshot (navigation, forms, cards, modals, etc.)
-4. **Find good selectors** using `live-eval-script`:
-   ```js
-   (el) => { return el.tagName + '.' + el.className + ' ' + el.id; }
-   ```
-   Prefer `data-*` attributes when available — they're stable and semantically meaningful (e.g., `[data-component="ProductTile"]`, `[data-testid="checkout-button"]`). Check for them with:
-   ```js
-   (el) => { return JSON.stringify(Object.fromEntries([...el.attributes].filter(a => a.name.startsWith('data-')).map(a => [a.name, a.value]))); }
-   ```
+4. **Find good selectors** using `live-view-inspect()` — this returns the full component tree with CSS selectors (tag, id, classes, `data-*` attributes, `aria-*`, `href`, etc.) on every node. Use it to identify stable targeting info, then switch back to `live-view-snapshot()` for normal interaction.
+   Prefer `data-*` attributes when available — they're stable and semantically meaningful (e.g., `[data-component="ProductTile"]`, `[data-testid="checkout-button"]`).
 5. **Create `.sightmap/components.yaml`** with component definitions (see `subtext:sightmap` skill for schema)
 6. **Add memories** to key components — contextual notes that appear in a `[Guide]` section at the top of every snapshot. Focus on:
    - **Auth/access**: passwords, test accounts, login flows (e.g., `"Password is 'argus'"`)
