@@ -1,5 +1,9 @@
 import {WebSocket, type RawData} from './third_party/index.js';
 import * as net from 'node:net';
+import {gzip} from 'node:zlib';
+import {promisify} from 'node:util';
+
+const gzipAsync = promisify(gzip);
 import type {
   ClientMessage,
   ConnectMessage,
@@ -210,10 +214,17 @@ export class TunnelClient {
       delete respHeaders['content-encoding'];
       delete respHeaders['content-length'];
 
-      const encodedBody =
-        respBody.byteLength > 0
-          ? Buffer.from(respBody).toString('base64')
-          : null;
+      let bodyBuf = Buffer.from(respBody);
+      let encoding: 'gzip' | undefined;
+      if (bodyBuf.length > 0) {
+        const compressed = await gzipAsync(bodyBuf);
+        if (compressed.length < bodyBuf.length) {
+          bodyBuf = compressed;
+          encoding = 'gzip';
+        }
+      }
+
+      const encodedBody = bodyBuf.length > 0 ? bodyBuf.toString('base64') : null;
 
       this.#send({
         type: 'response',
@@ -221,6 +232,7 @@ export class TunnelClient {
         status: resp.status,
         headers: respHeaders,
         body: encodedBody,
+        encoding,
       });
     } catch (err) {
       if (ac.signal.aborted) return;

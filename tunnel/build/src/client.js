@@ -1,5 +1,8 @@
 import { WebSocket } from './third_party/index.js';
 import * as net from 'node:net';
+import { gzip } from 'node:zlib';
+import { promisify } from 'node:util';
+const gzipAsync = promisify(gzip);
 import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES, RECONNECT_BASE_MS, RECONNECT_MAX_MS, STALE_CONNECTION_MS, MAX_RECONNECT_ATTEMPTS, } from './types.js';
 export class TunnelClient {
     #relayUrl;
@@ -156,15 +159,23 @@ export class TunnelClient {
             // compressed when it's already been decoded.
             delete respHeaders['content-encoding'];
             delete respHeaders['content-length'];
-            const encodedBody = respBody.byteLength > 0
-                ? Buffer.from(respBody).toString('base64')
-                : null;
+            let bodyBuf = Buffer.from(respBody);
+            let encoding;
+            if (bodyBuf.length > 0) {
+                const compressed = await gzipAsync(bodyBuf);
+                if (compressed.length < bodyBuf.length) {
+                    bodyBuf = compressed;
+                    encoding = 'gzip';
+                }
+            }
+            const encodedBody = bodyBuf.length > 0 ? bodyBuf.toString('base64') : null;
             this.#send({
                 type: 'response',
                 requestId: msg.requestId,
                 status: resp.status,
                 headers: respHeaders,
                 body: encodedBody,
+                encoding,
             });
         }
         catch (err) {
