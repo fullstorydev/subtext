@@ -33,7 +33,8 @@ export interface ResponseMessage {
   requestId: string;
   status: number;
   headers: WireHeaders;
-  body: string | null; // base64-encoded
+  body: string | null; // base64-encoded (gzip-compressed if encoding === 'gzip')
+  encoding?: 'gzip';
 }
 
 // Client → Relay (when local fetch fails)
