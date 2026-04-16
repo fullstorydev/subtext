@@ -104,6 +104,12 @@ export class TunnelClient {
                 case 'end':
                     this.#handleStreamEnd(msg);
                     break;
+                case 'pause':
+                    this.#handleStreamPause(msg);
+                    break;
+                case 'resume':
+                    this.#handleStreamResume(msg);
+                    break;
                 case 'ping':
                     this.#send({ type: 'pong' });
                     break;
@@ -246,6 +252,18 @@ export class TunnelClient {
             socket.end();
         }
     }
+    #handleStreamPause(msg) {
+        const socket = this.#streams.get(msg.streamId);
+        if (socket) {
+            socket.pause();
+        }
+    }
+    #handleStreamResume(msg) {
+        const socket = this.#streams.get(msg.streamId);
+        if (socket) {
+            socket.resume();
+        }
+    }
     #send(msg) {
         if (this.#ws?.readyState === WebSocket.OPEN) {
             this.#ws.send(JSON.stringify(msg));
@@ -253,6 +271,7 @@ export class TunnelClient {
     }
     #onDisconnect() {
         this.#abortInflight();
+        this.#closeStreams();
         this.#clearStaleTimer();
         this.#tunnelId = undefined;
         this.#ws = null;
