@@ -96,12 +96,26 @@ export interface StreamErrorMessage {
   message: string;
 }
 
+// Relay → Client: pause reading from the target TCP socket (flow control).
+export interface StreamPauseMessage {
+  type: 'pause';
+  streamId: string;
+}
+
+// Relay → Client: resume reading from the target TCP socket.
+export interface StreamResumeMessage {
+  type: 'resume';
+  streamId: string;
+}
+
 export type RelayMessage =
   | ReadyMessage
   | RequestMessage
   | ConnectMessage
   | StreamDataMessage
   | StreamEndMessage
+  | StreamPauseMessage
+  | StreamResumeMessage
   | PingMessage;
 
 // Limits

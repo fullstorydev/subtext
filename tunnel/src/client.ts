@@ -11,6 +11,8 @@ import type {
   RequestMessage,
   StreamDataMessage,
   StreamEndMessage,
+  StreamPauseMessage,
+  StreamResumeMessage,
   TunnelState,
   WireHeaders,
 } from './types.js';
@@ -146,6 +148,12 @@ export class TunnelClient {
           break;
         case 'end':
           this.#handleStreamEnd(msg);
+          break;
+        case 'pause':
+          this.#handleStreamPause(msg);
+          break;
+        case 'resume':
+          this.#handleStreamResume(msg);
           break;
         case 'ping':
           this.#send({type: 'pong'});
@@ -311,6 +319,20 @@ export class TunnelClient {
     }
   }
 
+  #handleStreamPause(msg: StreamPauseMessage): void {
+    const socket = this.#streams.get(msg.streamId);
+    if (socket) {
+      socket.pause();
+    }
+  }
+
+  #handleStreamResume(msg: StreamResumeMessage): void {
+    const socket = this.#streams.get(msg.streamId);
+    if (socket) {
+      socket.resume();
+    }
+  }
+
   #send(msg: ClientMessage): void {
     if (this.#ws?.readyState === WebSocket.OPEN) {
       this.#ws.send(JSON.stringify(msg));
@@ -319,6 +341,7 @@ export class TunnelClient {
 
   #onDisconnect(): void {
     this.#abortInflight();
+    this.#closeStreams();
     this.#clearStaleTimer();
     this.#tunnelId = undefined;
     this.#ws = null;
