@@ -1,5 +1,6 @@
 import * as net from 'node:net';
-import { wireHeadersToHeaders, headersToWireHeaders } from './transport.js';
+import { MAX_RESPONSE_BODY_BYTES } from './types.js';
+import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort, MAX_YAMUX_HEADER_BYTES, } from './transport.js';
 import { YamuxSession } from './yamux.js';
 /**
  * YamuxTransport handles the binary yamux multiplexing protocol. After the
@@ -22,7 +23,7 @@ export class YamuxTransport {
         while (true) {
             const stream = await this.#session.accept();
             if (stream === null)
-                break; // session closed
+                break;
             void this.#handleStream(stream).catch((err) => {
                 this.#log(`yamux stream ${stream.id} error: ${err instanceof Error ? err.message : String(err)}`);
             });
@@ -46,49 +47,53 @@ export class YamuxTransport {
             stream.close();
         }
     }
-    // ----- HTTP request/response -----
-    async #handleHttpStream(stream) {
-        // Read [4-byte JSON len][JSON header][raw body]
+    // ----- Shared: read length-prefixed JSON header from stream -----
+    async #readJsonHeader(stream) {
         const lenBuf = await stream.readExact(4);
         const headerLen = lenBuf.readUInt32BE(0);
-        const headerBuf = await stream.readExact(headerLen);
-        const header = JSON.parse(headerBuf.toString());
-        let reqBody;
-        if (header.bodyLen > 0) {
-            reqBody = await stream.readExact(header.bodyLen);
+        if (headerLen > MAX_YAMUX_HEADER_BYTES) {
+            throw new Error(`header too large: ${headerLen} bytes (max ${MAX_YAMUX_HEADER_BYTES})`);
         }
-        const url = this.#target + header.url;
-        const fetchHeaders = wireHeadersToHeaders(header.headers);
-        const resp = await fetch(url, {
-            method: header.method,
-            headers: fetchHeaders,
-            body: reqBody,
-            redirect: 'manual',
-        });
-        const respBodyBuf = Buffer.from(await resp.arrayBuffer());
-        const respHeaders = headersToWireHeaders(resp.headers);
-        delete respHeaders['content-encoding'];
-        delete respHeaders['content-length'];
-        // Write [4-byte JSON len][JSON header][raw body]
-        const respHdrJson = Buffer.from(JSON.stringify({ status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length }));
-        const lenPrefix = Buffer.allocUnsafe(4);
-        lenPrefix.writeUInt32BE(respHdrJson.length, 0);
-        await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
-        stream.close();
+        const headerBuf = await stream.readExact(headerLen);
+        return JSON.parse(headerBuf.toString());
+    }
+    // ----- HTTP request/response -----
+    async #handleHttpStream(stream) {
+        try {
+            const header = await this.#readJsonHeader(stream);
+            let reqBody;
+            if (header.bodyLen > 0) {
+                reqBody = await stream.readExact(header.bodyLen);
+            }
+            const url = this.#target + header.url;
+            const fetchHeaders = wireHeadersToHeaders(header.headers);
+            const resp = await fetch(url, {
+                method: header.method,
+                headers: fetchHeaders,
+                body: reqBody,
+                redirect: 'manual',
+            });
+            const respBody = await resp.arrayBuffer();
+            if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
+                throw new Error(`response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`);
+            }
+            const respBodyBuf = Buffer.from(respBody);
+            const respHeaders = headersToWireHeaders(resp.headers);
+            stripTransferHeaders(respHeaders);
+            const respHdrJson = Buffer.from(JSON.stringify({ status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length }));
+            const lenPrefix = Buffer.allocUnsafe(4);
+            lenPrefix.writeUInt32BE(respHdrJson.length, 0);
+            await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+        }
+        finally {
+            stream.close();
+        }
     }
     // ----- CONNECT (TCP pipe) -----
     async #handleConnectStream(stream) {
-        // Read [4-byte JSON len][JSON header: {host}]
-        const lenBuf = await stream.readExact(4);
-        const headerLen = lenBuf.readUInt32BE(0);
-        const headerBuf = await stream.readExact(headerLen);
-        const { host } = JSON.parse(headerBuf.toString());
+        const { host } = await this.#readJsonHeader(stream);
         this.#log(`yamux stream ${stream.id}: CONNECT ${host}`);
-        const lastColon = host.lastIndexOf(':');
-        const [hostname, portStr] = lastColon >= 0
-            ? [host.slice(0, lastColon), host.slice(lastColon + 1)]
-            : [host, '80'];
-        const port = parseInt(portStr, 10);
+        const { hostname, port } = parseHostPort(host);
         const socket = net.connect({ host: hostname, port });
         try {
             await new Promise((resolve, reject) => {
@@ -132,7 +137,6 @@ export class YamuxTransport {
                 while (true) {
                     const chunk = await stream.read();
                     if (chunk.length === 0) {
-                        // FIN from server: half-close the TCP socket.
                         socket.end();
                         break;
                     }

@@ -17,7 +17,7 @@ import type {
 } from './types.js';
 import {MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES} from './types.js';
 import type {TunnelTransport, TransportOptions} from './transport.js';
-import {wireHeadersToHeaders, headersToWireHeaders} from './transport.js';
+import {wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort} from './transport.js';
 
 /**
  * LegacyTransport handles the JSON-over-WebSocket protocol with base64-encoded
@@ -132,12 +132,7 @@ export class LegacyTransport implements TunnelTransport {
 
       const respHeaders = headersToWireHeaders(resp.headers);
 
-      // Node's fetch() transparently decompresses responses (gzip, br, etc.)
-      // but preserves the original Content-Encoding header. Strip encoding-
-      // related headers so the relay doesn't tell the browser the body is
-      // compressed when it's already been decoded.
-      delete respHeaders['content-encoding'];
-      delete respHeaders['content-length'];
+      stripTransferHeaders(respHeaders);
 
       let bodyBuf = Buffer.from(respBody);
       let encoding: 'gzip' | undefined;
@@ -178,10 +173,7 @@ export class LegacyTransport implements TunnelTransport {
     const {streamId, host} = msg;
     this.#log(`Stream ${streamId}: connecting to ${host}`);
 
-    const [hostname, portStr] = host.includes(':')
-      ? [host.slice(0, host.lastIndexOf(':')), host.slice(host.lastIndexOf(':') + 1)]
-      : [host, '80'];
-    const port = parseInt(portStr, 10);
+    const {hostname, port} = parseHostPort(host);
 
     const socket = net.connect({host: hostname, port});
 

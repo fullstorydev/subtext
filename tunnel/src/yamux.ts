@@ -20,20 +20,20 @@ import type {RawData} from './third_party/index.js';
 // ----- Protocol constants -----
 
 const PROTO_VERSION = 0;
-const HEADER_SIZE = 12;
+export const HEADER_SIZE = 12;
 
 /** Initial send/receive window per stream (matches hashicorp/yamux default). */
-const INITIAL_WINDOW = 256 * 1024;
+export const INITIAL_WINDOW = 256 * 1024;
 
-const TYPE_DATA = 0;
-const TYPE_WINDOW_UPDATE = 1;
-const TYPE_PING = 2;
-// TYPE_GO_AWAY = 3 — we close the session on receipt; no need to name it
+export const TYPE_DATA = 0;
+export const TYPE_WINDOW_UPDATE = 1;
+export const TYPE_PING = 2;
+export const TYPE_GO_AWAY = 3;
 
-const FLAG_SYN = 0x01;
-const FLAG_ACK = 0x02;
-const FLAG_FIN = 0x04;
-const FLAG_RST = 0x08;
+export const FLAG_SYN = 0x01;
+export const FLAG_ACK = 0x02;
+export const FLAG_FIN = 0x04;
+export const FLAG_RST = 0x08;
 
 // ----- YamuxStream -----
 
@@ -71,8 +71,13 @@ export class YamuxStream {
   // ----- Called by YamuxSession -----
 
   _onData(data: Buffer): void {
-    this.#recvBuf = Buffer.concat([this.#recvBuf, data]);
     this.#recvWindow -= data.length;
+    if (this.#recvWindow < 0) {
+      // Server violated our receive window — treat as protocol error.
+      this._onRst();
+      return;
+    }
+    this.#recvBuf = Buffer.concat([this.#recvBuf, data]);
     this.#recvWaiter?.();
     this.#recvWaiter = null;
   }
@@ -107,7 +112,7 @@ export class YamuxStream {
   async readExact(n: number): Promise<Buffer> {
     while (this.#recvBuf.length < n) {
       if (this.#rstReceived) throw new Error(`yamux stream ${this.id} reset`);
-      if (this.#finReceived) {
+      if (this.#finReceived || this.#closed) {
         throw new Error(
           `yamux stream ${this.id} closed before ${n} bytes (have ${this.#recvBuf.length})`,
         );
@@ -194,6 +199,9 @@ export class YamuxStream {
     this.#closed = true;
     this.#session._sendFin(this.id);
     this.#session._removeStream(this.id);
+    // Wake any blocked reader so it can observe the closed state.
+    this.#recvWaiter?.();
+    this.#recvWaiter = null;
   }
 
   // ----- Private helpers -----
@@ -265,10 +273,15 @@ export class YamuxSession {
     });
   }
 
-  /** Close the session (does not send GoAway; just tears down locally). */
+  /** Send GoAway (normal termination) and tear down all streams locally. */
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    try {
+      this.#ws.send(makeHeader(TYPE_GO_AWAY, 0, 0, 0 /* normal termination */));
+    } catch {
+      // WebSocket may already be closed — best effort.
+    }
     for (const stream of this.#streams.values()) {
       stream._onRst();
     }
@@ -354,14 +367,13 @@ export class YamuxSession {
     switch (type) {
       case TYPE_WINDOW_UPDATE: {
         if (flags & FLAG_SYN) {
-          // Server is opening a new stream via a window_update frame (the
-          // common case in hashicorp/yamux's OpenStream implementation).
           this.#openStream(streamId);
         }
         const stream = this.#streams.get(streamId);
         if (stream) {
-          if (!(flags & FLAG_SYN) && length > 0) {
-            // Server is granting us additional send credits.
+          // Apply window delta regardless of SYN — the spec allows SYN/ACK
+          // to carry an initial window update indicating a larger window.
+          if (length > 0) {
             stream._onWindowUpdate(length);
           }
           if (flags & FLAG_FIN) stream._onFin();
@@ -374,14 +386,15 @@ export class YamuxSession {
       }
       case TYPE_PING: {
         if (flags & FLAG_SYN) {
-          // Server sent a keepalive ping — echo back as ACK with same value.
           this.#ws.send(makeHeader(TYPE_PING, FLAG_ACK, 0, length));
         }
-        // FLAG_ACK pings are responses to client-initiated pings (we never send those).
         break;
       }
+      case TYPE_GO_AWAY:
+        this.close();
+        break;
       default:
-        // TYPE_GO_AWAY or unknown: close the session.
+        // Unknown frame type — protocol error, close the session.
         this.close();
         break;
     }
@@ -420,7 +433,7 @@ export class YamuxSession {
 
 // ----- Helpers -----
 
-function makeHeader(
+export function makeHeader(
   type: number,
   flags: number,
   streamId: number,
