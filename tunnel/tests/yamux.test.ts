@@ -257,7 +257,12 @@ describe('YamuxSession', () => {
   it('closes session on GoAway', async () => {
     const {session, server} = await createPair();
 
-    // Send GoAway.
+    // Send GoAway with normal termination code.
+    // Spec defines three error codes: 0x0 normal, 0x1 protocol error, 0x2 internal error.
+    // Our client treats all GoAway frames identically (close the session) regardless of
+    // the error code in the Length field. This is correct client behavior — the error code
+    // is informational for logging, not a branching signal. We don't test each code
+    // separately because there's no observable difference in behavior.
     server.send(makeHeader(TYPE_GO_AWAY, 0, 0, 0));
 
     // accept() should return null after GoAway.
@@ -503,6 +508,100 @@ describe('YamuxSession', () => {
     assert.equal(data.toString(), 'test');
 
     stream!.close();
+    session.close();
+    server.close();
+  });
+
+  // ----- Spec gap tests -----
+
+  it('closes session on unknown protocol version', async () => {
+    // Spec: "Version field is always set to 0". Our implementation should
+    // close the session if it receives a frame with a non-zero version.
+    const {session, server} = await createPair();
+
+    // Send a frame with version=1 (invalid).
+    const badFrame = makeHeader(TYPE_DATA, 0, 0, 0);
+    badFrame[0] = 1; // corrupt the version byte
+    server.send(badFrame);
+
+    // accept() should return null (session closed).
+    const stream = await session.accept();
+    assert.equal(stream, null);
+
+    server.close();
+  });
+
+  it('handles RST on window_update frame', async () => {
+    // Spec: "RST flag can be used to hard close a stream immediately.
+    // May be sent with a data or window update message."
+    const {session, server} = await createPair();
+
+    server.send(makeHeader(TYPE_WINDOW_UPDATE, FLAG_SYN, 2, 0));
+    const stream = await session.accept();
+    await nextFrame(server); // ACK
+
+    // Send RST via window_update frame (not data frame).
+    server.send(makeHeader(TYPE_WINDOW_UPDATE, FLAG_RST, 2, 0));
+
+    await assert.rejects(stream!.readExact(1), /reset/);
+
+    session.close();
+    server.close();
+  });
+
+  it('handles FIN on window_update frame', async () => {
+    // Spec: "FIN performs a half-close of a stream. May be sent with a
+    // data message or window update."
+    const {session, server} = await createPair();
+
+    server.send(makeHeader(TYPE_WINDOW_UPDATE, FLAG_SYN, 2, 0));
+    const stream = await session.accept();
+    await nextFrame(server); // ACK
+
+    // Send some data, then FIN via window_update (not data frame).
+    server.send(Buffer.concat([makeHeader(TYPE_DATA, 0, 2, 3), Buffer.from('abc')]));
+    server.send(makeHeader(TYPE_WINDOW_UPDATE, FLAG_FIN, 2, 0));
+
+    const data = await stream!.readAll();
+    assert.equal(data.toString(), 'abc');
+
+    stream!.close();
+    session.close();
+    server.close();
+  });
+
+  it('bidirectional FIN fully closes stream', async () => {
+    // Spec: "Once both sides have closed the connection, the stream is closed."
+    // Verify: server sends FIN, client sends FIN, stream is fully done.
+    const {session, server} = await createPair();
+
+    server.send(makeHeader(TYPE_WINDOW_UPDATE, FLAG_SYN, 2, 0));
+    const stream = await session.accept();
+    await nextFrame(server); // ACK
+
+    // Server sends data + FIN.
+    server.send(Buffer.concat([makeHeader(TYPE_DATA, FLAG_FIN, 2, 5), Buffer.from('hello')]));
+
+    // Client reads data then hits EOF.
+    const data = await stream!.readExact(5);
+    assert.equal(data.toString(), 'hello');
+    const eof = await stream!.read();
+    assert.equal(eof.length, 0);
+
+    // Client sends FIN (closes its write side).
+    stream!.close();
+
+    // Server should receive FIN frame from client.
+    const finBuf = await nextFrame(server);
+    const fin = parseHeader(finBuf);
+    assert.equal(fin.type, TYPE_DATA);
+    assert.equal(fin.flags & FLAG_FIN, FLAG_FIN);
+    assert.equal(fin.streamId, 2);
+
+    // Both sides have FIN'd — stream is fully closed.
+    // Verify: write after bidirectional close throws.
+    await assert.rejects(stream!.write(Buffer.from('nope')), /closed/);
+
     session.close();
     server.close();
   });
