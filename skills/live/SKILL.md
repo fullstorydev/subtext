@@ -83,14 +83,21 @@ After every `live-connect`, output the viewer URL on its own line:
 Viewer: {viewer_url}
 ```
 
-## `live-connect` Capture Status
+## Capture Status
 
-After every `live-connect`, check `capture_status` and respond as follows:
+Every live tool response that touches a view includes a `capture_status` field —
+this includes `live-connect`, `live-view-new`, `live-view-navigate`,
+`live-view-snapshot`, and `live-view-screenshot`. Check it after **every** such
+call (not just `live-connect`) and respond as follows:
 
 - `active`: proceed normally.
 - `blocked`: tell the user to check capture quota and verify the target domain is allow listed in Subtext data capture settings.
 - `snippet_not_found` or `api_unavailable`: tell the user something went wrong during setup and they should run onboarding again.
 - any other status: something went wrong, try again
+
+This matters especially in the **tunnel-first flow**, where `live-connect` is
+never called — it's easy to miss the status if you assume the check only applies
+to that one tool.
 
 ## Tips
 
