@@ -234,7 +234,7 @@ export class YamuxSession {
   #closed = false;
 
   /** Accumulator for incomplete frames across WebSocket messages. */
-  #readBuf = Buffer.alloc(0);
+  #readBuf: Buffer = Buffer.alloc(0);
 
   constructor(ws: WSAdapter) {
     this.#ws = ws;
