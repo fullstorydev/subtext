@@ -115,7 +115,7 @@ export class YamuxStream {
         while (this.#recvBuf.length === 0) {
             if (this.#rstReceived)
                 throw new Error(`yamux stream ${this.id} reset`);
-            if (this.#finReceived)
+            if (this.#finReceived || this.#closed)
                 return Buffer.alloc(0);
             await new Promise((resolve) => {
                 this.#recvWaiter = resolve;
@@ -136,7 +136,7 @@ export class YamuxStream {
         while (true) {
             if (this.#rstReceived)
                 throw new Error(`yamux stream ${this.id} reset`);
-            if (this.#finReceived && this.#recvBuf.length === 0)
+            if ((this.#finReceived || this.#closed) && this.#recvBuf.length === 0)
                 break;
             if (this.#recvBuf.length > 0) {
                 const consumed = this.#recvBuf.length;

@@ -147,13 +147,19 @@ export class YamuxTransport implements TunnelTransport {
     // Write success byte.
     await stream.write(Buffer.from([0x00]));
 
-    // Pump socket -> yamux stream (event-driven).
+    // Pump socket -> yamux stream with backpressure.
     const socketDone = new Promise<void>((resolve) => {
       socket.on('data', (chunk: Buffer) => {
-        stream.write(chunk).catch(() => {
-          socket.destroy();
-          resolve();
-        });
+        socket.pause();
+        stream
+          .write(chunk)
+          .then(() => {
+            socket.resume();
+          })
+          .catch(() => {
+            socket.destroy();
+            resolve();
+          });
       });
       socket.once('end', () => {
         stream.close();

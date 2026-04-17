@@ -114,10 +114,16 @@ export class YamuxTransport {
         }
         // Write success byte.
         await stream.write(Buffer.from([0x00]));
-        // Pump socket -> yamux stream (event-driven).
+        // Pump socket -> yamux stream with backpressure.
         const socketDone = new Promise((resolve) => {
             socket.on('data', (chunk) => {
-                stream.write(chunk).catch(() => {
+                socket.pause();
+                stream
+                    .write(chunk)
+                    .then(() => {
+                    socket.resume();
+                })
+                    .catch(() => {
                     socket.destroy();
                     resolve();
                 });
