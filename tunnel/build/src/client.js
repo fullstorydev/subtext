@@ -71,6 +71,7 @@ export class TunnelClient {
                 type: 'hello',
                 target: this.#target,
                 protocol: 'yamux',
+                streaming: true,
             };
             if (this.#initialConnectionId) {
                 hello.connectionId = this.#initialConnectionId;
@@ -102,7 +103,7 @@ export class TunnelClient {
             // Create the transport based on negotiated protocol.
             if (msg.protocol === 'yamux') {
                 this.#clearStaleTimer(); // yamux keepalive handles liveness
-                this.#transport = new YamuxTransport({ ws, target: this.#target, log: this.#log });
+                this.#transport = new YamuxTransport({ ws, target: this.#target, log: this.#log, streaming: msg.streaming === true });
             }
             else {
                 this.#transport = new LegacyTransport({
