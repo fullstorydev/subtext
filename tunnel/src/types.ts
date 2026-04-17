@@ -8,6 +8,7 @@ export interface HelloMessage {
   type: 'hello';
   target: string;
   connectionId?: string;
+  protocol?: 'yamux';
 }
 
 // Relay → Client
@@ -15,6 +16,7 @@ export interface ReadyMessage {
   type: 'ready';
   tunnelId: string;
   connectionId: string;
+  protocol?: 'yamux';
 }
 
 // Relay → Client
