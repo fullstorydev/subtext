@@ -269,6 +269,10 @@ export class YamuxSession {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    for (const stream of this.#streams.values()) {
+      stream._onRst();
+    }
+    this.#streams.clear();
     this.#drainWaiters();
   }
 
