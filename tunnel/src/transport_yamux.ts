@@ -24,11 +24,13 @@ export class YamuxTransport implements TunnelTransport {
   readonly #target: string;
   readonly #log: (msg: string) => void;
   readonly #session: YamuxSession;
+  readonly #streaming: boolean;
 
   constructor(opts: TransportOptions) {
     this.#target = opts.target;
     this.#log = opts.log;
     this.#session = new YamuxSession(opts.ws);
+    this.#streaming = opts.streaming ?? false;
   }
 
   async serve(): Promise<void> {
@@ -98,22 +100,44 @@ export class YamuxTransport implements TunnelTransport {
         redirect: 'manual',
       });
 
-      const respBody = await resp.arrayBuffer();
-      if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
-        throw new Error(
-          `response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
-        );
-      }
-      const respBodyBuf = Buffer.from(respBody);
       const respHeaders = headersToWireHeaders(resp.headers);
       stripTransferHeaders(respHeaders);
 
-      const respHdrJson = Buffer.from(
-        JSON.stringify({status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length}),
-      );
-      const lenPrefix = Buffer.allocUnsafe(4);
-      lenPrefix.writeUInt32BE(respHdrJson.length, 0);
-      await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+      if (this.#streaming) {
+        // Send header immediately (no bodyLen), then stream body bytes.
+        // stream.close() in finally sends FIN — the relay uses that as EOF.
+        const respHdrJson = Buffer.from(JSON.stringify({status: resp.status, headers: respHeaders}));
+        const lenPrefix = Buffer.allocUnsafe(4);
+        lenPrefix.writeUInt32BE(respHdrJson.length, 0);
+        await stream.write(Buffer.concat([lenPrefix, respHdrJson]));
+        if (resp.body) {
+          const reader = resp.body.getReader();
+          try {
+            while (true) {
+              const {done, value} = await reader.read();
+              if (done) break;
+              await stream.write(Buffer.from(value.buffer, value.byteOffset, value.byteLength));
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        }
+      } else {
+        // Buffered path: read full body, include bodyLen in header.
+        const respBody = await resp.arrayBuffer();
+        if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
+          throw new Error(
+            `response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
+          );
+        }
+        const respBodyBuf = Buffer.from(respBody);
+        const respHdrJson = Buffer.from(
+          JSON.stringify({status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length}),
+        );
+        const lenPrefix = Buffer.allocUnsafe(4);
+        lenPrefix.writeUInt32BE(respHdrJson.length, 0);
+        await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+      }
     } catch (err) {
       await this.#writeHttpError(stream, err);
       throw err;
