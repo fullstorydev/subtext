@@ -8,6 +8,7 @@ import type {
   ClientMessage,
   ConnectMessage,
   RelayMessage,
+  ReadyMessage,
   RequestMessage,
   StreamDataMessage,
   StreamEndMessage,
@@ -25,6 +26,7 @@ import {
   STALE_CONNECTION_MS,
   MAX_RECONNECT_ATTEMPTS,
 } from './types.js';
+import {YamuxSession, YamuxStream} from './yamux.js';
 
 export interface TunnelClientOptions {
   relayUrl: string;
@@ -52,6 +54,7 @@ export class TunnelClient {
   #staleTimer: ReturnType<typeof setTimeout> | null = null;
   #connectedSince: number | null = null;
   #intentionalDisconnect = false;
+  #yamuxSession: YamuxSession | null = null;
 
   constructor(opts: TunnelClientOptions) {
     this.#relayUrl = opts.relayUrl;
@@ -108,9 +111,10 @@ export class TunnelClient {
       this.#state = 'connected';
       this.#connectedSince = Date.now();
       this.#log('WebSocket open, sending hello');
-      const hello: {type: 'hello'; target: string; connectionId?: string} = {
+      const hello: {type: 'hello'; target: string; connectionId?: string; protocol: 'yamux'} = {
         type: 'hello',
         target: this.#target,
+        protocol: 'yamux',
       };
       if (this.#initialConnectionId) {
         hello.connectionId = this.#initialConnectionId;
@@ -119,7 +123,7 @@ export class TunnelClient {
       this.#resetStaleTimer();
     });
 
-    ws.on('message', (data: RawData) => {
+    const messageHandler = (data: RawData) => {
       this.#resetStaleTimer();
       let msg: RelayMessage;
       try {
@@ -136,6 +140,11 @@ export class TunnelClient {
           this.#state = 'ready';
           this.#reconnectAttempts = 0;
           this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
+          if (msg.protocol === 'yamux') {
+            ws.removeListener('message', messageHandler);
+            this.#clearStaleTimer(); // yamux keepalive handles liveness
+            this.#startYamuxMode(ws, msg);
+          }
           break;
         case 'request':
           void this.#handleRequest(msg);
@@ -161,7 +170,8 @@ export class TunnelClient {
         default:
           this.#log(`Unknown message type: ${(msg as {type: string}).type}`);
       }
-    });
+    };
+    ws.on('message', messageHandler);
 
     ws.on('close', (code: number, reason: Buffer) => {
       this.#log(`WebSocket closed: ${code} ${reason.toString()}`);
@@ -333,16 +343,170 @@ export class TunnelClient {
     }
   }
 
-  #send(msg: ClientMessage): void {
+  // ----- Yamux mode -----
+
+  #startYamuxMode(ws: InstanceType<typeof WebSocket>, _ready: ReadyMessage): void {
+    const session = new YamuxSession(ws);
+    this.#yamuxSession = session;
+    void this.#yamuxAcceptLoop(session);
+  }
+
+  async #yamuxAcceptLoop(session: YamuxSession): Promise<void> {
+    while (true) {
+      const stream = await session.accept();
+      if (stream === null) break; // session closed
+      void this.#handleYamuxStream(stream).catch((err: unknown) => {
+        this.#log(`yamux stream ${stream.id} error: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
+  }
+
+  async #handleYamuxStream(stream: YamuxStream): Promise<void> {
+    // First byte is stream type prefix.
+    const typeBuf = await stream.readExact(1);
+    const streamType = typeBuf[0];
+    if (streamType === 0x01) {
+      await this.#handleYamuxHttpStream(stream);
+    } else if (streamType === 0x02) {
+      await this.#handleYamuxConnectStream(stream);
+    } else {
+      this.#log(`yamux stream ${stream.id}: unknown type 0x${streamType.toString(16)}`);
+      stream.close();
+    }
+  }
+
+  async #handleYamuxHttpStream(stream: YamuxStream): Promise<void> {
+    // Read [4-byte JSON len][JSON header][raw body]
+    const lenBuf = await stream.readExact(4);
+    const headerLen = lenBuf.readUInt32BE(0);
+    const headerBuf = await stream.readExact(headerLen);
+    const header = JSON.parse(headerBuf.toString()) as {
+      method: string;
+      url: string;
+      headers: WireHeaders;
+      bodyLen: number;
+    };
+
+    let reqBody: Buffer | undefined;
+    if (header.bodyLen > 0) {
+      reqBody = await stream.readExact(header.bodyLen);
+    }
+
+    const url = this.#target + header.url;
+    const fetchHeaders = wireHeadersToHeaders(header.headers);
+
+    const resp = await fetch(url, {
+      method: header.method,
+      headers: fetchHeaders,
+      body: reqBody,
+      redirect: 'manual',
+    });
+
+    const respBodyBuf = Buffer.from(await resp.arrayBuffer());
+    const respHeaders = headersToWireHeaders(resp.headers);
+    delete respHeaders['content-encoding'];
+    delete respHeaders['content-length'];
+
+    // Write [4-byte JSON len][JSON header][raw body]
+    const respHdrJson = Buffer.from(
+      JSON.stringify({status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length}),
+    );
+    const lenPrefix = Buffer.allocUnsafe(4);
+    lenPrefix.writeUInt32BE(respHdrJson.length, 0);
+    await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+    stream.close();
+  }
+
+  async #handleYamuxConnectStream(stream: YamuxStream): Promise<void> {
+    // Read [4-byte JSON len][JSON header: {host}]
+    const lenBuf = await stream.readExact(4);
+    const headerLen = lenBuf.readUInt32BE(0);
+    const headerBuf = await stream.readExact(headerLen);
+    const {host} = JSON.parse(headerBuf.toString()) as {host: string};
+
+    this.#log(`yamux stream ${stream.id}: CONNECT ${host}`);
+
+    const lastColon = host.lastIndexOf(':');
+    const [hostname, portStr] =
+      lastColon >= 0
+        ? [host.slice(0, lastColon), host.slice(lastColon + 1)]
+        : [host, '80'];
+    const port = parseInt(portStr, 10);
+
+    const socket = net.connect({host: hostname, port});
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once('connect', resolve);
+        socket.once('error', reject);
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.#log(`yamux stream ${stream.id}: connect error: ${msg}`);
+      const errBuf = Buffer.from(msg);
+      const resp = Buffer.allocUnsafe(1 + errBuf.length);
+      resp[0] = 0x01;
+      errBuf.copy(resp, 1);
+      await stream.write(resp).catch(() => undefined);
+      stream.close();
+      return;
+    }
+
+    // Write success byte.
+    await stream.write(Buffer.from([0x00]));
+
+    // Pump socket → yamux stream (event-driven).
+    const socketDone = new Promise<void>((resolve) => {
+      socket.on('data', (chunk: Buffer) => {
+        stream.write(chunk).catch(() => {
+          socket.destroy();
+          resolve();
+        });
+      });
+      socket.once('end', () => {
+        stream.close();
+        resolve();
+      });
+      socket.once('error', () => {
+        stream.close();
+        resolve();
+      });
+    });
+
+    // Pump yamux stream → socket (read loop).
+    const yamuxDone = (async () => {
+      try {
+        while (true) {
+          const chunk = await stream.read();
+          if (chunk.length === 0) {
+            // FIN from server: half-close the TCP socket.
+            socket.end();
+            break;
+          }
+          socket.write(chunk);
+        }
+      } catch {
+        socket.destroy();
+      }
+    })();
+
+    await Promise.all([socketDone, yamuxDone]);
+  }
+
+  #send(msg: ClientMessage): boolean {
     if (this.#ws?.readyState === WebSocket.OPEN) {
       this.#ws.send(JSON.stringify(msg));
+      return true;
     }
+    this.#log(`Dropped ${msg.type} message (ws state=${this.#ws?.readyState})`);
+    return false;
   }
 
   #onDisconnect(): void {
     this.#abortInflight();
     this.#closeStreams();
     this.#clearStaleTimer();
+    this.#yamuxSession?.close();
+    this.#yamuxSession = null;
     this.#tunnelId = undefined;
     this.#ws = null;
 
@@ -410,7 +574,7 @@ export class TunnelClient {
 
   #closeStreams(): void {
     for (const socket of this.#streams.values()) {
-      socket.destroy();
+      socket.end(); // graceful FIN; let in-progress TLS records complete
     }
     this.#streams.clear();
   }
@@ -419,6 +583,8 @@ export class TunnelClient {
     this.#abortInflight();
     this.#closeStreams();
     this.#clearStaleTimer();
+    this.#yamuxSession?.close();
+    this.#yamuxSession = null;
     if (this.#reconnectTimer !== null) {
       clearTimeout(this.#reconnectTimer);
       this.#reconnectTimer = null;

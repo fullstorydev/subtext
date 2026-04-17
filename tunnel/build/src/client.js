@@ -267,7 +267,10 @@ export class TunnelClient {
     #send(msg) {
         if (this.#ws?.readyState === WebSocket.OPEN) {
             this.#ws.send(JSON.stringify(msg));
+            return true;
         }
+        this.#log(`Dropped ${msg.type} message (ws state=${this.#ws?.readyState})`);
+        return false;
     }
     #onDisconnect() {
         this.#abortInflight();
@@ -324,7 +327,7 @@ export class TunnelClient {
     }
     #closeStreams() {
         for (const socket of this.#streams.values()) {
-            socket.destroy();
+            socket.end(); // graceful FIN; let in-progress TLS records complete
         }
         this.#streams.clear();
     }
