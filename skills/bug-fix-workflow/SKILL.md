@@ -3,7 +3,7 @@ name: subtext:bug-fix-workflow
 description: Fix UI bugs via evidence-driven workflow. Understand before fixing, test before coding. Delegates heavy exploration to subagents.
 metadata:
   requires:
-    skills: ["subtext:session", "subtext:shared", "subtext:sightmap", "subtext:visual-verification", "subtext:comments"]
+    skills: ["subtext:session", "subtext:shared", "subtext:sightmap", "subtext:proof", "subtext:comments"]
 ---
 
 # Bug Fix
@@ -87,7 +87,7 @@ Before doing anything, assess what you already know:
 - Build the UI
 - Delegate browser validation to subagent with original repro steps
 - Subagent follows steps and confirms bug is gone
-- Apply `visual-verification` rules: screenshot the fix, check theme/viewport variants if the change touched styles, and compare against the original bug evidence
+- Apply `proof` workflow: capture BEFORE/AFTER screenshots with `upload: true`, leave comment annotations as chapter markers, check theme/viewport variants if the change touched styles, and compare against the original bug evidence
 - `comment-reply` on each bug annotation with fix status and evidence (commit, screenshot)
 - `comment-resolve` only on issues confirmed fixed via screenshot — leave others open with a status reply
 
