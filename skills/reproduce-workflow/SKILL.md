@@ -9,6 +9,7 @@ metadata:
 # Reproduce
 
 > **PREREQUISITE:** Read `subtext:shared`, `subtext:session`, `subtext:live`, `subtext:sightmap`, and `subtext:tunnel` for MCP conventions and tools.
+> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it — it documents MCP prefix selection and host-specific gotchas (local-app login/auth, patterns for testing locally-built code through subtext tools, screenshot strategy, and similar).
 
 Drive the local app through live browser MCP tools to reproduce a user flow. When you encounter sightmap gaps, write back so the next run is better.
 

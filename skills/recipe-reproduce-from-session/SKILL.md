@@ -9,6 +9,7 @@ metadata:
 # Recipe: Reproduce from Session
 
 > **PREREQUISITE:** Read `subtext:shared`, `subtext:session`, `subtext:live`, `subtext:sightmap`, and `subtext:tunnel`.
+> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it — it documents MCP prefix selection and host-specific gotchas (local-app login/auth, patterns for testing locally-built code through subtext tools, screenshot strategy, and similar).
 
 ## Steps
 
