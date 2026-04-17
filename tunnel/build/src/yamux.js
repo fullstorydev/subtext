@@ -165,6 +165,8 @@ export class YamuxStream {
             while (this.#sendWindow === 0) {
                 if (this.#rstReceived)
                     throw new Error(`yamux stream ${this.id} reset`);
+                if (this.#closed)
+                    throw new Error(`yamux stream ${this.id} closed`);
                 await new Promise((resolve) => {
                     this.#sendWaiters.push(resolve);
                 });
@@ -185,6 +187,10 @@ export class YamuxStream {
         // Wake any blocked reader so it can observe the closed state.
         this.#recvWaiter?.();
         this.#recvWaiter = null;
+        // Wake any blocked writer so it can observe the closed state.
+        const waiters = this.#sendWaiters.splice(0);
+        for (const w of waiters)
+            w();
     }
     // ----- Private helpers -----
     /** Account for consumed bytes and send a window update when the threshold is met. */
