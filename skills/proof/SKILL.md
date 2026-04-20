@@ -1,6 +1,6 @@
 ---
 name: subtext:proof
-description: Prove your UX changes work with before/after visual evidence using Subtext Live. Use when making any code change that affects what users see or interact with — component edits, CSS changes, layout fixes, new features, bug fixes, interaction flows, navigation changes, form behavior, or animation updates. Triggers on file changes to .tsx, .jsx, .vue, .svelte, .css, .scss, .html, or when user says "fix the UI", "update the flow", "change the layout", "style this", "improve the experience", "proof this", "verify my changes", or any task with visual or interaction acceptance criteria. Do NOT use for pure backend logic, API handlers, database queries, or test-only changes.
+description: "Use this skill whenever the user asks you to make, fix, refactor, or verify anything visual in the frontend. This is your go-to skill for all UI work — it captures before/after screenshots to prove changes work. Trigger for: fixing buttons, modals, dropdowns, menus, or navigation; changing styles, fonts, colors, spacing, hover states, or animations; adding, editing, or refactoring any UI component; responsive or mobile layout fixes; and verifying that changes look correct. If the task will change what a user sees in a browser, use this skill. Do not use for pure backend/API/database work, dependency bumps, test-only changes, or requests that only explain code without editing it."
 metadata:
   requires:
     skills:
