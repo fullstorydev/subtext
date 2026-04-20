@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Run trigger evaluation for a skill.
+#
+# Usage:
+#   ./tools/skill-eval/bin/eval <skill-name> [extra args...]
+#
+# Example:
+#   ./tools/skill-eval/bin/eval proof
+#   ./tools/skill-eval/bin/eval proof --runs-per-query 5 --verbose
+#   ./tools/skill-eval/bin/eval proof --isolated   # no user plugins/skills
+#
+# Extra args are forwarded to the underlying run_eval.py. Notable flags:
+#   --isolated         run each query in a clean env (no user plugins/skills)
+#   --runs-per-query N how many runs per query (default 3)
+#   --model NAME       override the model claude -p uses
+#
+# Results are written to skills/<name>/evals/results/<name>-<timestamp>.json.
+# Add -isolated to filenames for clarity when using --isolated.
+
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $(basename "$0") <skill-name> [extra run_eval.py args...]" >&2
+  exit 2
+fi
+
+SKILL_NAME="$1"
+shift
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HARNESS_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$HARNESS_DIR/../.." && pwd)"
+VENDOR_DIR="$HARNESS_DIR/vendor/skill-creator"
+
+SKILL_PATH="$REPO_ROOT/skills/$SKILL_NAME"
+EVAL_SET="$SKILL_PATH/evals/eval-set.json"
+RESULTS_DIR="$SKILL_PATH/evals/results"
+
+if [ ! -d "$SKILL_PATH" ]; then
+  echo "Error: skill not found at $SKILL_PATH" >&2
+  exit 1
+fi
+if [ ! -f "$EVAL_SET" ]; then
+  echo "Error: eval-set not found at $EVAL_SET" >&2
+  echo "Create one with an array of {query, should_trigger, note} objects." >&2
+  exit 1
+fi
+
+mkdir -p "$RESULTS_DIR"
+TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
+SUFFIX=""
+for a in "$@"; do
+  if [ "$a" = "--isolated" ]; then SUFFIX="-isolated"; break; fi
+done
+OUT="$RESULTS_DIR/${SKILL_NAME}${SUFFIX}-${TIMESTAMP}.json"
+
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if [ -x "$HARNESS_DIR/venv/bin/python" ]; then
+  PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
+fi
+
+echo "Running trigger eval for '$SKILL_NAME'"
+echo "  skill:    $SKILL_PATH"
+echo "  eval-set: $EVAL_SET"
+echo "  output:   $OUT"
+echo
+
+cd "$VENDOR_DIR"
+"$PYTHON_BIN" -m scripts.run_eval \
+  --skill-path "$SKILL_PATH" \
+  --eval-set "$EVAL_SET" \
+  --verbose \
+  "$@" \
+  | tee "$OUT"
+
+echo
+echo "Results written to $OUT"

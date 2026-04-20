@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# Run the eval + improve loop for a skill and auto-apply the best
+# description back to its SKILL.md.
+#
+# Usage:
+#   ./tools/skill-eval/bin/loop <skill-name> [extra run_loop.py args...]
+#
+# Defaults:
+#   --max-iterations 5
+#   --holdout 0.4
+#   --model claude-opus-4-6   (improve_description uses legacy thinking API)
+#   --report none       (no browser)
+#
+# Overrides: pass any of the above after the skill name.
+# Requires ANTHROPIC_API_KEY and a venv created by bin/setup.
+
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $(basename "$0") <skill-name> [extra run_loop.py args...]" >&2
+  exit 2
+fi
+
+SKILL_NAME="$1"
+shift
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HARNESS_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$HARNESS_DIR/../.." && pwd)"
+VENDOR_DIR="$HARNESS_DIR/vendor/skill-creator"
+VENV_PY="$HARNESS_DIR/venv/bin/python"
+
+SKILL_PATH="$REPO_ROOT/skills/$SKILL_NAME"
+SKILL_MD="$SKILL_PATH/SKILL.md"
+EVAL_SET="$SKILL_PATH/evals/eval-set.json"
+RESULTS_PARENT="$SKILL_PATH/evals/results"
+
+if [ ! -f "$SKILL_MD" ]; then
+  echo "Error: $SKILL_MD not found" >&2
+  exit 1
+fi
+if [ ! -f "$EVAL_SET" ]; then
+  echo "Error: eval-set not found at $EVAL_SET" >&2
+  exit 1
+fi
+if [ ! -x "$VENV_PY" ]; then
+  echo "Error: venv missing. Run: $HARNESS_DIR/bin/setup" >&2
+  exit 1
+fi
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "Error: ANTHROPIC_API_KEY is not set." >&2
+  echo "  export ANTHROPIC_API_KEY=sk-ant-..." >&2
+  exit 1
+fi
+
+mkdir -p "$RESULTS_PARENT"
+
+# Sensible defaults; caller can override with flags passed after the skill name.
+DEFAULTS=(
+  --max-iterations 5
+  --holdout 0.4
+  --model claude-opus-4-6
+  --report none
+)
+
+echo "Running loop for '$SKILL_NAME'"
+echo "  skill:    $SKILL_PATH"
+echo "  eval-set: $EVAL_SET"
+echo "  results:  $RESULTS_PARENT (timestamped subdir)"
+echo
+
+cd "$VENDOR_DIR"
+"$VENV_PY" -m scripts.run_loop \
+  --skill-path "$SKILL_PATH" \
+  --eval-set "$EVAL_SET" \
+  --results-dir "$RESULTS_PARENT" \
+  --verbose \
+  "${DEFAULTS[@]}" \
+  "$@"
+
+LATEST_DIR="$(ls -1dt "$RESULTS_PARENT"/*/ 2>/dev/null | head -1)"
+RESULTS_JSON="${LATEST_DIR%/}/results.json"
+if [ ! -f "$RESULTS_JSON" ]; then
+  echo "Warning: could not locate results.json under $RESULTS_PARENT — skipping auto-apply." >&2
+  exit 0
+fi
+
+BEST_DESC="$("$VENV_PY" -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('best_description') or d.get('final_description') or '')" "$RESULTS_JSON")"
+ORIG_DESC="$("$VENV_PY" -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('original_description') or '')" "$RESULTS_JSON")"
+
+if [ -z "$BEST_DESC" ]; then
+  echo "No best_description found in $RESULTS_JSON — nothing to apply." >&2
+  exit 0
+fi
+if [ "$BEST_DESC" = "$ORIG_DESC" ]; then
+  echo "Best description matches the original — no change to apply."
+  exit 0
+fi
+
+echo
+echo "Applying tuned description to $SKILL_MD"
+DESC_FILE="$(mktemp)"
+trap 'rm -f "$DESC_FILE"' EXIT
+printf '%s' "$BEST_DESC" > "$DESC_FILE"
+
+"$VENV_PY" "$HARNESS_DIR/apply_description.py" "$SKILL_MD" "@$DESC_FILE"
+
+echo
+echo "Diff:"
+git -C "$REPO_ROOT" --no-pager diff -- "$SKILL_MD" || true
+echo
+echo "Review the diff above. Commit when ready, or 'git checkout -- $SKILL_MD' to revert."

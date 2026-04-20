@@ -1,0 +1,7 @@
+source: https://github.com/anthropics/claude-plugins-official/tree/main/plugins/skill-creator
+vendored-from-install: ~/.claude/plugins/marketplaces/claude-plugins-official/plugins/skill-creator/skills/skill-creator
+vendored-on: 2026-04-20
+license: Apache-2.0
+
+To refresh this vendor copy:
+  ./tools/skill-eval/bin/refresh-vendor   # (not yet implemented; re-run cp from source)
