@@ -12,6 +12,7 @@
 #   --report none       (no browser)
 #
 # Overrides: pass any of the above after the skill name.
+# Pass --isolated to tune against a clean environment (no user plugins/skills).
 # Requires ANTHROPIC_API_KEY and a venv created by bin/setup.
 
 set -euo pipefail

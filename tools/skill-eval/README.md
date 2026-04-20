@@ -105,6 +105,14 @@ Override by passing them after the skill name:
 ./tools/skill-eval/bin/loop proof --max-iterations 8 --holdout 0.5
 ```
 
+Pass `--isolated` to tune against a clean environment (same semantics as
+`bin/eval --isolated`). Useful for producing a description that works across
+different machines regardless of what plugins the user has installed:
+
+```bash
+./tools/skill-eval/bin/loop proof --isolated
+```
+
 ## Writing an eval-set
 
 `skills/<name>/evals/eval-set.json` is a JSON array. Each entry:

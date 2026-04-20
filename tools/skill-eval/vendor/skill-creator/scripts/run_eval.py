@@ -41,6 +41,7 @@ def run_single_query(
     timeout: int,
     project_root: str,
     model: str | None = None,
+    isolated_base: str | None = None,
 ) -> bool:
     """Run a single query and return whether the skill was triggered.
 
@@ -49,6 +50,14 @@ def run_single_query(
     Uses --include-partial-messages to detect triggering early from
     stream events (content_block_start) rather than waiting for the
     full assistant message, which only arrives after tool execution.
+
+    subtext-patch: when ``isolated_base`` is set, each query gets its own
+    per-worker project root under that base so concurrent workers never
+    share a .claude/commands/ dir. Without this, all 10 workers stage
+    near-identical skills visible to each other's claude -p subprocess,
+    and Claude picks them near-uniformly — the detector only matches
+    when Claude happens to pick *this* worker's variant, so trigger
+    detection drops by ~num_workers×.
     """
     unique_id = uuid.uuid4().hex[:8]
     # subtext-patch: Claude Code normalizes ":" to "-" when registering a
@@ -57,6 +66,13 @@ def run_single_query(
     # Match that here so both the staged filename and the substring-match
     # detection below use the form Claude actually sees.
     clean_name = f"{skill_name}-skill-{unique_id}".replace(":", "-")
+
+    per_worker_root = None
+    if isolated_base is not None:
+        per_worker_root = Path(isolated_base) / f"worker-{unique_id}"
+        (per_worker_root / ".claude" / "commands").mkdir(parents=True)
+        project_root = str(per_worker_root)
+
     project_commands_dir = Path(project_root) / ".claude" / "commands"
     command_file = project_commands_dir / f"{clean_name}.md"
 
@@ -186,6 +202,9 @@ def run_single_query(
     finally:
         if command_file.exists():
             command_file.unlink()
+        # subtext-patch: remove the per-worker isolated project root if we made one
+        if per_worker_root is not None:
+            shutil.rmtree(per_worker_root, ignore_errors=True)
 
 
 def run_eval(
@@ -198,6 +217,7 @@ def run_eval(
     runs_per_query: int = 1,
     trigger_threshold: float = 0.5,
     model: str | None = None,
+    isolated_base: Path | None = None,
 ) -> dict:
     """Run the full eval set and return results."""
     results = []
@@ -214,6 +234,7 @@ def run_eval(
                     timeout,
                     str(project_root),
                     model,
+                    str(isolated_base) if isolated_base else None,
                 )
                 future_to_info[future] = (item, run_idx)
 
@@ -298,17 +319,22 @@ def main():
 
     # subtext-patch: when --isolated, build a disposable project root and
     # point CLAUDE_CONFIG_DIR at an empty dir so Claude loads no user
-    # plugins for this eval run.
+    # plugins for this eval run. Each worker gets its OWN per-worker
+    # project root under isolated_base (see run_single_query) to prevent
+    # concurrent workers from seeing each other's staged skills.
     isolated_tmpdir = None
+    isolated_base = None
     if args.isolated:
         isolated_tmpdir = Path(tempfile.mkdtemp(prefix="skill-eval-isolated-"))
-        project_root = isolated_tmpdir / "project"
         empty_home = isolated_tmpdir / "empty-home"
-        (project_root / ".claude" / "commands").mkdir(parents=True)
+        isolated_base = isolated_tmpdir / "workers"
+        project_root = isolated_tmpdir / "project"  # placeholder; not used in isolated mode
         empty_home.mkdir(parents=True)
+        isolated_base.mkdir(parents=True)
+        (project_root / ".claude" / "commands").mkdir(parents=True)
         os.environ["CLAUDE_CONFIG_DIR"] = str(empty_home)
         if args.verbose:
-            print(f"Isolated mode: project_root={project_root}", file=sys.stderr)
+            print(f"Isolated mode: isolated_base={isolated_base}", file=sys.stderr)
             print(f"Isolated mode: CLAUDE_CONFIG_DIR={empty_home}", file=sys.stderr)
     else:
         project_root = find_project_root()
@@ -327,6 +353,7 @@ def main():
             runs_per_query=args.runs_per_query,
             trigger_threshold=args.trigger_threshold,
             model=args.model,
+            isolated_base=isolated_base,
         )
     finally:
         if isolated_tmpdir is not None:

@@ -8,7 +8,9 @@ overfitting.
 
 import argparse
 import json
+import os
 import random
+import shutil
 import sys
 import tempfile
 import time
@@ -260,6 +262,14 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Print progress to stderr")
     parser.add_argument("--report", default="auto", help="Generate HTML report at this path (default: 'auto' for temp file, 'none' to disable)")
     parser.add_argument("--results-dir", default=None, help="Save all outputs (results.json, report.html, log.txt) to a timestamped subdirectory here")
+    parser.add_argument(
+        "--isolated",
+        action="store_true",
+        help=(
+            "subtext-patch: run each eval query against a clean environment "
+            "with no user plugins/skills/MCP servers. See run_eval.py's --isolated."
+        ),
+    )
     args = parser.parse_args()
 
     eval_set = json.loads(Path(args.eval_set).read_text())
@@ -270,6 +280,22 @@ def main():
         sys.exit(1)
 
     name, _, _ = parse_skill_md(skill_path)
+
+    # subtext-patch: isolation — build a disposable project root with its own
+    # .claude/commands/ and point CLAUDE_CONFIG_DIR at an empty dir. chdir
+    # there so find_project_root() inside run_loop/run_eval picks it up.
+    isolated_tmpdir = None
+    if args.isolated:
+        isolated_tmpdir = Path(tempfile.mkdtemp(prefix="skill-eval-loop-isolated-"))
+        iso_project = isolated_tmpdir / "project"
+        iso_home = isolated_tmpdir / "empty-home"
+        (iso_project / ".claude" / "commands").mkdir(parents=True)
+        iso_home.mkdir(parents=True)
+        os.environ["CLAUDE_CONFIG_DIR"] = str(iso_home)
+        os.chdir(iso_project)
+        if args.verbose:
+            print(f"Isolated loop: project_root={iso_project}", file=sys.stderr)
+            print(f"Isolated loop: CLAUDE_CONFIG_DIR={iso_home}", file=sys.stderr)
 
     # Set up live report path
     if args.report != "none":
@@ -294,21 +320,25 @@ def main():
 
     log_dir = results_dir / "logs" if results_dir else None
 
-    output = run_loop(
-        eval_set=eval_set,
-        skill_path=skill_path,
-        description_override=args.description,
-        num_workers=args.num_workers,
-        timeout=args.timeout,
-        max_iterations=args.max_iterations,
-        runs_per_query=args.runs_per_query,
-        trigger_threshold=args.trigger_threshold,
-        holdout=args.holdout,
-        model=args.model,
-        verbose=args.verbose,
-        live_report_path=live_report_path,
-        log_dir=log_dir,
-    )
+    try:
+        output = run_loop(
+            eval_set=eval_set,
+            skill_path=skill_path,
+            description_override=args.description,
+            num_workers=args.num_workers,
+            timeout=args.timeout,
+            max_iterations=args.max_iterations,
+            runs_per_query=args.runs_per_query,
+            trigger_threshold=args.trigger_threshold,
+            holdout=args.holdout,
+            model=args.model,
+            verbose=args.verbose,
+            live_report_path=live_report_path,
+            log_dir=log_dir,
+        )
+    finally:
+        if isolated_tmpdir is not None:
+            shutil.rmtree(isolated_tmpdir, ignore_errors=True)
 
     # Save JSON output
     json_output = json.dumps(output, indent=2)
