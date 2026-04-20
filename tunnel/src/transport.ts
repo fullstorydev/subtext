@@ -28,6 +28,7 @@ export interface TransportOptions {
   ws: InstanceType<typeof WebSocket>;
   target: string;
   log: (msg: string) => void;
+  streaming?: boolean;
 }
 
 /** Convert wire headers (Record<string, string[]>) to fetch Headers. */

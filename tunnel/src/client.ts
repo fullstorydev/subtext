@@ -1,5 +1,5 @@
 import {WebSocket, type RawData} from './third_party/index.js';
-import type {RelayMessage, TunnelState} from './types.js';
+import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
@@ -98,10 +98,11 @@ export class TunnelClient {
       this.#state = 'connected';
       this.#connectedSince = Date.now();
       this.#log('WebSocket open, sending hello');
-      const hello: {type: 'hello'; target: string; connectionId?: string; protocol: 'yamux'} = {
+      const hello: HelloMessage = {
         type: 'hello',
         target: this.#target,
         protocol: 'yamux',
+        streaming: true,
       };
       if (this.#initialConnectionId) {
         hello.connectionId = this.#initialConnectionId;
@@ -137,7 +138,7 @@ export class TunnelClient {
       // Create the transport based on negotiated protocol.
       if (msg.protocol === 'yamux') {
         this.#clearStaleTimer(); // yamux keepalive handles liveness
-        this.#transport = new YamuxTransport({ws, target: this.#target, log: this.#log});
+        this.#transport = new YamuxTransport({ws, target: this.#target, log: this.#log, streaming: msg.streaming === true});
       } else {
         this.#transport = new LegacyTransport({
           ws,
