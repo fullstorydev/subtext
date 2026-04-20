@@ -62,6 +62,7 @@ def run_loop(
     verbose: bool,
     live_report_path: Path | None = None,
     log_dir: Path | None = None,
+    isolated_base: Path | None = None,
 ) -> dict:
     """Run the eval + improvement loop."""
     project_root = find_project_root()
@@ -101,6 +102,7 @@ def run_loop(
             runs_per_query=runs_per_query,
             trigger_threshold=trigger_threshold,
             model=model,
+            isolated_base=isolated_base,
         )
         eval_elapsed = time.time() - t0
 
@@ -283,18 +285,24 @@ def main():
 
     # subtext-patch: isolation — build a disposable project root with its own
     # .claude/commands/ and point CLAUDE_CONFIG_DIR at an empty dir. chdir
-    # there so find_project_root() inside run_loop/run_eval picks it up.
+    # there so find_project_root() inside run_loop picks up the iso project.
+    # Also pass isolated_base through so each worker gets its own project root
+    # (prevents concurrent workers from sharing .claude/commands/ — see
+    # run_eval.py for the race condition this avoids).
     isolated_tmpdir = None
+    isolated_base = None
     if args.isolated:
         isolated_tmpdir = Path(tempfile.mkdtemp(prefix="skill-eval-loop-isolated-"))
         iso_project = isolated_tmpdir / "project"
         iso_home = isolated_tmpdir / "empty-home"
+        isolated_base = isolated_tmpdir / "workers"
         (iso_project / ".claude" / "commands").mkdir(parents=True)
         iso_home.mkdir(parents=True)
+        isolated_base.mkdir(parents=True)
         os.environ["CLAUDE_CONFIG_DIR"] = str(iso_home)
         os.chdir(iso_project)
         if args.verbose:
-            print(f"Isolated loop: project_root={iso_project}", file=sys.stderr)
+            print(f"Isolated loop: isolated_base={isolated_base}", file=sys.stderr)
             print(f"Isolated loop: CLAUDE_CONFIG_DIR={iso_home}", file=sys.stderr)
 
     # Set up live report path
@@ -335,6 +343,7 @@ def main():
             verbose=args.verbose,
             live_report_path=live_report_path,
             log_dir=log_dir,
+            isolated_base=isolated_base,
         )
     finally:
         if isolated_tmpdir is not None:
