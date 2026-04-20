@@ -10,7 +10,7 @@
     },
     "subtext-tunnel": {
       "command": "npx",
-      "args": ["-y", "@fullstory/subtext-tunnel"]
+      "args": ["-y", "@fullstory/subtext-tunnel@latest"]
     }
   }
 }
