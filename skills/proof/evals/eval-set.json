@@ -1,0 +1,112 @@
+[
+  {
+    "query": "Update the button hover state to be slightly darker",
+    "should_trigger": true,
+    "note": "Clear visual change to a UI component — canonical proof trigger"
+  },
+  {
+    "query": "Fix the modal close button that doesn't work",
+    "should_trigger": true,
+    "note": "Functional UI bug; needs before/after to confirm the click works"
+  },
+  {
+    "query": "Add a loading spinner to the checkout page",
+    "should_trigger": true,
+    "note": "New UI element added to a visible page"
+  },
+  {
+    "query": "The navigation menu breaks on mobile — can you fix the hamburger?",
+    "should_trigger": true,
+    "note": "UI bug on a specific viewport; mobile screenshot required"
+  },
+  {
+    "query": "Update the font size of the card titles from 14px to 16px",
+    "should_trigger": true,
+    "note": "Pure CSS change with direct visual effect"
+  },
+  {
+    "query": "Change the color scheme to match our new brand colors",
+    "should_trigger": true,
+    "note": "Broad visual/style change, high regression risk"
+  },
+  {
+    "query": "Add a tooltip to the info icon in the dashboard",
+    "should_trigger": true,
+    "note": "New interactive UI element"
+  },
+  {
+    "query": "Fix the overlapping text in the product cards",
+    "should_trigger": true,
+    "note": "Layout bug only visible by rendering"
+  },
+  {
+    "query": "Proof this PR before I merge",
+    "should_trigger": true,
+    "note": "Direct trigger verb from the skill's description"
+  },
+  {
+    "query": "Verify my changes to the settings page",
+    "should_trigger": true,
+    "note": "Direct trigger phrase from the skill's description"
+  },
+  {
+    "query": "The dropdown animation feels too slow — make it snappier",
+    "should_trigger": true,
+    "note": "Subjective timing change; can only be judged by visual replay"
+  },
+  {
+    "query": "Refactor the Tooltip component",
+    "should_trigger": true,
+    "note": "Verb 'refactor' hides the visual nature; component is user-visible"
+  },
+  {
+    "query": "Add a new API endpoint for user preferences",
+    "should_trigger": false,
+    "note": "Backend-only; proof description explicitly excludes API handlers"
+  },
+  {
+    "query": "Optimize the database query in the reports service",
+    "should_trigger": false,
+    "note": "DB work, no UI surface"
+  },
+  {
+    "query": "Write a unit test for the validation helper",
+    "should_trigger": false,
+    "note": "Test-only; proof description explicitly excludes test-only changes"
+  },
+  {
+    "query": "Update the README with the new setup instructions",
+    "should_trigger": false,
+    "note": "Documentation-only; no UI"
+  },
+  {
+    "query": "Refactor the error handling in auth middleware",
+    "should_trigger": false,
+    "note": "Backend refactor; proof description explicitly excludes backend logic"
+  },
+  {
+    "query": "Rename the variable `data` to `payload` across all .tsx files",
+    "should_trigger": false,
+    "note": "Hard negative: touches .tsx (trigger extension) but produces zero visual change"
+  },
+  {
+    "query": "Why does this React component keep re-rendering? Help me figure out the root cause.",
+    "should_trigger": false,
+    "note": "Hard negative: investigation phase, no code change yet; proof should fire on the fix, not the diagnosis"
+  },
+  {
+    "query": "Explain what this <Toolbar> component does",
+    "should_trigger": false,
+    "note": "Hard negative: knowledge question on UI code; 'understand' not 'change'"
+  },
+  {
+    "query": "Add structured logging to the payment processing function",
+    "should_trigger": false,
+    "note": "Backend instrumentation; no rendered output"
+  },
+  {
+    "query": "Bump React from 18 to 19 in package.json",
+    "should_trigger": false,
+    "note": "Hard negative: dependency bump; could cause UI regressions but the task itself isn't a UX change. Flip to true if proof should fire defensively on dependency bumps."
+  }
+]
