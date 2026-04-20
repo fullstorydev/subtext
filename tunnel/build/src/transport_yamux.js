@@ -25,7 +25,7 @@ export class YamuxTransport {
             if (stream === null)
                 break;
             void this.#handleStream(stream).catch((err) => {
-                this.#log(`yamux stream ${stream.id} error: ${err instanceof Error ? err.message : String(err)}`);
+                this.#log(`yamux stream ${stream.id} error: ${errMsg(err)}`);
             });
         }
     }
@@ -84,6 +84,10 @@ export class YamuxTransport {
             const lenPrefix = Buffer.allocUnsafe(4);
             lenPrefix.writeUInt32BE(respHdrJson.length, 0);
             await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+        }
+        catch (err) {
+            await this.#writeHttpError(stream, err);
+            throw err;
         }
         finally {
             stream.close();
@@ -155,4 +159,16 @@ export class YamuxTransport {
         })();
         await Promise.all([socketDone, yamuxDone]);
     }
+    // Write a synthetic 502 so the relay reads a valid framed response instead of EOF.
+    // Mirrors the error-response path in #handleConnectStream.
+    async #writeHttpError(stream, err) {
+        const bodyBuf = Buffer.from(errMsg(err));
+        const hdrJson = Buffer.from(JSON.stringify({ status: 502, headers: {}, bodyLen: bodyBuf.length }));
+        const lenPrefix = Buffer.allocUnsafe(4);
+        lenPrefix.writeUInt32BE(hdrJson.length, 0);
+        await stream.write(Buffer.concat([lenPrefix, hdrJson, bodyBuf])).catch(() => undefined);
+    }
+}
+function errMsg(err) {
+    return err instanceof Error ? err.message : String(err);
 }
