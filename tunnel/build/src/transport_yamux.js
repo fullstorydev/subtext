@@ -2,13 +2,17 @@ import * as net from 'node:net';
 import { MAX_RESPONSE_BODY_BYTES } from './types.js';
 import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort, MAX_YAMUX_HEADER_BYTES, } from './transport.js';
 import { YamuxSession } from './yamux.js';
+export const STREAM_TYPE_REQUEST = 0x01;
+export const STREAM_TYPE_CONNECT = 0x02;
+export const CONNECT_STATUS_OK = 0x00;
+export const CONNECT_STATUS_ERR = 0x01;
 /**
  * YamuxTransport handles the binary yamux multiplexing protocol. After the
  * hello/ready handshake, the WebSocket carries raw yamux frames. The server
  * opens streams; each stream starts with a 1-byte type prefix:
  *
- *  - 0x01: HTTP request/response
- *  - 0x02: CONNECT (TCP pipe)
+ *  - STREAM_TYPE_REQUEST (0x01): HTTP request/response
+ *  - STREAM_TYPE_CONNECT (0x02): CONNECT (TCP pipe)
  */
 export class YamuxTransport {
     #target;
@@ -38,10 +42,10 @@ export class YamuxTransport {
     async #handleStream(stream) {
         const typeBuf = await stream.readExact(1);
         const streamType = typeBuf[0];
-        if (streamType === 0x01) {
+        if (streamType === STREAM_TYPE_REQUEST) {
             await this.#handleHttpStream(stream);
         }
-        else if (streamType === 0x02) {
+        else if (streamType === STREAM_TYPE_CONNECT) {
             await this.#handleConnectStream(stream);
         }
         else {
@@ -78,12 +82,8 @@ export class YamuxTransport {
             const respHeaders = headersToWireHeaders(resp.headers);
             stripTransferHeaders(respHeaders);
             if (this.#streaming) {
-                // Send header immediately (no bodyLen), then stream body bytes.
-                // stream.close() in finally sends FIN — the relay uses that as EOF.
-                const respHdrJson = Buffer.from(JSON.stringify({ status: resp.status, headers: respHeaders }));
-                const lenPrefix = Buffer.allocUnsafe(4);
-                lenPrefix.writeUInt32BE(respHdrJson.length, 0);
-                await stream.write(Buffer.concat([lenPrefix, respHdrJson]));
+                // Send header immediately, then stream body bytes until FIN.
+                await stream.write(streamingResponseFrame(resp.status, respHeaders));
                 if (resp.body) {
                     const reader = resp.body.getReader();
                     try {
@@ -100,16 +100,11 @@ export class YamuxTransport {
                 }
             }
             else {
-                // Buffered path: read full body, include bodyLen in header.
                 const respBody = await resp.arrayBuffer();
                 if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
                     throw new Error(`response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`);
                 }
-                const respBodyBuf = Buffer.from(respBody);
-                const respHdrJson = Buffer.from(JSON.stringify({ status: resp.status, headers: respHeaders, bodyLen: respBodyBuf.length }));
-                const lenPrefix = Buffer.allocUnsafe(4);
-                lenPrefix.writeUInt32BE(respHdrJson.length, 0);
-                await stream.write(Buffer.concat([lenPrefix, respHdrJson, respBodyBuf]));
+                await stream.write(bufferedResponseFrame(resp.status, respHeaders, Buffer.from(respBody)));
             }
         }
         catch (err) {
@@ -137,14 +132,14 @@ export class YamuxTransport {
             this.#log(`yamux stream ${stream.id}: connect error: ${msg}`);
             const errBuf = Buffer.from(msg);
             const resp = Buffer.allocUnsafe(1 + errBuf.length);
-            resp[0] = 0x01;
+            resp[0] = CONNECT_STATUS_ERR;
             errBuf.copy(resp, 1);
             await stream.write(resp).catch(() => undefined);
             stream.close();
             return;
         }
         // Write success byte.
-        await stream.write(Buffer.from([0x00]));
+        await stream.write(Buffer.from([CONNECT_STATUS_OK]));
         // Pump socket -> yamux stream with backpressure.
         const socketDone = new Promise((resolve) => {
             socket.on('data', (chunk) => {
@@ -189,13 +184,24 @@ export class YamuxTransport {
     // Write a synthetic 502 so the relay reads a valid framed response instead of EOF.
     // Mirrors the error-response path in #handleConnectStream.
     async #writeHttpError(stream, err) {
-        const bodyBuf = Buffer.from(errMsg(err));
-        const hdrJson = Buffer.from(JSON.stringify({ status: 502, headers: {}, bodyLen: bodyBuf.length }));
-        const lenPrefix = Buffer.allocUnsafe(4);
-        lenPrefix.writeUInt32BE(hdrJson.length, 0);
-        await stream.write(Buffer.concat([lenPrefix, hdrJson, bodyBuf])).catch(() => undefined);
+        const body = Buffer.from(errMsg(err));
+        await stream.write(bufferedResponseFrame(502, {}, body)).catch(() => undefined);
     }
 }
 function errMsg(err) {
     return err instanceof Error ? err.message : String(err);
+}
+/** Build a length-prefixed JSON frame: [4-byte hdr len][hdr JSON][optional body]. */
+export function frameJson(hdrJson, body) {
+    const lenPrefix = Buffer.allocUnsafe(4);
+    lenPrefix.writeUInt32BE(hdrJson.length, 0);
+    return body ? Buffer.concat([lenPrefix, hdrJson, body]) : Buffer.concat([lenPrefix, hdrJson]);
+}
+/** Streaming response frame: header only, body follows as raw chunks until FIN. */
+export function streamingResponseFrame(status, headers) {
+    return frameJson(Buffer.from(JSON.stringify({ status, headers })));
+}
+/** Buffered response frame: header + full body in one write. */
+export function bufferedResponseFrame(status, headers, body) {
+    return frameJson(Buffer.from(JSON.stringify({ status, headers, bodyLen: body.length })), body);
 }
