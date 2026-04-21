@@ -1,6 +1,6 @@
 ---
 name: subtext:proof
-description: "Use this skill for ALL frontend and UI work — every task where you'll touch what users see in a browser. This captures before/after screenshots as visual proof that changes work.  Trigger whenever the user wants to: - Fix, refactor, create, or edit ANY component (tooltip, modal, button, card, dropdown, menu, navbar, page, form, sidebar — any UI element) - Change ANY visual property (font size, color, color scheme, theme, brand colors, spacing, animation speed, hover state, border, shadow, layout) - Fix broken UI behavior (close buttons not working, hamburger menus, toggles, click handlers on visual elements) - Do responsive or mobile layout work - Verify, review, or proof visual changes — including phrases like 'proof this PR', 'verify my changes', or 'check this page'  The rule: if the task mentions a UI element by name, references a visual property, asks to fix something a user would see or click, or asks to verify/review a page — use this skill.  Do NOT use for: backend-only code, database queries, API endpoints, dependency bumps, test-only changes, or explaining code without editing."
+description: Use for any frontend or fullstack task that changes, fixes, or verifies what end users will experience in the UI. Captures proof of work for downstream review evidence in the form of agent replays and before/after screenshot artifacts. Skip for backend-only work with no UX impact, test-only changes, or code-explanation tasks.
 metadata:
   requires:
     skills:
