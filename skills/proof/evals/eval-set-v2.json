@@ -1,0 +1,132 @@
+[
+  {
+    "query": "Update the button hover state to be slightly darker",
+    "should_trigger": true,
+    "note": "canonical concrete visual change"
+  },
+  {
+    "query": "Fix the modal close button that doesn't work",
+    "should_trigger": true,
+    "note": "functional UI bug; needs before/after to confirm click works"
+  },
+  {
+    "query": "Add a loading spinner to the checkout page",
+    "should_trigger": true,
+    "note": "new UI element on a visible page"
+  },
+  {
+    "query": "Change the color scheme to match our new brand colors",
+    "should_trigger": true,
+    "note": "broad style change; 'color scheme' is higher-level than 'color'"
+  },
+  {
+    "query": "Fix the overlapping text in the product cards",
+    "should_trigger": true,
+    "note": "layout bug only visible by rendering"
+  },
+  {
+    "query": "Refactor the Tooltip component",
+    "should_trigger": true,
+    "note": "verb 'refactor' hides visual nature; component is user-visible"
+  },
+  {
+    "query": "Verify my changes to the settings page",
+    "should_trigger": true,
+    "note": "direct verify phrase"
+  },
+  {
+    "query": "Can you check that my changes to the login flow look right?",
+    "should_trigger": true,
+    "note": "realistic verify phrasing (replaces v1's gimmicky 'proof this PR before I merge')"
+  },
+  {
+    "query": "The dropdown animation feels too slow — make it snappier",
+    "should_trigger": true,
+    "note": "subjective timing change; can only be judged by visual replay"
+  },
+  {
+    "query": "The settings page feels cluttered — can you clean it up?",
+    "should_trigger": true,
+    "note": "subjective aesthetic; exactly the kind of work proof exists for"
+  },
+  {
+    "query": "The header feels heavy. Make it lighter somehow.",
+    "should_trigger": true,
+    "note": "vague subjective direction; no specific property or verb"
+  },
+  {
+    "query": "Fix the focus ring on the navigation tabs",
+    "should_trigger": true,
+    "note": "a11y change; visible but uses vocabulary outside typical 'button/hover/color'"
+  },
+  {
+    "query": "Change the 'Submit' button text to 'Save' on the login form",
+    "should_trigger": true,
+    "note": "copy-only UI change; ambiguous — it IS a visible change, so should trigger"
+  },
+  {
+    "query": "Add a server-side feature flag for the new checkout flow UI",
+    "should_trigger": true,
+    "note": "fullstack case: backend change with UX surface"
+  },
+  {
+    "query": "I've finished the design and plan for the new settings page. Now let's implement step 3: the dark mode toggle component.",
+    "should_trigger": true,
+    "note": "mid-flow: user signals they're past brainstorming/planning and are now executing — this is proof's natural activation point"
+  },
+  {
+    "query": "Plan looks good. Now implement step 2 — the card layout updates we discussed.",
+    "should_trigger": true,
+    "note": "mid-flow: explicit execution-stage cue"
+  },
+  {
+    "query": "Add a new API endpoint for user preferences",
+    "should_trigger": false,
+    "note": "backend-only; no UX surface"
+  },
+  {
+    "query": "Optimize the database query in the reports service",
+    "should_trigger": false,
+    "note": "DB work, no UI surface"
+  },
+  {
+    "query": "Write a unit test for the validation helper",
+    "should_trigger": false,
+    "note": "test-only"
+  },
+  {
+    "query": "Update the README with the new setup instructions",
+    "should_trigger": false,
+    "note": "documentation-only"
+  },
+  {
+    "query": "Refactor the error handling in auth middleware",
+    "should_trigger": false,
+    "note": "backend refactor; no UX surface"
+  },
+  {
+    "query": "Rename the variable `data` to `payload` across all .tsx files",
+    "should_trigger": false,
+    "note": "hard negative: touches .tsx but zero visual change"
+  },
+  {
+    "query": "Why does this React component keep re-rendering? Help me figure out the root cause.",
+    "should_trigger": false,
+    "note": "hard negative: investigation phase, no code change yet"
+  },
+  {
+    "query": "Explain what this <Toolbar> component does",
+    "should_trigger": false,
+    "note": "hard negative: knowledge question on UI code; 'understand' not 'change'"
+  },
+  {
+    "query": "Add structured logging to the payment processing function",
+    "should_trigger": false,
+    "note": "backend observability; no rendered output"
+  },
+  {
+    "query": "Bump React from 18 to 19 in package.json",
+    "should_trigger": false,
+    "note": "dep bump; kept as false to match v1, but this is a product decision — defensive posture could flip it true since it can regress UI"
+  }
+]
