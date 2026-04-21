@@ -77,7 +77,7 @@ Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-dis
 - **fs_session_url** — the raw Fullstory session URL.
 - **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
-After every `live-connect`, output the viewer URL on its own line:
+After every connection is established — via `live-connect` or `live-view-new` (tunnel-first flow) — output the viewer URL on its own line:
 
 ```
 Viewer: {viewer_url}
