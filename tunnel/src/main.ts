@@ -85,16 +85,41 @@ server.registerTool(
       connectionId,
       log,
     });
+
+    // Remove from active map and surface a clear error if resume is rejected.
+    let needsLiveTunnel = false;
+    client.once('need_live_tunnel', () => {
+      needsLiveTunnel = true;
+      log(`Tunnel needs a fresh live-tunnel call (resume token rejected)`);
+      if (client.tunnelId) clients.delete(client.tunnelId);
+    });
+
     client.connect();
 
     // Wait briefly for the handshake to complete
     const deadline = Date.now() + 5000;
-    while (client.state !== "ready" && Date.now() < deadline) {
+    while (client.state !== "ready" && !needsLiveTunnel && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 100));
     }
 
     if (client.tunnelId) {
       clients.set(client.tunnelId, client);
+    }
+
+    if (needsLiveTunnel) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {error: "resume token rejected; call live-tunnel to get a fresh relay URL"},
+              null,
+              2,
+            ),
+          },
+        ],
+        isError: true,
+      };
     }
 
     return {
@@ -106,6 +131,7 @@ server.registerTool(
               state: client.state,
               tunnelId: client.tunnelId ?? null,
               connectionId: client.connectionId ?? null,
+              traceId: client.traceId ?? null,
               target: t,
               relayUrl,
             },
@@ -164,7 +190,7 @@ server.registerTool(
 
     // Disconnect all
     const ids = [...clients.keys()];
-    for (const [id, client] of clients) {
+    for (const client of clients.values()) {
       client.disconnect();
     }
     clients.clear();
@@ -190,6 +216,7 @@ server.registerTool(
       tunnelId: id,
       state: client.state,
       target: client.target,
+      traceId: client.traceId ?? null,
     }));
     return {
       content: [

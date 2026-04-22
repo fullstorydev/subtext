@@ -19,6 +19,8 @@ export interface ReadyMessage {
   connectionId: string;
   protocol?: 'yamux';
   streaming?: boolean;
+  resumeToken?: string;
+  traceId?: string;
 }
 
 // Relay → Client
@@ -121,6 +123,11 @@ export type RelayMessage =
   | StreamPauseMessage
   | StreamResumeMessage
   | PingMessage;
+
+// Resume subprotocol: the client sends `${RESUME_SUBPROTOCOL_PREFIX}${token}`
+// as a Sec-WebSocket-Protocol; the server echoes RESUME_SUBPROTOCOL on success.
+export const RESUME_SUBPROTOCOL = 'subtext-resume.v1';
+export const RESUME_SUBPROTOCOL_PREFIX = RESUME_SUBPROTOCOL + '.';
 
 // Limits
 export const MAX_INFLIGHT = 20;
