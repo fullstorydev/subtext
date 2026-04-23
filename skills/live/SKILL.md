@@ -19,8 +19,8 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `viewer_url`, and `capture_status`. |
-| `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `trace_id`, `trace_url`, and `capture_status`. |
+| `live-disconnect` | Close a browser connection. Returns `fs_session_url`, `trace_id`, and `trace_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
 ### Views
@@ -70,18 +70,21 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 Parameter schemas are visible in the tool definition at call time.
 
-## Session URLs
+## Trace and Session URLs
 
-Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
+`fs_session_url`, `trace_id`, and `trace_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
 
 - **fs_session_url** — the raw Fullstory session URL.
-- **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
+- **trace_id** — the 12-char base62 id for this connection's trace. **Capture and reuse this** as the parent identifier for `comment-*` tools and as input to `review-open` later. The trailing path segment of `trace_url` is the same id.
+- **trace_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
-After every connection is established — via `live-connect` or `live-view-new` (tunnel-first flow) — output the viewer URL on its own line:
+After every connection is established — via `live-connect` or `live-view-new` (tunnel-first flow) — output the URL on its own line:
 
 ```
-Viewer: {viewer_url}
+Viewer: {trace_url}
 ```
+
+> **Renamed from `viewer_url`** in SUBTEXT-281. The path shape is unchanged — only the response field name and the documentation moved. The trailing trace_id segment is the parent id for comment tools.
 
 ## Capture Status
 

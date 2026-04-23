@@ -28,9 +28,18 @@ Parameter schemas are visible in the tool definition at call time.
 
 ## Session Input
 
-Pass the full `session_url` directly to `review-open` when a URL is provided. If the URL fails, parse it to extract `device_id` and `session_id` and pass those instead.
+`review-open` accepts five mutually-exclusive identifiers. Pick the one that matches what you actually have on hand — they're all first-class:
 
-When no session URL or IDs are available, you can look up a user's most recent session by passing `email_address` or `user_uid`. Precedence: `session_url` > `device_id`+`session_id` > `email_address` > `user_uid`.
+- `trace_id` — the 12-char base62 id from a prior `live-connect` or `review-open` response. Resolves to the underlying device:session via the trace store. Use this when you're staying inside the trace flow (e.g., re-opening for a follow-on review, or pivoting between live and review surfaces).
+- `session_url` — a full FullStory session URL. Use this when you have a URL from outside the trace flow — a customer-shared link, a Slack paste, or a session you found in the app UI.
+- `device_id` + `session_id` — both required together. Use when you have the raw ids but no URL.
+- `email_address` / `user_uid` — looks up the user's most recent session. Use when you don't have a specific session in mind.
+
+All five paths return the same trace_id-keyed handle; the entry point doesn't change what comes out.
+
+### Always capture `trace_id` from the response
+
+`review-open` emits `trace_id:` in its response regardless of which path you used (best-effort — omitted only if no trace exists for the resolved session, which is rare). **Capture it on entry** — comment tools (`comment-add`/`list`/`reply`) take a `trace_id`, not a session URL, so threading the trace_id forward saves you a round-trip later.
 
 ## Tips
 

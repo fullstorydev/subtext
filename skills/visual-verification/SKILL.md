@@ -52,9 +52,9 @@ When the user provides visual feedback (screenshot, description of what's wrong)
 
 Before changing a component you haven't seen yet, take a snapshot to understand the current state. Don't guess at the existing layout from code alone.
 
-### 6. Share the viewer URL as the last step
+### 6. Share the trace URL as the last step
 
-After verifying, **output the `viewer_url`** from the `live-connect` response so the user can review your work. The link opens the live viewer with agent comments in the sidebar.
+After verifying, **output the `trace_url`** from the `live-connect` response so the user can review your work. The link opens the live viewer with agent comments in the sidebar.
 
 ## Leaving comments
 
