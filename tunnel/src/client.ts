@@ -160,6 +160,19 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
         return;
       }
 
+      if (msg.type === 'error') {
+        // Server rejected the resume (e.g. RotateConnection DB failure).
+        // Token already revoked server-side; skip reconnect and request a
+        // fresh live-tunnel instead.
+        this.#log(`Relay handshake error: ${msg.message}`);
+        this.#resumeToken = undefined;
+        this.#traceId = undefined;
+        ws.removeListener('message', handshakeHandler);
+        this.#intentionalDisconnect = true;
+        ws.close();
+        this.emit('need_live_tunnel');
+        return;
+      }
       if (msg.type !== 'ready') {
         this.#log(`Expected ready, got: ${msg.type}`);
         return;

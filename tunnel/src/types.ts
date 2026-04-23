@@ -50,6 +50,12 @@ export interface ErrorMessage {
   message: string;
 }
 
+// Relay → Client (fatal handshake error, e.g. RotateConnection failure)
+export interface ServerErrorMessage {
+  type: 'error';
+  message: string;
+}
+
 // Bidirectional
 export interface PingMessage {
   type: 'ping';
@@ -122,10 +128,11 @@ export type RelayMessage =
   | StreamEndMessage
   | StreamPauseMessage
   | StreamResumeMessage
-  | PingMessage;
+  | PingMessage
+  | ServerErrorMessage;
 
 // Resume subprotocol: the client sends `${RESUME_SUBPROTOCOL_PREFIX}${token}`
-// as a Sec-WebSocket-Protocol; the server echoes RESUME_SUBPROTOCOL on success.
+// as a Sec-WebSocket-Protocol; the server echoes the same full string on success.
 export const RESUME_SUBPROTOCOL = 'subtext-resume.v1';
 export const RESUME_SUBPROTOCOL_PREFIX = RESUME_SUBPROTOCOL + '.';
 
