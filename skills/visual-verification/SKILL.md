@@ -62,6 +62,13 @@ Call `comment-list` before starting verification to read existing user annotatio
 
 Use `comment-add` to leave comments while browsing. These attach to your session as `AUTHOR_TYPE_AGENT` and appear in the viewer sidebar when the user opens the viewer URL. Navigate to the **actual page** you're reviewing and comment there.
 
+## Proof Document Integration
+
+When the parent workflow provides a `doc_id`:
+- Attach a "Before" screenshot **before** applying changes: `doc-attach(doc_id, type: "screenshot", artifact_id: <id>, section: "Before", label: "Before: <change description>")`
+- Attach an "After" screenshot **after** verifying: `doc-attach(doc_id, type: "screenshot", artifact_id: <id>, section: "After", label: "After: <change description>")`
+- For light/dark and viewport variants, attach each as a separate evidence item with a descriptive label.
+
 ## Decision Logic
 
 ### Change type classification
