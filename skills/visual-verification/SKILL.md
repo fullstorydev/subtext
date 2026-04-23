@@ -65,8 +65,8 @@ Use `comment-add` to leave comments while browsing. These attach to your session
 ## Proof Document Integration
 
 When the parent workflow provides a `doc_id`:
-- Attach a "Before" screenshot **before** applying changes: `doc-attach(doc_id, type: "screenshot", artifact_id: <id>, section: "Before", label: "Before: <change description>")`
-- Attach an "After" screenshot **after** verifying: `doc-attach(doc_id, type: "screenshot", artifact_id: <id>, section: "After", label: "After: <change description>")`
+- Attach a "Before" screenshot **before** applying changes: `doc-attach(doc_id, render_as: "image", artifact_id: <id>, section: "Before", label: "Before: <change description>")`
+- Attach an "After" screenshot **after** verifying: `doc-attach(doc_id, render_as: "image", artifact_id: <id>, section: "After", label: "After: <change description>")`
 - For light/dark and viewport variants, attach each as a separate evidence item with a descriptive label.
 
 ## Decision Logic

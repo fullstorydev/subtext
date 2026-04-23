@@ -57,8 +57,8 @@ Optional: `doc_id` from a parent `bug-fix-workflow`. When provided, attach scree
 - Check network requests when issue might be data-related
 
 **When `doc_id` is provided:**
-- At each capture point (screenshot, console error, network issue), call `doc-attach(doc_id, type: ..., artifact_id/content: ..., section: "Evidence", label: <step description>)` immediately after the capture
-- Use `type: "screenshot"` for visual captures, `type: "console_log"` for errors, `type: "network_trace"` for request issues
+- At each capture point (screenshot, console error, network issue), call `doc-attach(doc_id, render_as: ..., artifact_id/text: ..., section: "Evidence", label: <step description>)` immediately after the capture
+- Use `render_as: "image"` for screenshots (artifact_id or base64_data), `render_as: "link"` with `text + content_type: "text/plain"` for console/network logs
 
 **When to persist vs give up:**
 - Bug depends on data not available locally → note gap as likely reason, report partial

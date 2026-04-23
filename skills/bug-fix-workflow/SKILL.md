@@ -32,7 +32,7 @@ Non-negotiable:
 
 ## Entry
 
-**First action:** `doc-create(title: <bug title>, kind: "bug-fix", ref: <issue/PR url if known>, tags: [...])`
+**First action:** `doc-create(title: <bug title>, ref: <issue/PR url if known>, tags: [...], content: <bug-fix seed template from subtext:docs>)`
 
 Save the returned `doc_id` and pass it to all subagents. All evidence attaches to this document.
 
@@ -54,7 +54,7 @@ Before doing anything, assess what you already know:
 - Bug description with no session, specific enough → proceed to Root Cause
 - Bug description vague → ask for context or session URL
 
-If a session replay is observed: `doc-attach(doc_id, type: "session_replay", url: <viewer_url>, section: "Evidence", label: <what was observed>)`
+If a session replay is observed: `doc-attach(doc_id, render_as: "link", url: <viewer_url>, section: "Session Replays", label: <what was observed>)`
 
 **Exit:** You can state expected behavior, actual behavior, and name the components.
 **Checkpoint:** Present understanding to user. Ask whether to reproduce or proceed to code.
@@ -89,8 +89,8 @@ If a session replay is observed: `doc-attach(doc_id, type: "session_replay", url
 - Run the failing test — must pass.
 - Run broader suite — no regressions.
 - Existing tests break assuming buggy behavior → update those tests.
-- Attach the diff: `doc-attach(doc_id, type: "diff", content: <git diff>, section: "Changes", label: <fix description>)`
-- Attach test output: `doc-attach(doc_id, type: "console_log", content: <test output>, section: "TestResults", label: "test run")`
+- Attach the diff: `doc-attach(doc_id, render_as: "link", text: <git diff>, content_type: "text/plain", section: "Changes", label: <fix description>)`
+- Attach test output: `doc-attach(doc_id, render_as: "link", text: <test output>, content_type: "text/plain", section: "Test Results", label: "test run")`
 
 ### Validation — confirm the fix
 
@@ -98,10 +98,10 @@ If a session replay is observed: `doc-attach(doc_id, type: "session_replay", url
 - Delegate browser validation to subagent with original repro steps
 - Subagent follows steps and confirms bug is gone
 - Apply `visual-verification` rules: screenshot the fix, check theme/viewport variants if the change touched styles, and compare against the original bug evidence
-- Attach the validation screenshot: `doc-attach(doc_id, type: "screenshot", artifact_id: <id>, section: "After", label: "Fix confirmed")`
+- Attach the validation screenshot: `doc-attach(doc_id, render_as: "image", artifact_id: <id>, section: "After", label: "Fix confirmed")`
 - `comment-reply` on each bug annotation with fix status and evidence (commit, screenshot)
 - `comment-resolve` only on issues confirmed fixed via screenshot — leave others open with a status reply
-- `doc-score(doc_id)` → confirm >= 80 before closing
+- Re-read with `doc-read` and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
 - `doc-close(doc_id, status: "complete", summary: <one-sentence outcome>)` → share `doc_url` with user
 
 ## Revising a Wrong Hypothesis
