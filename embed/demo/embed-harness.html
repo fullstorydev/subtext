@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Obvious.ai — Agent Chat (Subtext embed harness)</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        color: #fff;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+          sans-serif;
+        min-height: 100vh;
+      }
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px 24px 48px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0 28px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        margin-bottom: 28px;
+      }
+      header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      header .pill {
+        background: #7c3aed;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .msg {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+      }
+      .msg.agent {
+        align-items: flex-start;
+      }
+      .msg.you {
+        align-items: flex-end;
+      }
+      .bubble {
+        max-width: 80%;
+        padding: 16px 20px;
+        border-radius: 14px;
+      }
+      .msg.agent .bubble {
+        background: #161a25;
+        color: #e8ebf4;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .msg.you .bubble {
+        background: #7c3aed;
+        color: #fff;
+      }
+      .label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #8a93a6;
+        margin-bottom: 6px;
+        padding: 0 4px;
+      }
+      .msg.you .label {
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .embed-card {
+        width: 100%;
+        background: #161a25;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .embed-card .iframe-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #fff;
+      }
+      .embed-card iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #fff;
+      }
+      .empty-state {
+        padding: 48px 24px;
+        text-align: center;
+        color: #8a93a6;
+      }
+      .empty-state code {
+        background: rgba(255, 255, 255, 0.06);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 0 4px;
+        flex-wrap: wrap;
+      }
+      .controls input {
+        flex: 1;
+        min-width: 280px;
+        background: #0f131c;
+        color: #e8ebf4;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+      .controls button {
+        background: #7c3aed;
+        color: #fff;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .controls button:hover {
+        background: #6d28d9;
+      }
+      .controls button.secondary {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #e8ebf4;
+      }
+      .hint {
+        font-size: 12px;
+        color: #6b7280;
+        padding: 8px 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>Obvious.ai</h1>
+        <span class="pill">Agent Chat</span>
+      </header>
+
+      <div class="msg agent">
+        <div class="label">Agent</div>
+        <div class="bubble">
+          I've completed the task. Here's a recording of what I did:
+        </div>
+      </div>
+
+      <div class="msg agent">
+        <div class="label">Agent</div>
+        <div class="embed-card">
+          <div id="embed-host">
+            <div class="empty-state">
+              <p>No embed URL yet.</p>
+              <p>
+                Pass <code>?src=&lt;url&gt;</code> in the address bar, or paste
+                below.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="controls">
+          <input
+            id="embed-input"
+            type="text"
+            placeholder="Paste embed URL (from scripts/mint-token.mjs)"
+            spellcheck="false"
+          />
+          <button id="load-btn">Load</button>
+          <button id="clear-btn" class="secondary">Clear</button>
+        </div>
+        <div class="hint">
+          Generate a URL with:
+          <code>SUBTEXT_API_KEY=... node ../scripts/mint-token.mjs --trace-url &lt;url&gt;</code>
+        </div>
+      </div>
+
+      <div class="msg you">
+        <div class="label">You</div>
+        <div class="bubble">Great, let me review that session.</div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const host = document.getElementById("embed-host");
+        const input = document.getElementById("embed-input");
+        const loadBtn = document.getElementById("load-btn");
+        const clearBtn = document.getElementById("clear-btn");
+
+        function mountIframe(url) {
+          if (!url) {
+            host.innerHTML =
+              '<div class="empty-state"><p>No embed URL yet.</p></div>';
+            return;
+          }
+          const wrapper = document.createElement("div");
+          wrapper.className = "iframe-wrapper";
+          const iframe = document.createElement("iframe");
+          iframe.src = url;
+          iframe.setAttribute("allow", "clipboard-write");
+          iframe.setAttribute("title", "Subtext Session Replay");
+          wrapper.appendChild(iframe);
+          host.innerHTML = "";
+          host.appendChild(wrapper);
+        }
+
+        // Read from ?src= query param on load
+        const params = new URLSearchParams(location.search);
+        const initial = params.get("src");
+        if (initial) {
+          input.value = initial;
+          mountIframe(initial);
+        }
+
+        loadBtn.addEventListener("click", () => {
+          const url = input.value.trim();
+          mountIframe(url);
+          // Update query string for shareable deep link
+          if (url) {
+            const next = new URL(location.href);
+            next.searchParams.set("src", url);
+            history.replaceState(null, "", next.toString());
+          }
+        });
+
+        clearBtn.addEventListener("click", () => {
+          input.value = "";
+          mountIframe(null);
+          const next = new URL(location.href);
+          next.searchParams.delete("src");
+          history.replaceState(null, "", next.toString());
+        });
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") loadBtn.click();
+        });
+      })();
+    </script>
+  </body>
+</html>

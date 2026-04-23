@@ -10,6 +10,10 @@ Protocol and backend described in the design doc (`docs/plans/2026-04-22-subtext
 npm install @subtextdev/subtext-embed
 ```
 
+## Try it out
+
+A standalone end-to-end harness lives in [`demo/`](./demo/). It pairs a mock "agent chat" page with a token-mint script (`scripts/mint-token.mjs`) so you can exercise both the embed iframe and the `POST /auth/v1/subtext:embedToken` endpoint without integrating the SDK into a real app first.
+
 ## Vanilla
 
 ```js
