@@ -19,6 +19,8 @@ export interface ReadyMessage {
   connectionId: string;
   protocol?: 'yamux';
   streaming?: boolean;
+  resumeToken?: string;
+  traceId?: string;
 }
 
 // Relay → Client
@@ -45,6 +47,12 @@ export interface ResponseMessage {
 export interface ErrorMessage {
   type: 'error';
   requestId: string;
+  message: string;
+}
+
+// Relay → Client (fatal handshake error, e.g. RotateConnection failure)
+export interface ServerErrorMessage {
+  type: 'error';
   message: string;
 }
 
@@ -120,7 +128,13 @@ export type RelayMessage =
   | StreamEndMessage
   | StreamPauseMessage
   | StreamResumeMessage
-  | PingMessage;
+  | PingMessage
+  | ServerErrorMessage;
+
+// Resume subprotocol: the client sends `${RESUME_SUBPROTOCOL_PREFIX}${token}`
+// as a Sec-WebSocket-Protocol; the server echoes the same full string on success.
+export const RESUME_SUBPROTOCOL = 'subtext-resume.v1';
+export const RESUME_SUBPROTOCOL_PREFIX = RESUME_SUBPROTOCOL + '.';
 
 // Limits
 export const MAX_INFLIGHT = 20;

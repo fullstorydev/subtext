@@ -1,8 +1,11 @@
+import {EventEmitter} from 'node:events';
+import type {IncomingMessage} from 'node:http';
 import {WebSocket, type RawData} from './third_party/index.js';
 import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
+  RESUME_SUBPROTOCOL_PREFIX,
   STALE_CONNECTION_MS,
   MAX_RECONNECT_ATTEMPTS,
 } from './types.js';
@@ -18,12 +21,19 @@ export interface TunnelClientOptions {
   log: (msg: string) => void;
 }
 
+type TunnelClientEvents = {
+  need_live_tunnel: [];
+};
+
 /**
  * TunnelClient manages the WebSocket connection lifecycle: connect, handshake,
  * reconnect. After the hello/ready exchange it delegates all protocol-specific
  * work to a TunnelTransport (LegacyTransport or YamuxTransport).
+ *
+ * Emits 'need_live_tunnel' when a resume token is rejected (401), indicating
+ * the caller must obtain a fresh relay URL via live-tunnel before reconnecting.
  */
-export class TunnelClient {
+export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   readonly #relayUrl: string;
   readonly #target: string;
   readonly #initialConnectionId: string | undefined;
@@ -40,14 +50,16 @@ export class TunnelClient {
   #staleTimer: ReturnType<typeof setTimeout> | null = null;
   #connectedSince: number | null = null;
   #intentionalDisconnect = false;
+  #resumeToken: string | undefined;
+  #traceId: string | undefined;
 
   constructor(opts: TunnelClientOptions) {
+    super();
     this.#relayUrl = opts.relayUrl;
     this.#target = opts.target;
     this.#initialConnectionId = opts.connectionId;
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
-
     this.#upgradeHeaders = opts.headers ?? {};
   }
 
@@ -67,6 +79,10 @@ export class TunnelClient {
     return this.#connectionId;
   }
 
+  get traceId(): string | undefined {
+    return this.#traceId;
+  }
+
   connect(): void {
     this.#intentionalDisconnect = false;
     this.#doConnect();
@@ -83,15 +99,35 @@ export class TunnelClient {
   #doConnect(): void {
     this.#state = 'connecting';
 
-    const wsUrl = new URL(this.#relayUrl);
-    if (this.#initialConnectionId) {
-      wsUrl.searchParams.set('connection_id', this.#initialConnectionId);
+    // Resume path authenticates via subprotocol; strip the (spent) nonce params.
+    // Initial path keeps the relay URL intact and sets connection_id if provided.
+    const u = new URL(this.#relayUrl);
+    let protocols: string[] | undefined;
+    if (this.#resumeToken) {
+      u.searchParams.delete('token');
+      u.searchParams.delete('connection_id');
+      protocols = [`${RESUME_SUBPROTOCOL_PREFIX}${this.#resumeToken}`];
+    } else if (this.#initialConnectionId) {
+      u.searchParams.set('connection_id', this.#initialConnectionId);
     }
+    const wsUrlStr = u.toString();
 
-    this.#log(`Connecting to ${wsUrl}`);
+    this.#log(`Connecting to ${wsUrlStr}`);
 
-    const ws = new WebSocket(wsUrl.toString(), {
-      headers: this.#upgradeHeaders,
+    const ws = protocols
+      ? new WebSocket(wsUrlStr, protocols, {headers: this.#upgradeHeaders})
+      : new WebSocket(wsUrlStr, {headers: this.#upgradeHeaders});
+
+    // Handle non-101 upgrade responses (e.g. 401 on resume token replay).
+    ws.on('unexpected-response', (_req: unknown, res: IncomingMessage) => {
+      this.#log(`Relay rejected upgrade: ${res.statusCode}`);
+      if (res.statusCode === 401) {
+        this.#resumeToken = undefined;
+        this.#traceId = undefined;
+        this.#intentionalDisconnect = true;
+        this.emit('need_live_tunnel');
+      }
+      res.resume(); // drain so socket can be released
     });
 
     ws.on('open', () => {
@@ -104,7 +140,9 @@ export class TunnelClient {
         protocol: 'yamux',
         streaming: true,
       };
-      if (this.#initialConnectionId) {
+      // On resume path the server already knows the connectionId; don't echo
+      // the stale initial value.
+      if (this.#initialConnectionId && !this.#resumeToken) {
         hello.connectionId = this.#initialConnectionId;
       }
       ws.send(JSON.stringify(hello));
@@ -122,6 +160,19 @@ export class TunnelClient {
         return;
       }
 
+      if (msg.type === 'error') {
+        // Server rejected the resume (e.g. RotateConnection DB failure).
+        // Token already revoked server-side; skip reconnect and request a
+        // fresh live-tunnel instead.
+        this.#log(`Relay handshake error: ${msg.message}`);
+        this.#resumeToken = undefined;
+        this.#traceId = undefined;
+        ws.removeListener('message', handshakeHandler);
+        this.#intentionalDisconnect = true;
+        ws.close();
+        this.emit('need_live_tunnel');
+        return;
+      }
       if (msg.type !== 'ready') {
         this.#log(`Expected ready, got: ${msg.type}`);
         return;
@@ -131,6 +182,9 @@ export class TunnelClient {
 
       this.#tunnelId = msg.tunnelId;
       this.#connectionId = msg.connectionId;
+      // Capture rotating resume token and stable trace ID from the server.
+      if (msg.resumeToken !== undefined) this.#resumeToken = msg.resumeToken;
+      if (msg.traceId !== undefined) this.#traceId = msg.traceId;
       this.#state = 'ready';
       this.#reconnectAttempts = 0;
       this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
@@ -138,7 +192,12 @@ export class TunnelClient {
       // Create the transport based on negotiated protocol.
       if (msg.protocol === 'yamux') {
         this.#clearStaleTimer(); // yamux keepalive handles liveness
-        this.#transport = new YamuxTransport({ws, target: this.#target, log: this.#log, streaming: msg.streaming === true});
+        this.#transport = new YamuxTransport({
+          ws,
+          target: this.#target,
+          log: this.#log,
+          streaming: msg.streaming === true,
+        });
       } else {
         this.#transport = new LegacyTransport({
           ws,
