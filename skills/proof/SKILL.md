@@ -1,9 +1,9 @@
 ---
 name: subtext:proof
-description: Use for any frontend or fullstack task that changes, fixes, or verifies what end users will experience in the UI. Captures proof of work for downstream review evidence in the form of agent replays and before/after screenshot artifacts. Skip for backend-only work with no UX impact, test-only changes, or code-explanation tasks.
+description: You MUST use this skill when implementing, fixing, or refactoring code. Captures evidence artifacts (screenshots, network traces, code diffs, trace session links) into a proof document as you work.
 metadata:
   requires:
-    skills: ["subtext:shared", "subtext:live", "subtext:comments"]
+    skills: ["subtext:shared", "subtext:live", "subtext:comments", "subtext:watch"]
   mcp-server: subtext
 ---
 
@@ -54,6 +54,8 @@ I'm connected to the app. Starting verification.
 
 Do NOT bury the link in a wall of text. It goes first, on its own line.
 
+Then start the session watcher: `subtext:watch start <connection_id>`. This wakes the agent on inbound comments or if the reviewer takes browser control, without manual polling.
+
 ### Step 3: Navigate to the affected area and capture BEFORE
 
 Drive the browser to the exact page/component/state where the change will be visible.
@@ -71,6 +73,8 @@ Drive the browser to the exact page/component/state where the change will be vis
 Edit files, update components, fix styles — whatever the task requires.
 
 This is the only step where you leave the browser and work in the codebase.
+
+If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry, and do not continue UI-facing work until `subtext:watch` announces `control returned — resuming`. Backend changes that don't need visual verification can continue.
 
 ### Step 5: Verify the change with live tools
 
@@ -101,7 +105,13 @@ If the AFTER doesn't match intent:
 
 ### Step 7: Package evidence and attach to PR
 
-Once the change is verified:
+Once the change is verified, first stop the session watcher so cron fires don't interleave with the evidence summary:
+
+```
+subtext:watch stop <connection_id>
+```
+
+Then:
 
 1. Take a final `live-view-screenshot` with `upload: true` of the confirmed state
 2. Call `comment-add` with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
