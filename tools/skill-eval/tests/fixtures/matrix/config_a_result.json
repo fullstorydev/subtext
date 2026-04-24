@@ -1,0 +1,34 @@
+{
+  "skill_name": "subtext:proof",
+  "description": "dummy",
+  "results": [
+    {
+      "query": "Update the button hover state",
+      "should_trigger": true,
+      "trigger_rate": 1.0,
+      "triggers": 3,
+      "runs": 3,
+      "pass": true,
+      "errors": 0
+    },
+    {
+      "query": "Explain React hooks",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 3,
+      "pass": true,
+      "errors": 0
+    },
+    {
+      "query": "Add a retry loop to payment service",
+      "should_trigger": true,
+      "trigger_rate": 1.0,
+      "triggers": 3,
+      "runs": 3,
+      "pass": true,
+      "errors": 0
+    }
+  ],
+  "summary": {"total": 3, "passed": 3, "failed": 0, "with_errors": 0}
+}
