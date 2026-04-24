@@ -93,14 +93,14 @@ if (!res.ok) {
   console.error(await res.text());
   process.exit(1);
 }
-// Gateway emits snake_case JSON for the protobuf response.
-const { access_token, expires_at } = await res.json();
+// Gateway emits camelCase JSON for the protobuf response.
+const { accessToken, expiresAt } = await res.json();
 
 const appHost = apiBase.replace(/(^|\/\/)api\./, "$1app.");
-const embedUrl = `${appHost}/subtext/${orgId}/trace/${traceId}/embed?embed=true#token=${access_token}`;
+const embedUrl = `${appHost}/subtext/${orgId}/trace/${traceId}/embed?embed=true#token=${accessToken}`;
 
 if (values.json) {
-  console.log(JSON.stringify({ accessToken: access_token, expiresAt: expires_at, embedUrl }, null, 2));
+  console.log(JSON.stringify({ accessToken, expiresAt, embedUrl }, null, 2));
 } else if (values.html) {
   console.log(
     `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  style="border: none; border-radius: 8px;"\n  allow="clipboard-write"\n  title="Subtext Session Replay"\n></iframe>`,
