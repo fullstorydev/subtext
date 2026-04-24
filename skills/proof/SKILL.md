@@ -3,13 +3,7 @@ name: subtext:proof
 description: Use for any frontend or fullstack task that changes, fixes, or verifies what end users will experience in the UI. Captures proof of work for downstream review evidence in the form of agent replays and before/after screenshot artifacts. Skip for backend-only work with no UX impact, test-only changes, or code-explanation tasks.
 metadata:
   requires:
-    skills:
-      [
-        "subtext:shared",
-        "subtext:live",
-        "subtext:comments",
-        "subtext:agent-playback-link",
-      ]
+    skills: ["subtext:shared", "subtext:live", "subtext:comments"]
   mcp-server: subtext
 ---
 
@@ -49,12 +43,12 @@ Call `live-connect` with the URL where the change will be visible.
 - If the app isn't running, **try to start the dev server yourself first.** Look for `package.json` scripts (`dev`, `start`, `serve`), a `Makefile`, or a `docker-compose.yml`. Run the appropriate command in the background. Only ask the user if you can't figure out how to start it.
 - Read any existing comments with `comment-list` — prior feedback may inform your work.
 
-### Step 2: Share the agent playback link
+### Step 2: Share the viewer URL
 
-**Immediately** construct and output the agent playback link from the `fs_session_url` returned by `live-connect`. Follow the `subtext:agent-playback-link` skill for the URL transformation. Include the `connection_id` for live mode so the user can watch in real time.
+**Immediately** print the `viewer_url` returned by `live-connect` on its own line. This lets the user watch the agent's browser in real time and gives downstream reviewers (including `subtext:review` follow-ups) a stable entry point to the recorded session.
 
 ```
-Agent playback (live): https://app.fullstory.com/subtext/{orgId}/session/{deviceId}:{sessionId}?connection_id={connectionId}
+Viewer: {viewer_url}
 I'm connected to the app. Starting verification.
 ```
 
@@ -113,7 +107,7 @@ Once the change is verified:
 2. Call `comment-add` with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
 3. If a PR exists or will be created:
    - Include before/after screenshot URLs (from Step 3 and Step 5) in the PR description
-   - Construct the agent playback link (per `subtext:agent-playback-link`) and include it for the full session replay
+   - Include the `viewer_url` (from `live-connect`) so reviewers can watch the full recorded session
 
 ```markdown
 ## Visual Evidence
@@ -124,7 +118,7 @@ Once the change is verified:
 **After:**
 ![after]({after_screenshot_url})
 
-**Agent session:** [Review the full session]({agent_playback_link})
+**Session replay:** [Review the full session]({viewer_url})
 ```
 
 The `screenshot_url` values are signed URLs from `live-view-screenshot` with `upload: true`. They render directly in GitHub PR descriptions as inline images.
@@ -184,6 +178,6 @@ If the change affects more than one page or state:
 
 ## Composition
 
-- **Integrates with:** `subtext:bug-fix-workflow` (validation step = this entire skill)
-- **Requires:** `subtext:live` (browser tools), `subtext:comments` (annotations), `subtext:agent-playback-link` (URL construction for shareable session links)
-- **Triggers from:** Any file edit to UI code, or when the user asks for a visual change
+- **Requires:** `subtext:live` (browser tools, returns `viewer_url`), `subtext:comments` (annotations)
+- **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
+- **Triggers from:** any file edit to UI code, or when the user asks for a visual change
