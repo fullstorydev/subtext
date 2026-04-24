@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Run a skill's eval-set under multiple sandbox configs and produce a
+# consolidated matrix (JSON + markdown).
+#
+# Usage:
+#   ./tools/skill-eval/bin/eval-sandboxed-matrix <skill> [--configs <a,b,c>] [extra args for eval-sandboxed]
+#
+# Default --configs: subtext-only,subtext-plus-superpowers
+#
+# For each config, dispatches bin/eval-sandboxed <skill> --config <config> <extra args>
+# serially. Then calls lib.matrix to consolidate.
+#
+# Writes:
+#   skills/<name>/evals/results/<name>-matrix-<ts>.json  (consolidated matrix)
+#   skills/<name>/evals/results/<name>-matrix-<ts>.md    (markdown rendering)
+
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $(basename "$0") <skill-name> [--configs <csv>] [extra args...]" >&2
+  exit 2
+fi
+
+SKILL_NAME="$1"; shift
+
+CONFIGS="subtext-only,subtext-plus-superpowers"
+FORWARDED_ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --configs)
+      CONFIGS="$2"
+      shift 2
+      ;;
+    --configs=*)
+      CONFIGS="${1#*=}"
+      shift
+      ;;
+    *)
+      FORWARDED_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HARNESS_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$HARNESS_DIR/../.." && pwd)"
+RESULTS_DIR="$REPO_ROOT/skills/$SKILL_NAME/evals/results"
+
+mkdir -p "$RESULTS_DIR"
+TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
+
+echo "Matrix eval for '$SKILL_NAME' across configs: $CONFIGS"
+echo
+
+# Split CSV → array.
+IFS=',' read -r -a CONFIG_ARRAY <<< "$CONFIGS"
+
+# Run each config serially; collect the output file paths.
+PER_CONFIG_RESULTS=()
+for cfg in "${CONFIG_ARRAY[@]}"; do
+  echo "=== Running config: $cfg ==="
+  "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" "${FORWARDED_ARGS[@]}"
+  # The most recent result file for this config.
+  LATEST="$(ls -t "$RESULTS_DIR"/"$SKILL_NAME"-sandboxed-"$cfg"-*.json 2>/dev/null | head -1)"
+  if [ -z "$LATEST" ]; then
+    echo "Error: no result file found for config '$cfg'" >&2
+    exit 1
+  fi
+  PER_CONFIG_RESULTS+=("$cfg=$LATEST")
+  echo "  → $LATEST"
+  echo
+done
+
+# Consolidate via lib.matrix.
+MATRIX_JSON="$RESULTS_DIR/${SKILL_NAME}-matrix-${TIMESTAMP}.json"
+MATRIX_MD="$RESULTS_DIR/${SKILL_NAME}-matrix-${TIMESTAMP}.md"
+
+PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
+
+cd "$HARNESS_DIR"
+# python - runs the heredoc as a script; cwd (HARNESS_DIR) is on sys.path
+# by default, so `from lib.matrix import ...` resolves.
+"$PYTHON_BIN" - "$MATRIX_JSON" "$MATRIX_MD" "${PER_CONFIG_RESULTS[@]}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+from lib.matrix import build_matrix, render_matrix_markdown
+
+out_json_path = sys.argv[1]
+out_md_path = sys.argv[2]
+pairs = sys.argv[3:]
+
+configs = {}
+for pair in pairs:
+    name, _, path = pair.partition("=")
+    configs[name] = json.loads(Path(path).read_text())
+
+matrix = build_matrix(configs)
+Path(out_json_path).write_text(json.dumps(matrix, indent=2))
+Path(out_md_path).write_text(render_matrix_markdown(matrix))
+s = matrix["summary"]
+print(f"Matrix written to: {out_json_path}")
+print(f"Markdown rendering: {out_md_path}")
+print()
+for cfg, vals in s.items():
+    print(f"  {cfg}: {vals['passed']}/{vals['total']} passed ({vals['failed']} failed, {vals['with_errors']} with errors)")
+PY
