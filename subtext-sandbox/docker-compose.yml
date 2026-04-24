@@ -1,0 +1,15 @@
+services:
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subtext-sandbox
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - FULLSTORY_API_KEY=${FULLSTORY_API_KEY}
+      - PLUGIN_SOURCE=${PLUGIN_SOURCE:-prod}
+    ports:
+      - "5173:5173"    # Vite dev server
+    stdin_open: true   # -i
+    tty: true          # -t
+    working_dir: /workspace
