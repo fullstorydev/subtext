@@ -78,6 +78,10 @@ def detect_trigger_from_stream(lines: Iterable[str], clean_name: str) -> bool:
                     triggered = True
                 elif tool_name == "Read" and clean_name in tool_input.get("file_path", ""):
                     triggered = True
+                # Mirrors vendor run_eval.py: returns on first tool_use content item.
+                # Do NOT move this return outside the loop — claude -p eval streams
+                # emit one tool per assistant turn, and multi-tool drift would
+                # diverge from the upstream detection contract.
                 return triggered
 
         elif etype == "result":

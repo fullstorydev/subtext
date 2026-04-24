@@ -6,8 +6,6 @@ True iff the staged skill name appears in a Skill or Read tool_use event.
 
 from pathlib import Path
 
-import pytest
-
 from lib.detect_trigger import detect_trigger_from_stream
 
 FIXTURES = Path(__file__).parent / "fixtures"
