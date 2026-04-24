@@ -43,3 +43,22 @@ distinguishes them from `--isolated` and host-default runs.
   additional marketplaces pre-launch. Named configs under
   `configs/subtext-plus-superpowers.yml` etc.
 - Phase 3: Two-stage Dockerfile for caching + parallel worker pool.
+
+## Validation (Phase 1)
+
+Initial smoke test: 2-query subset of `skills/proof/evals/eval-set.json`.
+
+| Query | Expected | Sandbox triggered | Host --isolated triggered |
+|---|---|---|---|
+| "Update the button hover state to be slightly darker"    | ✅ trigger    | ❌ 0/1   | ❌ 0/1   |
+| "Add a new API endpoint for user preferences"            | ❌ no trigger | ❌ 0/1   | ❌ 0/1   |
+
+Both modes agree: the no-trigger query correctly returns 0/1; the trigger query
+also returned 0/1 (a false-negative at n=1 — consistent across both modes,
+indicating a description-quality issue to address in Phase 2, not a harness bug).
+
+- Per-query sandbox latency: ~51s (container startup + npm install + claude -p)
+- Per-query host-isolated latency: ~1.5s
+- Full 22-query run at `--runs-per-query 3` projects to ~57min with Phase 1 serial dispatch. Phase 3 caching + parallelism should cut this by >10×.
+
+Environment: docker image `subtext-sandbox-claude:latest`, `Darwin arm64 (Apple Silicon)` host.
