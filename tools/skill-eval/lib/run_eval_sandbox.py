@@ -63,6 +63,7 @@ def run_eval_over_sandbox(
         unique_id = uuid.uuid4().hex[:8]
         clean_name = f"{skill_name}-skill-{unique_id}".replace(":", "-")
 
+        errors = 0
         for run_idx in range(runs_per_query):
             if verbose:
                 print(
@@ -81,6 +82,7 @@ def run_eval_over_sandbox(
                 if r.triggered:
                     triggers += 1
             except Exception as e:  # noqa: BLE001 — log and carry on
+                errors += 1
                 print(f"  warn: query failed: {e}", file=sys.stderr)
 
         trigger_rate = triggers / runs_per_query
@@ -97,15 +99,22 @@ def run_eval_over_sandbox(
             "triggers": triggers,
             "runs": runs_per_query,
             "pass": did_pass,
+            "errors": errors,
         })
 
     passed = sum(1 for r in results if r["pass"])
+    with_errors = sum(1 for r in results if r["errors"] > 0)
     total = len(results)
     return {
         "skill_name": skill_name,
         "description": description,
         "results": results,
-        "summary": {"total": total, "passed": passed, "failed": total - passed},
+        "summary": {
+            "total": total,
+            "passed": passed,
+            "failed": total - passed,
+            "with_errors": with_errors,
+        },
     }
 
 
