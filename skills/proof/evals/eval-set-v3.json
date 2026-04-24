@@ -1,0 +1,152 @@
+[
+  {
+    "query": "Update the button hover state to be slightly darker",
+    "should_trigger": true,
+    "note": "hard positive — canonical visual change"
+  },
+  {
+    "query": "Fix the modal close button that doesn't work",
+    "should_trigger": true,
+    "note": "hard positive — functional fix, UI code"
+  },
+  {
+    "query": "Add a retry loop with exponential backoff to the payment service call",
+    "should_trigger": true,
+    "note": "hard positive — backend impl, network-observable"
+  },
+  {
+    "query": "Add a new API endpoint for user preferences",
+    "should_trigger": true,
+    "note": "hard positive — backend impl, network-observable (reclassified from v2)"
+  },
+  {
+    "query": "Refactor the auth middleware to extract the session-validation logic into its own function",
+    "should_trigger": true,
+    "note": "hard positive — refactor with observable diff"
+  },
+  {
+    "query": "Fix the race condition in the cart-update handler",
+    "should_trigger": true,
+    "note": "hard positive — functional bug fix"
+  },
+  {
+    "query": "Migrate the user profile schema to add a phone_number field",
+    "should_trigger": true,
+    "note": "hard positive — schema change + code change"
+  },
+  {
+    "query": "Change the color scheme to match our new brand colors",
+    "should_trigger": true,
+    "note": "hard positive — broad visual change"
+  },
+  {
+    "query": "Fix the overlapping text in the product cards",
+    "should_trigger": true,
+    "note": "hard positive — layout bug"
+  },
+  {
+    "query": "Add input validation to the signup form",
+    "should_trigger": true,
+    "note": "hard positive — validation logic implementation"
+  },
+  {
+    "query": "Implement the dark-mode toggle we brainstormed earlier",
+    "should_trigger": true,
+    "note": "hard positive — explicit 'implement' verb mid-flow"
+  },
+  {
+    "query": "You are implementing Task 3: Add a hover state to the submit button. Follow TDD.",
+    "should_trigger": true,
+    "note": "hard positive — subagent-style dispatch prompt"
+  },
+  {
+    "query": "You are implementing Task 7: Add retry-with-backoff to the payment service call. Follow TDD.",
+    "should_trigger": true,
+    "note": "hard positive — subagent-style dispatch prompt, backend"
+  },
+  {
+    "query": "Add structured logging to the payment processing function",
+    "should_trigger": true,
+    "note": "hard positive — observability implementation"
+  },
+  {
+    "query": "Write a unit test for the email validation helper",
+    "should_trigger": true,
+    "note": "hard positive — test-writing is code implementation"
+  },
+  {
+    "query": "Explain how React hooks work",
+    "should_trigger": false,
+    "note": "hard negative — pure explanation, no change"
+  },
+  {
+    "query": "What's the difference between useState and useReducer?",
+    "should_trigger": false,
+    "note": "hard negative — knowledge question"
+  },
+  {
+    "query": "Help me understand this authentication flow",
+    "should_trigger": false,
+    "note": "hard negative — understanding, not changing"
+  },
+  {
+    "query": "Walk me through how this codebase is structured",
+    "should_trigger": false,
+    "note": "hard negative — orientation, no change"
+  },
+  {
+    "query": "Why does this test keep failing? Just analyze the logs and tell me.",
+    "should_trigger": false,
+    "note": "hard negative — investigation without change"
+  },
+  {
+    "query": "Let's brainstorm the onboarding UX — what options do we have?",
+    "should_trigger": false,
+    "note": "hard negative — brainstorming phase"
+  },
+  {
+    "query": "Plan the steps to migrate from REST to GraphQL. Do not write any code yet.",
+    "should_trigger": false,
+    "note": "hard negative — planning phase, explicit no-code"
+  },
+  {
+    "query": "You are researching Task 2: Understand how the authentication middleware works. Do NOT modify any code.",
+    "should_trigger": false,
+    "note": "hard negative — subagent-style research dispatch, explicit no-code"
+  },
+  {
+    "query": "Review this PR and tell me if the approach is sound",
+    "should_trigger": false,
+    "note": "hard negative — review request, no implementation"
+  },
+  {
+    "query": "What does this error message mean: 'Cannot read property \"foo\" of undefined'?",
+    "should_trigger": false,
+    "note": "hard negative — debug question without fix request"
+  },
+  {
+    "query": "Bump React from 18 to 19 in package.json",
+    "should_trigger": true,
+    "note": "soft — ambiguous. Dep bump has risk of visual regression but no intentional code change. v2 marked false; v3 marks true because runtime-observable effects may need evidence."
+  },
+  {
+    "query": "Rename the variable `data` to `payload` across all .tsx files",
+    "should_trigger": false,
+    "note": "soft — ambiguous. Touches code but zero behavioral/visual diff. v3 keeps false (no observable effect)."
+  },
+  {
+    "query": "Update the README with the new setup instructions",
+    "should_trigger": false,
+    "note": "soft — ambiguous. Documentation-only but 'update' is a code-edit verb."
+  },
+  {
+    "query": "Change the 'Submit' button text to 'Save' on the login form",
+    "should_trigger": true,
+    "note": "soft — ambiguous. Copy-only change; tiny diff but user-visible."
+  },
+  {
+    "query": "Add a comment explaining why we use the singleton pattern here",
+    "should_trigger": false,
+    "note": "soft — ambiguous. Code edit but no behavioral change."
+  }
+]
