@@ -20,19 +20,17 @@ if [ -n "${EVAL_QUERY:-}" ]; then
   : "${EVAL_CLEAN_NAME:?EVAL_CLEAN_NAME must be set in eval mode}"
   : "${EVAL_DESCRIPTION:?EVAL_DESCRIPTION must be set in eval mode}"
 
-  # Stage the skill as a command file so Claude advertises it
+  # Stage the skill as a command file so Claude advertises it.
+  # printf '%s' takes variable values as literal strings, so descriptions
+  # containing $ or backticks don't get shell-interpreted. This was a real
+  # bug under heredoc staging (flagged in Phase 1 final review).
   mkdir -p /workspace/.claude/commands
-  INDENTED_DESC="$(echo "$EVAL_DESCRIPTION" | sed 's/^/  /')"
-  cat > "/workspace/.claude/commands/${EVAL_CLEAN_NAME}.md" <<EOF
----
-description: |
-${INDENTED_DESC}
----
-
-# ${EVAL_CLEAN_NAME}
-
-This skill handles: ${EVAL_DESCRIPTION}
-EOF
+  INDENTED_DESC="$(printf '%s' "$EVAL_DESCRIPTION" | sed 's/^/  /')"
+  printf -- '---\ndescription: |\n%s\n---\n\n# %s\n\nThis skill handles: %s\n' \
+    "$INDENTED_DESC" \
+    "$EVAL_CLEAN_NAME" \
+    "$EVAL_DESCRIPTION" \
+    > "/workspace/.claude/commands/${EVAL_CLEAN_NAME}.md"
 
   # Disable MCP connections (not needed for trigger detection, and they
   # delay startup waiting for network). Remove the .mcp.json baked in by
