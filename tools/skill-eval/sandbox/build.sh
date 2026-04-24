@@ -1,8 +1,34 @@
 #!/usr/bin/env bash
 # Build the subtext-sandbox image tagged for skill-eval consumption.
-# Phase 1: --no-cache to stay honest about what we ship. Phase 3 will
-# introduce cached base + thin query layers.
+#
+# Usage:
+#   ./tools/skill-eval/sandbox/build.sh                  # default: subtext-only
+#   ./tools/skill-eval/sandbox/build.sh --config subtext-only
+#   ./tools/skill-eval/sandbox/build.sh --config subtext-plus-superpowers
+#
+# Config → (dockerfile, image-tag) mapping is hardcoded here. Add a case
+# below when introducing a new config. Keep this file short and explicit
+# rather than growing a YAML abstraction before we have ≥3 configs.
 set -euo pipefail
+
+CONFIG="subtext-only"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --config)
+      CONFIG="$2"
+      shift 2
+      ;;
+    --config=*)
+      CONFIG="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "Error: unknown argument '$1'" >&2
+      echo "Usage: $(basename "$0") [--config <subtext-only|subtext-plus-superpowers>]" >&2
+      exit 2
+      ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -13,6 +39,22 @@ if [ ! -d "$SANDBOX_DIR" ]; then
   exit 1
 fi
 
-echo "Building subtext-sandbox-claude image (--no-cache)..."
-docker build --no-cache -t subtext-sandbox-claude "$SANDBOX_DIR"
-echo "Built subtext-sandbox-claude:latest"
+case "$CONFIG" in
+  subtext-only)
+    DOCKERFILE="$SANDBOX_DIR/Dockerfile"
+    TAG="subtext-sandbox-claude:latest"
+    ;;
+  subtext-plus-superpowers)
+    DOCKERFILE="$SANDBOX_DIR/Dockerfile.superpowers"
+    TAG="subtext-sandbox-claude-superpowers:latest"
+    ;;
+  *)
+    echo "Error: unknown config '$CONFIG'" >&2
+    echo "Known configs: subtext-only, subtext-plus-superpowers" >&2
+    exit 1
+    ;;
+esac
+
+echo "Building config '$CONFIG' (tag: $TAG) from $DOCKERFILE..."
+docker build --no-cache -t "$TAG" -f "$DOCKERFILE" "$SANDBOX_DIR"
+echo "Built $TAG"

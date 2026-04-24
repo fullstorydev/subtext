@@ -1,0 +1,11 @@
+# Extends the base sandbox image with Superpowers pre-installed.
+# Used for skill-collision matrix testing under frameworks that load MUST-tier skills.
+FROM subtext-sandbox-claude:latest
+
+# Superpowers marketplace on GitHub — public, no auth needed.
+# `claude plugin marketplace add` accepts owner/repo shorthand.
+RUN claude plugin marketplace add obra/superpowers-marketplace \
+    && claude plugin install superpowers@superpowers-marketplace
+
+# Sanity-check: show installed plugins at build time so build logs surface failures.
+RUN claude plugin list
