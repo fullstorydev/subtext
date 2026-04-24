@@ -13,14 +13,23 @@ from lib.sandbox_runner import run_query_in_sandbox, SandboxResult
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def _fake_popen(stdout_bytes: bytes, returncode: int = 0):
-    proc = MagicMock()
-    proc.stdout = MagicMock()
-    proc.stdout.read.return_value = stdout_bytes
-    proc.returncode = returncode
-    proc.wait.return_value = returncode
-    proc.communicate.return_value = (stdout_bytes, b"")
-    return proc
+@pytest.fixture(autouse=True)
+def _fake_api_keys(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("FULLSTORY_API_KEY", "test-key")
+
+
+def test_missing_api_key_raises(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("FULLSTORY_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        run_query_in_sandbox(
+            query="q",
+            clean_name="cname",
+            description="desc",
+            plugin_source_path="/host/subtext",
+            timeout_s=60,
+        )
 
 
 def test_triggered_query_reports_triggered():
