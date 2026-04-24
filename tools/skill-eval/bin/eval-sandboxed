@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Run trigger eval for a subtext skill inside the subtext-sandbox container.
+#
+# Usage:
+#   ./tools/skill-eval/bin/eval-sandboxed <skill-name> [extra args...]
+#
+# Environment:
+#   ANTHROPIC_API_KEY  (required) — forwarded to the container
+#   FULLSTORY_API_KEY  (required) — forwarded to the container for MCP auth
+#                                   (MCP servers are not contacted in eval
+#                                   mode; key is still validated as an
+#                                   intentional check that sandbox setup
+#                                   would work interactively too)
+#
+# Extra args forwarded to run_eval_sandbox.py. Notable:
+#   --runs-per-query N  (default 3)
+#   --model NAME
+#   --verbose
+#   --timeout S          (default 180)
+#
+# Results written to skills/<name>/evals/results/<name>-sandboxed-<ts>.json
+
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $(basename "$0") <skill-name> [extra args...]" >&2
+  exit 2
+fi
+
+SKILL_NAME="$1"; shift
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HARNESS_DIR="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$HARNESS_DIR/../.." && pwd)"
+
+SKILL_PATH="$REPO_ROOT/skills/$SKILL_NAME"
+EVAL_SET="$SKILL_PATH/evals/eval-set.json"
+RESULTS_DIR="$SKILL_PATH/evals/results"
+PLUGIN_SOURCE="$REPO_ROOT"
+
+if [ ! -d "$SKILL_PATH" ]; then
+  echo "Error: skill not found at $SKILL_PATH" >&2
+  exit 1
+fi
+if [ ! -f "$EVAL_SET" ]; then
+  echo "Error: eval-set not found at $EVAL_SET" >&2
+  exit 1
+fi
+
+for v in ANTHROPIC_API_KEY FULLSTORY_API_KEY; do
+  if [ -z "${!v:-}" ]; then
+    echo "Error: $v not set" >&2
+    exit 1
+  fi
+done
+
+if ! docker image inspect subtext-sandbox-claude >/dev/null 2>&1; then
+  echo "Error: subtext-sandbox-claude image not built. Run:" >&2
+  echo "  ./tools/skill-eval/sandbox/build.sh" >&2
+  exit 1
+fi
+
+mkdir -p "$RESULTS_DIR"
+TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
+OUT="$RESULTS_DIR/${SKILL_NAME}-sandboxed-${TIMESTAMP}.json"
+
+PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
+
+echo "Running sandbox eval for '$SKILL_NAME'"
+echo "  skill:        $SKILL_PATH"
+echo "  eval-set:     $EVAL_SET"
+echo "  plugin src:   $PLUGIN_SOURCE"
+echo "  output:       $OUT"
+echo
+
+cd "$HARNESS_DIR"
+"$PYTHON_BIN" -m lib.run_eval_sandbox \
+  --skill-path "$SKILL_PATH" \
+  --eval-set "$EVAL_SET" \
+  --plugin-source "$PLUGIN_SOURCE" \
+  --verbose \
+  "$@" \
+  | tee "$OUT"
+
+echo
+echo "Results written to $OUT"
