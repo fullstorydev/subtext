@@ -32,21 +32,22 @@ def run_query_in_sandbox(
 ) -> SandboxResult:
     """Run one eval query inside the subtext-sandbox container.
 
-    Requires ANTHROPIC_API_KEY and FULLSTORY_API_KEY in the caller's
-    environment. Both are forwarded into the container.
+    Requires ANTHROPIC_API_KEY in the caller's environment, forwarded into
+    the container.
 
     Returns a SandboxResult. Raises RuntimeError on docker exit != 0.
     """
-    for required in ("ANTHROPIC_API_KEY", "FULLSTORY_API_KEY"):
-        if not os.environ.get(required):
-            raise RuntimeError(f"{required} not set in environment")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise RuntimeError("ANTHROPIC_API_KEY not set in environment")
 
+    # Note: FULLSTORY_API_KEY is not required in eval mode — the container
+    # entrypoint deletes /workspace/.mcp.json before running claude -p,
+    # so MCP servers (the only consumer of that key) are never contacted.
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{plugin_source_path}:/opt/subtext:ro",
         "-e", "PLUGIN_SOURCE=local",
         "-e", f"ANTHROPIC_API_KEY={os.environ['ANTHROPIC_API_KEY']}",
-        "-e", f"FULLSTORY_API_KEY={os.environ['FULLSTORY_API_KEY']}",
         "-e", f"EVAL_QUERY={query}",
         "-e", f"EVAL_CLEAN_NAME={clean_name}",
         "-e", f"EVAL_DESCRIPTION={description}",

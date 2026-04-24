@@ -6,11 +6,10 @@
 #
 # Environment:
 #   ANTHROPIC_API_KEY  (required) — forwarded to the container
-#   FULLSTORY_API_KEY  (required) — forwarded to the container for MCP auth
-#                                   (MCP servers are not contacted in eval
-#                                   mode; key is still validated as an
-#                                   intentional check that sandbox setup
-#                                   would work interactively too)
+#
+# Interactive sandbox mode (subtext-sandbox/run.sh) additionally requires
+# FULLSTORY_API_KEY for MCP auth, but eval mode deletes the MCP manifest
+# before launching claude -p, so the key isn't needed here.
 #
 # Extra args forwarded to run_eval_sandbox.py. Notable:
 #   --runs-per-query N  (default 3)
@@ -47,12 +46,10 @@ if [ ! -f "$EVAL_SET" ]; then
   exit 1
 fi
 
-for v in ANTHROPIC_API_KEY FULLSTORY_API_KEY; do
-  if [ -z "${!v:-}" ]; then
-    echo "Error: $v not set" >&2
-    exit 1
-  fi
-done
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "Error: ANTHROPIC_API_KEY not set" >&2
+  exit 1
+fi
 
 if ! docker image inspect subtext-sandbox-claude >/dev/null 2>&1; then
   echo "Error: subtext-sandbox-claude image not built. Run:" >&2

@@ -16,12 +16,10 @@ FIXTURES = Path(__file__).parent / "fixtures"
 @pytest.fixture(autouse=True)
 def _fake_api_keys(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    monkeypatch.setenv("FULLSTORY_API_KEY", "test-key")
 
 
 def test_missing_api_key_raises(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("FULLSTORY_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         run_query_in_sandbox(
             query="q",
@@ -98,3 +96,5 @@ def test_docker_command_shape():
     assert any(e.startswith("EVAL_QUERY=") for e in env_flags)
     assert any(e.startswith("EVAL_CLEAN_NAME=cname") for e in env_flags)
     assert any(e.startswith("EVAL_DESCRIPTION=") for e in env_flags)
+    # FULLSTORY_API_KEY must NOT be forwarded in eval mode
+    assert not any(e.startswith("FULLSTORY_API_KEY=") for e in env_flags)

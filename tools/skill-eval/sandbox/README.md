@@ -9,7 +9,7 @@ matrix testing (subtext alone vs. subtext + Superpowers, etc.).
 
 - `subtext-sandbox/` at the repo root (already present)
 - Docker Engine + Compose plugin
-- `ANTHROPIC_API_KEY` and `FULLSTORY_API_KEY` in env
+- `ANTHROPIC_API_KEY` in env
 - Built image: `./tools/skill-eval/sandbox/build.sh`
 
 ## Running
