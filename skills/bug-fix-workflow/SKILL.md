@@ -3,7 +3,7 @@ name: subtext:bug-fix-workflow
 description: Fix UI bugs via evidence-driven workflow. Understand before fixing, test before coding. Delegates heavy exploration to subagents.
 metadata:
   requires:
-    skills: ["subtext:session", "subtext:shared", "subtext:sightmap", "subtext:visual-verification", "subtext:comments"]
+    skills: ["subtext:session", "subtext:shared", "subtext:sightmap", "subtext:visual-verification", "subtext:comments", "subtext:docs"]
 ---
 
 # Bug Fix
@@ -30,6 +30,12 @@ Non-negotiable:
 2. **Have a root cause hypothesis before writing any fix code.** Name the file, the function, the mechanism.
 3. **Write a failing test before writing fix code** (when testable).
 
+## Entry
+
+**First action:** `doc-create(title: <bug title>, ref: <issue/PR url if known>, tags: [...], content: <bug-fix seed template from subtext:docs>)`
+
+Save the returned `doc_id` and pass it to all subagents. All evidence attaches to this document.
+
 ## Entry Evaluation
 
 Before doing anything, assess what you already know:
@@ -47,6 +53,8 @@ Before doing anything, assess what you already know:
 - Otherwise → delegate to subagent running `subtext:session-analysis-workflow`. Give it: session coordinates and bug description.
 - Bug description with no session, specific enough → proceed to Root Cause
 - Bug description vague → ask for context or session URL
+
+If a session replay is observed: `doc-attach(doc_id, render_as: "link", url: <viewer_url>, section: "Session Replays", label: <what was observed>)`
 
 **Exit:** You can state expected behavior, actual behavior, and name the components.
 **Checkpoint:** Present understanding to user. Ask whether to reproduce or proceed to code.
@@ -81,6 +89,8 @@ Before doing anything, assess what you already know:
 - Run the failing test — must pass.
 - Run broader suite — no regressions.
 - Existing tests break assuming buggy behavior → update those tests.
+- Attach the diff: `doc-attach(doc_id, render_as: "link", text: <git diff>, content_type: "text/plain", section: "Changes", label: <fix description>)`
+- Attach test output: `doc-attach(doc_id, render_as: "link", text: <test output>, content_type: "text/plain", section: "Test Results", label: "test run")`
 
 ### Validation — confirm the fix
 
@@ -88,8 +98,11 @@ Before doing anything, assess what you already know:
 - Delegate browser validation to subagent with original repro steps
 - Subagent follows steps and confirms bug is gone
 - Apply `visual-verification` rules: screenshot the fix, check theme/viewport variants if the change touched styles, and compare against the original bug evidence
+- Attach the validation screenshot: `doc-attach(doc_id, render_as: "image", artifact_id: <id>, section: "After", label: "Fix confirmed")`
 - `comment-reply` on each bug annotation with fix status and evidence (commit, screenshot)
 - `comment-resolve` only on issues confirmed fixed via screenshot — leave others open with a status reply
+- Re-read with `doc-read` and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
+- `doc-close(doc_id, status: "complete", summary: <one-sentence outcome>)` → share `doc_url` with user
 
 ## Revising a Wrong Hypothesis
 

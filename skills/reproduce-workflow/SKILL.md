@@ -26,6 +26,8 @@ Accepts **either**:
 
 Also needs: local dev URL and login instructions if auth required.
 
+Optional: `doc_id` from a parent `bug-fix-workflow`. When provided, attach screenshots and observations to the proof document at each capture point.
+
 ## Decision Points
 
 **When given a session URL (no repro steps):**
@@ -53,6 +55,10 @@ Also needs: local dev URL and login instructions if auth required.
 - At bug/observation point: snapshot + screenshot for evidence
 - Check console messages for errors at key moments
 - Check network requests when issue might be data-related
+
+**When `doc_id` is provided:**
+- At each capture point (screenshot, console error, network issue), call `doc-attach(doc_id, render_as: ..., artifact_id/text: ..., section: "Evidence", label: <step description>)` immediately after the capture
+- Use `render_as: "image"` for screenshots (artifact_id or base64_data), `render_as: "link"` with `text + content_type: "text/plain"` for console/network logs
 
 **When to persist vs give up:**
 - Bug depends on data not available locally → note gap as likely reason, report partial
