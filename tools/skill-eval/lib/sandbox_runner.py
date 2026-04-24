@@ -27,7 +27,7 @@ def run_query_in_sandbox(
     description: str,
     plugin_source_path: str,
     timeout_s: int = 180,
-    image: str = "subtext-sandbox-claude",
+    image: str = os.environ.get("SANDBOX_IMAGE", "subtext-sandbox-claude"),
     model: str | None = None,
 ) -> SandboxResult:
     """Run one eval query inside the subtext-sandbox container.

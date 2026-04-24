@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Run trigger eval for a subtext skill inside the subtext-sandbox container.
+# Run trigger eval for a subtext skill inside a subtext-sandbox container.
 #
 # Usage:
-#   ./tools/skill-eval/bin/eval-sandboxed <skill-name> [extra args...]
+#   ./tools/skill-eval/bin/eval-sandboxed <skill-name> [--config <name>] [extra args...]
+#
+# Config selects which pre-built sandbox image to use:
+#   subtext-only               (default) — image tag: subtext-sandbox-claude:latest
+#   subtext-plus-superpowers   — image tag: subtext-sandbox-claude-superpowers:latest
+#
+# Build a config's image first with: ./tools/skill-eval/sandbox/build.sh --config <name>
 #
 # Environment:
 #   ANTHROPIC_API_KEY  (required) — forwarded to the container
@@ -11,22 +17,52 @@
 # FULLSTORY_API_KEY for MCP auth, but eval mode deletes the MCP manifest
 # before launching claude -p, so the key isn't needed here.
 #
-# Extra args forwarded to run_eval_sandbox.py. Notable:
-#   --runs-per-query N  (default 3)
-#   --model NAME
-#   --verbose
-#   --timeout S          (default 180)
+# Extra args are forwarded to run_eval_sandbox.py after the config handling.
+# Notable: --runs-per-query N, --model NAME, --verbose, --timeout S.
 #
-# Results written to skills/<name>/evals/results/<name>-sandboxed-<ts>.json
+# Results written to skills/<name>/evals/results/<name>-sandboxed-<config>-<ts>.json.
 
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
-  echo "Usage: $(basename "$0") <skill-name> [extra args...]" >&2
+  echo "Usage: $(basename "$0") <skill-name> [--config <name>] [extra args...]" >&2
   exit 2
 fi
 
 SKILL_NAME="$1"; shift
+
+CONFIG="subtext-only"
+FORWARDED_ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --config)
+      CONFIG="$2"
+      shift 2
+      ;;
+    --config=*)
+      CONFIG="${1#*=}"
+      shift
+      ;;
+    *)
+      FORWARDED_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+case "$CONFIG" in
+  subtext-only)
+    IMAGE="subtext-sandbox-claude:latest"
+    ;;
+  subtext-plus-superpowers)
+    IMAGE="subtext-sandbox-claude-superpowers:latest"
+    ;;
+  *)
+    echo "Error: unknown config '$CONFIG'" >&2
+    echo "Known configs: subtext-only, subtext-plus-superpowers" >&2
+    exit 1
+    ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HARNESS_DIR="$(dirname "$SCRIPT_DIR")"
@@ -51,20 +87,22 @@ if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   exit 1
 fi
 
-if ! docker image inspect subtext-sandbox-claude >/dev/null 2>&1; then
-  echo "Error: subtext-sandbox-claude image not built. Run:" >&2
-  echo "  ./tools/skill-eval/sandbox/build.sh" >&2
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "Error: image '$IMAGE' not built. Run:" >&2
+  echo "  ./tools/skill-eval/sandbox/build.sh --config $CONFIG" >&2
   exit 1
 fi
 
 mkdir -p "$RESULTS_DIR"
 TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
-OUT="$RESULTS_DIR/${SKILL_NAME}-sandboxed-${TIMESTAMP}.json"
+OUT="$RESULTS_DIR/${SKILL_NAME}-sandboxed-${CONFIG}-${TIMESTAMP}.json"
 
 PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
 
 echo "Running sandbox eval for '$SKILL_NAME'"
+echo "  config:       $CONFIG"
+echo "  image:        $IMAGE"
 echo "  skill:        $SKILL_PATH"
 echo "  eval-set:     $EVAL_SET"
 echo "  plugin src:   $PLUGIN_SOURCE"
@@ -72,12 +110,12 @@ echo "  output:       $OUT"
 echo
 
 cd "$HARNESS_DIR"
-"$PYTHON_BIN" -m lib.run_eval_sandbox \
+SANDBOX_IMAGE="$IMAGE" "$PYTHON_BIN" -m lib.run_eval_sandbox \
   --skill-path "$SKILL_PATH" \
   --eval-set "$EVAL_SET" \
   --plugin-source "$PLUGIN_SOURCE" \
   --verbose \
-  "$@" \
+  "${FORWARDED_ARGS[@]}" \
   | tee "$OUT"
 
 echo
