@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "$HARNESS_DIR/../.." && pwd)"
 VENDOR_DIR="$HARNESS_DIR/vendor/skill-creator"
 
 SKILL_PATH="$REPO_ROOT/skills/$SKILL_NAME"
-EVAL_SET="$SKILL_PATH/evals/eval-set.json"
+EVAL_SET="${EVAL_SET_OVERRIDE:-$SKILL_PATH/evals/eval-set-v3.json}"
 RESULTS_DIR="$SKILL_PATH/evals/results"
 
 if [ ! -d "$SKILL_PATH" ]; then
