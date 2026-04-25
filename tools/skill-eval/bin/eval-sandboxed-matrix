@@ -25,6 +25,7 @@ SKILL_NAME="$1"; shift
 
 CONFIGS="subtext-only,subtext-plus-superpowers"
 QUERY_STYLE="user-facing"
+MODELS=""  # empty = use eval-sandboxed's default (claude-sonnet-4-6)
 FORWARDED_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,6 +45,14 @@ while [ $# -gt 0 ]; do
       QUERY_STYLE="${1#*=}"
       shift
       ;;
+    --models)
+      MODELS="$2"
+      shift 2
+      ;;
+    --models=*)
+      MODELS="${1#*=}"
+      shift
+      ;;
     *)
       FORWARDED_ARGS+=("$1")
       shift
@@ -61,25 +70,46 @@ TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
 
 echo "Matrix eval for '$SKILL_NAME' across configs: $CONFIGS"
 echo "Query style: $QUERY_STYLE"
+if [ -n "$MODELS" ]; then
+  echo "Models: $MODELS"
+else
+  echo "Models: (eval-sandboxed default = claude-sonnet-4-6)"
+fi
 echo
 
-# Split CSV → array.
+# Split CSV → arrays.
 IFS=',' read -r -a CONFIG_ARRAY <<< "$CONFIGS"
+if [ -n "$MODELS" ]; then
+  IFS=',' read -r -a MODEL_ARRAY <<< "$MODELS"
+else
+  MODEL_ARRAY=("")  # empty string = let eval-sandboxed pick its default
+fi
 
-# Run each config serially; collect the output file paths.
+# Run each (config, model) pair; collect the output file paths.
+# Per-config-result label format: "<cfg>__<model>" so the matrix
+# consolidator treats each pair as a distinct column.
 PER_CONFIG_RESULTS=()
-for cfg in "${CONFIG_ARRAY[@]}"; do
-  echo "=== Running config: $cfg (query-style: $QUERY_STYLE) ==="
-  "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" --query-style "$QUERY_STYLE" "${FORWARDED_ARGS[@]}"
-  # The most recent result file for this config + style.
-  LATEST="$(ls -t "$RESULTS_DIR"/"$SKILL_NAME"-sandboxed-"$cfg"-"$QUERY_STYLE"-*.json 2>/dev/null | head -1)"
-  if [ -z "$LATEST" ]; then
-    echo "Error: no result file found for config '$cfg'" >&2
-    exit 1
-  fi
-  PER_CONFIG_RESULTS+=("$cfg=$LATEST")
-  echo "  → $LATEST"
-  echo
+for model in "${MODEL_ARRAY[@]}"; do
+  for cfg in "${CONFIG_ARRAY[@]}"; do
+    if [ -n "$model" ]; then
+      echo "=== Running config: $cfg / model: $model (query-style: $QUERY_STYLE) ==="
+      "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" --query-style "$QUERY_STYLE" --model "$model" "${FORWARDED_ARGS[@]}"
+      LABEL="${cfg}__${model}"
+    else
+      echo "=== Running config: $cfg (query-style: $QUERY_STYLE, model: default) ==="
+      "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" --query-style "$QUERY_STYLE" "${FORWARDED_ARGS[@]}"
+      LABEL="$cfg"
+    fi
+    # The most recent result file for this config + style.
+    LATEST="$(ls -t "$RESULTS_DIR"/"$SKILL_NAME"-sandboxed-"$cfg"-"$QUERY_STYLE"-*.json 2>/dev/null | head -1)"
+    if [ -z "$LATEST" ]; then
+      echo "Error: no result file found for config '$cfg' (model '$model')" >&2
+      exit 1
+    fi
+    PER_CONFIG_RESULTS+=("${LABEL}=$LATEST")
+    echo "  → $LATEST"
+    echo
+  done
 done
 
 # Consolidate via lib.matrix.
