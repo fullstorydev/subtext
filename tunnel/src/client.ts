@@ -7,7 +7,6 @@ import {
   RECONNECT_MAX_MS,
   RESUME_SUBPROTOCOL_PREFIX,
   STALE_CONNECTION_MS,
-  MAX_RECONNECT_ATTEMPTS,
 } from './types.js';
 import type {TunnelTransport} from './transport.js';
 import {LegacyTransport} from './transport_legacy.js';
@@ -209,7 +208,12 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
       // Transport.serve() resolves when the WebSocket closes or the session
       // tears down. The close handler below then triggers reconnect.
-      void this.#transport.serve();
+      // Catch unexpected rejections so they don't become unhandled and kill
+      // the process -- treat them the same as a connection drop.
+      this.#transport.serve().catch((err: unknown) => {
+        this.#log(`Transport error: ${err instanceof Error ? err.message : String(err)}`);
+        this.#onDisconnect();
+      });
     };
     ws.on('message', handshakeHandler);
 
@@ -253,13 +257,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   }
 
   #scheduleReconnect(): void {
-    if (this.#reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      this.#log(
-        `Reached max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}); stopping reconnect loop`,
-      );
-      return;
-    }
-
     const delay = Math.min(
       RECONNECT_BASE_MS * Math.pow(2, this.#reconnectAttempts),
       RECONNECT_MAX_MS,
@@ -304,6 +301,9 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     }
     if (this.#ws) {
       this.#ws.removeAllListeners();
+      // Re-attach a no-op error handler: close() on a CONNECTING socket emits
+      // 'error' synchronously; without a listener Node throws.
+      this.#ws.on('error', () => {});
       this.#ws.close();
       this.#ws = null;
     }
