@@ -12,6 +12,7 @@
 set -euo pipefail
 
 CONFIG="subtext-only"
+FORCE_REBUILD=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --config)
@@ -22,9 +23,13 @@ while [ $# -gt 0 ]; do
       CONFIG="${1#*=}"
       shift
       ;;
+    --force-rebuild)
+      FORCE_REBUILD=1
+      shift
+      ;;
     *)
       echo "Error: unknown argument '$1'" >&2
-      echo "Usage: $(basename "$0") [--config <subtext-only|subtext-plus-superpowers>]" >&2
+      echo "Usage: $(basename "$0") [--config <subtext-only|subtext-plus-superpowers>] [--force-rebuild]" >&2
       exit 2
       ;;
   esac
@@ -55,6 +60,12 @@ case "$CONFIG" in
     ;;
 esac
 
-echo "Building config '$CONFIG' (tag: $TAG) from $DOCKERFILE..."
-docker build --no-cache -t "$TAG" -f "$DOCKERFILE" "$SANDBOX_DIR"
+BUILD_FLAGS=()
+if [ "$FORCE_REBUILD" = "1" ]; then
+  BUILD_FLAGS+=(--no-cache)
+  echo "Building config '$CONFIG' (tag: $TAG) from $DOCKERFILE — full rebuild forced..."
+else
+  echo "Building config '$CONFIG' (tag: $TAG) from $DOCKERFILE — using Docker layer cache (pass --force-rebuild to bypass)..."
+fi
+docker build "${BUILD_FLAGS[@]}" -t "$TAG" -f "$DOCKERFILE" "$SANDBOX_DIR"
 echo "Built $TAG"
