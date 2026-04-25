@@ -13,6 +13,27 @@ from lib.sandbox_runner import run_query_in_sandbox, SandboxResult, parse_model_
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def _mock_popen_streaming(stdout_bytes: bytes, returncode: int = 0):
+    """Build a mock Popen object that streams the given bytes line-by-line.
+
+    iter(proc.stdout.readline, b'') iterates by calling readline() until
+    it returns b'' (EOF). The mock's side_effect emits each line, then b''.
+    """
+    proc = MagicMock()
+    lines = stdout_bytes.splitlines(keepends=True) + [b""]
+    proc.stdout = MagicMock()
+    proc.stdout.readline = MagicMock(side_effect=lines)
+    proc.stderr = MagicMock()
+    proc.stderr.read = MagicMock(return_value=b"")
+    # poll: None while running, then returncode after wait()
+    proc.poll = MagicMock(return_value=None)
+    proc.wait = MagicMock(return_value=returncode)
+    proc.returncode = returncode
+    proc.terminate = MagicMock()
+    proc.kill = MagicMock()
+    return proc
+
+
 @pytest.fixture(autouse=True)
 def _fake_api_keys(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
@@ -32,8 +53,8 @@ def test_missing_api_key_raises(monkeypatch):
 
 def test_triggered_query_reports_triggered():
     stdout = (FIXTURES / "stream_triggered.jsonl").read_bytes()
-    with patch("lib.sandbox_runner.subprocess.run") as run:
-        run.return_value = MagicMock(stdout=stdout, stderr=b"", returncode=0)
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = _mock_popen_streaming(stdout, returncode=0)
         result = run_query_in_sandbox(
             query="Change the button color",
             clean_name="fixture-skill-fix1",
@@ -43,13 +64,12 @@ def test_triggered_query_reports_triggered():
         )
     assert isinstance(result, SandboxResult)
     assert result.triggered is True
-    assert result.exit_code == 0
 
 
 def test_non_triggered_query_reports_false():
     stdout = (FIXTURES / "stream_not_triggered.jsonl").read_bytes()
-    with patch("lib.sandbox_runner.subprocess.run") as run:
-        run.return_value = MagicMock(stdout=stdout, stderr=b"", returncode=0)
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = _mock_popen_streaming(stdout, returncode=0)
         result = run_query_in_sandbox(
             query="What is 7 times 8?",
             clean_name="fixture-skill-fix1",
@@ -61,8 +81,10 @@ def test_non_triggered_query_reports_false():
 
 
 def test_nonzero_exit_raises():
-    with patch("lib.sandbox_runner.subprocess.run") as run:
-        run.return_value = MagicMock(stdout=b"", stderr=b"boom", returncode=1)
+    proc = _mock_popen_streaming(b"", returncode=1)
+    proc.stderr.read = MagicMock(return_value=b"boom")
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = proc
         with pytest.raises(RuntimeError, match="docker run failed"):
             run_query_in_sandbox(
                 query="q",
@@ -76,8 +98,8 @@ def test_nonzero_exit_raises():
 def test_docker_command_shape():
     """Verify the docker run argv so future changes can't silently drop flags."""
     stdout = (FIXTURES / "stream_not_triggered.jsonl").read_bytes()
-    with patch("lib.sandbox_runner.subprocess.run") as run:
-        run.return_value = MagicMock(stdout=stdout, stderr=b"", returncode=0)
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = _mock_popen_streaming(stdout, returncode=0)
         run_query_in_sandbox(
             query="hello",
             clean_name="cname",
@@ -85,7 +107,7 @@ def test_docker_command_shape():
             plugin_source_path="/host/subtext",
             timeout_s=90,
         )
-    call_args = run.call_args.args[0]
+    call_args = popen.call_args.args[0]
     assert call_args[0] == "docker"
     assert "run" in call_args
     assert "--rm" in call_args
@@ -104,8 +126,8 @@ def test_model_field_parsed_from_stream():
     """The fixture stream contains a system/init event with a model field;
     SandboxResult.model should be populated from it."""
     stdout = (FIXTURES / "stream_triggered.jsonl").read_bytes()
-    with patch("lib.sandbox_runner.subprocess.run") as run:
-        run.return_value = MagicMock(stdout=stdout, stderr=b"", returncode=0)
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = _mock_popen_streaming(stdout, returncode=0)
         result = run_query_in_sandbox(
             query="Change the button color",
             clean_name="fixture-skill-fix1",
@@ -117,3 +139,23 @@ def test_model_field_parsed_from_stream():
     # Don't pin to a specific model name — fixture might rotate over time.
     # Just verify it looks like a Claude model identifier.
     assert "claude" in result.model.lower()
+
+
+def test_early_exit_terminates_subprocess_on_trigger():
+    """Once the detector reaches a trigger decision, sandbox_runner should
+    terminate the subprocess rather than wait for the full stream to drain."""
+    stream_bytes = (FIXTURES / "stream_triggered.jsonl").read_bytes()
+    proc = _mock_popen_streaming(stream_bytes, returncode=0)
+    with patch("lib.sandbox_runner.subprocess.Popen") as popen:
+        popen.return_value = proc
+        result = run_query_in_sandbox(
+            query="Change the button color",
+            clean_name="fixture-skill-fix1",
+            description="button style changes",
+            plugin_source_path="/host/subtext",
+            timeout_s=60,
+        )
+    # On a triggered-decision, the runner should have called terminate() to
+    # bail out of the subprocess early.
+    assert proc.terminate.called or proc.kill.called
+    assert result.triggered is True

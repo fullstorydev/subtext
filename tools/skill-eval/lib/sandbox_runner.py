@@ -9,10 +9,11 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from lib.detect_trigger import detect_trigger_from_stream
+from lib.detect_trigger import TriggerDetector, detect_trigger_from_stream
 
 
 def parse_model_from_stream(lines: Iterable[str]) -> str | None:
@@ -84,29 +85,96 @@ def run_query_in_sandbox(
         cmd.extend(["-e", f"EVAL_MODEL={model}"])
     cmd.append(image)
 
-    completed = subprocess.run(
+    proc = subprocess.Popen(
         cmd,
-        capture_output=True,
-        timeout=timeout_s,
-        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1,  # line-buffered
     )
 
-    if completed.returncode != 0:
+    detector = TriggerDetector(clean_name)
+    captured_lines: list[str] = []
+    triggered: bool | None = None
+    timed_out = [False]  # mutable so the timer thread can flag it
+
+    # Hard timeout enforced via a watchdog thread. Important because
+    # proc.stdout.readline() is blocking — a deadline check inside the
+    # loop wouldn't fire while readline is waiting on output. The watchdog
+    # calls terminate() after timeout_s; that closes stdout, which causes
+    # readline to return b"" and the loop to exit cleanly.
+    def _watchdog() -> None:
+        if proc.poll() is None:
+            timed_out[0] = True
+            proc.terminate()
+
+    watchdog = threading.Timer(timeout_s, _watchdog)
+    watchdog.start()
+
+    try:
+        # iter(callable, sentinel) iterates by calling readline() until it
+        # returns b"" (EOF). Works whether EOF comes from a normal exit or
+        # from terminate() closing the pipe.
+        for line_bytes in iter(proc.stdout.readline, b""):
+            line = line_bytes.decode("utf-8", errors="replace")
+            captured_lines.append(line)
+            decision = detector.consume(line)
+            if decision is not None:
+                triggered = decision
+                # Early-exit: the routing decision is in. Terminate the
+                # docker subprocess so we don't burn budget on subagent-
+                # style queries that would otherwise keep "implementing"
+                # until the timeout.
+                proc.terminate()
+                break
+
+        if triggered is None:
+            # Stream ended without a definitive decision.
+            triggered = detector.finalize()
+
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+
+    except Exception:
+        # Defensive cleanup on any error path.
+        if proc.poll() is None:
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+        raise
+    finally:
+        watchdog.cancel()
+
+    if timed_out[0]:
+        stderr_bytes = proc.stderr.read() if proc.stderr else b""
         raise RuntimeError(
-            f"docker run failed (exit {completed.returncode}): "
-            f"{completed.stderr.decode('utf-8', errors='replace')[-400:]}"
+            f"docker run timed out after {timeout_s}s "
+            f"(stderr tail: {stderr_bytes.decode('utf-8', errors='replace')[-200:]})"
         )
 
-    stdout = completed.stdout.decode("utf-8", errors="replace")
-    stderr = completed.stderr.decode("utf-8", errors="replace")
-    lines = stdout.splitlines()
+    # Exit codes: SIGTERM (143 / -15) and SIGKILL (137 / -9) on intentional
+    # early-exit are EXPECTED and not failures. Real docker errors produce
+    # other non-zero exit codes alongside meaningful stderr content.
+    exit_code = proc.returncode
+    stderr_bytes = proc.stderr.read() if proc.stderr else b""
+    stderr_tail = stderr_bytes.decode("utf-8", errors="replace")[-200:]
 
-    triggered = detect_trigger_from_stream(lines, clean_name)
-    model = parse_model_from_stream(lines)
+    if exit_code not in (0, 143, 137, -15, -9, None):
+        raise RuntimeError(
+            f"docker run failed (exit {exit_code}): {stderr_tail}"
+        )
+
+    model_observed = parse_model_from_stream(captured_lines)
+    stdout_bytes = sum(len(line.encode("utf-8")) for line in captured_lines)
+
     return SandboxResult(
         triggered=triggered,
-        exit_code=completed.returncode,
-        stdout_bytes=len(completed.stdout),
-        stderr_tail=stderr[-200:] if stderr else "",
-        model=model,
+        exit_code=exit_code if exit_code is not None else 0,
+        stdout_bytes=stdout_bytes,
+        stderr_tail=stderr_tail,
+        model=model_observed,
     )
