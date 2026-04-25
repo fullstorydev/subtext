@@ -1,0 +1,622 @@
+{
+  "configs": [
+    "subtext-only",
+    "subtext-plus-superpowers"
+  ],
+  "queries": [
+    {
+      "query": "Update the button hover state to be slightly darker",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Fix the modal close button that doesn't work",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add a retry loop with exponential backoff to the payment service call",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add a new API endpoint for user preferences",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Refactor the auth middleware to extract the session-validation logic into its own function",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Fix the race condition in the cart-update handler",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Migrate the user profile schema to add a phone_number field",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Change the color scheme to match our new brand colors",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Fix the overlapping text in the product cards",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add input validation to the signup form",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Implement the dark-mode toggle we brainstormed earlier",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "You are implementing Task 3: Add a hover state to the submit button. Follow TDD.",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "You are implementing Task 7: Add retry-with-backoff to the payment service call. Follow TDD.",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add structured logging to the payment processing function",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Write a unit test for the email validation helper",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Explain how React hooks work",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "What's the difference between useState and useReducer?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Help me understand this authentication flow",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Walk me through how this codebase is structured",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Why does this test keep failing? Just analyze the logs and tell me.",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Let's brainstorm the onboarding UX \u2014 what options do we have?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Plan the steps to migrate from REST to GraphQL. Do not write any code yet.",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "You are researching Task 2: Understand how the authentication middleware works. Do NOT modify any code.",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Review this PR and tell me if the approach is sound",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "What does this error message mean: 'Cannot read property \"foo\" of undefined'?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Bump React from 18 to 19 in package.json",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Rename the variable `data` to `payload` across all .tsx files",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Update the README with the new setup instructions",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Change the 'Submit' button text to 'Save' on the login form",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add a comment explaining why we use the singleton pattern here",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "subtext-only": {
+      "total": 30,
+      "passed": 15,
+      "failed": 15,
+      "with_errors": 0
+    },
+    "subtext-plus-superpowers": {
+      "total": 30,
+      "passed": 13,
+      "failed": 17,
+      "with_errors": 0
+    }
+  }
+}
