@@ -12,7 +12,7 @@
 
 **Risk:** "Affects what a user sees" is subjective enough that the model may invoke this on backend changes that incidentally touch a shared utility — under-triggers on pure refactors that happen to live in `.tsx` files are also possible if the model decides no UI change is visible.
 
-**Word count:** 26
+**Word count:** 28
 
 ---
 
@@ -24,7 +24,7 @@
 
 **Risk:** "UI code" is narrower than the SKILL.md's actual trigger set, which includes `.html`, `.ejs`, and template files that a model might not classify as UI code — could under-trigger on templating or server-rendered markup changes.
 
-**Word count:** 27
+**Word count:** 26
 
 ---
 
@@ -42,7 +42,7 @@
 
 ## Proposer process notes
 
-- Initial dispatch: V1 26 words ✓, V2 27 words ✓, V3 33 words ❌ (over the 30-word cap).
+- Initial dispatch: V1 28 words ✓, V2 26 words ✓, V3 33 words ❌ (over the 30-word cap). The proposer's own self-reported counts in its first reply were inaccurate (it claimed 26 for V1 and 27 for V2); independent recount has the correct numbers.
 - Revision: V3 was sent back to the proposer with instructions to revise word count only, preserving the composition axis. Revised V3 came back at 27 words.
 - All three axes are distinct: outcome scope (V1), invocation timing (V2), inter-skill delegation (V3).
 - No trigger-artifact lists in any variant.
