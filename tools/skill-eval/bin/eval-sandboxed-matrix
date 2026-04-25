@@ -24,6 +24,7 @@ fi
 SKILL_NAME="$1"; shift
 
 CONFIGS="subtext-only,subtext-plus-superpowers"
+QUERY_STYLE="user-facing"
 FORWARDED_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -33,6 +34,14 @@ while [ $# -gt 0 ]; do
       ;;
     --configs=*)
       CONFIGS="${1#*=}"
+      shift
+      ;;
+    --query-style)
+      QUERY_STYLE="$2"
+      shift 2
+      ;;
+    --query-style=*)
+      QUERY_STYLE="${1#*=}"
       shift
       ;;
     *)
@@ -51,6 +60,7 @@ mkdir -p "$RESULTS_DIR"
 TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
 
 echo "Matrix eval for '$SKILL_NAME' across configs: $CONFIGS"
+echo "Query style: $QUERY_STYLE"
 echo
 
 # Split CSV → array.
@@ -59,10 +69,10 @@ IFS=',' read -r -a CONFIG_ARRAY <<< "$CONFIGS"
 # Run each config serially; collect the output file paths.
 PER_CONFIG_RESULTS=()
 for cfg in "${CONFIG_ARRAY[@]}"; do
-  echo "=== Running config: $cfg ==="
-  "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" "${FORWARDED_ARGS[@]}"
-  # The most recent result file for this config.
-  LATEST="$(ls -t "$RESULTS_DIR"/"$SKILL_NAME"-sandboxed-"$cfg"-*.json 2>/dev/null | head -1)"
+  echo "=== Running config: $cfg (query-style: $QUERY_STYLE) ==="
+  "$SCRIPT_DIR/eval-sandboxed" "$SKILL_NAME" --config "$cfg" --query-style "$QUERY_STYLE" "${FORWARDED_ARGS[@]}"
+  # The most recent result file for this config + style.
+  LATEST="$(ls -t "$RESULTS_DIR"/"$SKILL_NAME"-sandboxed-"$cfg"-"$QUERY_STYLE"-*.json 2>/dev/null | head -1)"
   if [ -z "$LATEST" ]; then
     echo "Error: no result file found for config '$cfg'" >&2
     exit 1
@@ -73,8 +83,8 @@ for cfg in "${CONFIG_ARRAY[@]}"; do
 done
 
 # Consolidate via lib.matrix.
-MATRIX_JSON="$RESULTS_DIR/${SKILL_NAME}-matrix-${TIMESTAMP}.json"
-MATRIX_MD="$RESULTS_DIR/${SKILL_NAME}-matrix-${TIMESTAMP}.md"
+MATRIX_JSON="$RESULTS_DIR/${SKILL_NAME}-matrix-${QUERY_STYLE}-${TIMESTAMP}.json"
+MATRIX_MD="$RESULTS_DIR/${SKILL_NAME}-matrix-${QUERY_STYLE}-${TIMESTAMP}.md"
 
 PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
