@@ -173,3 +173,39 @@ def test_user_facing_query_style_passes_query_unchanged():
             # query_style defaults to user-facing
         )
     assert captured_queries == ["Add input validation"]
+
+
+def test_num_workers_dispatches_in_parallel():
+    """When num_workers > 1, multiple queries should be dispatched concurrently.
+
+    We verify by checking that all N mocked run_query_in_sandbox calls happen
+    'before' all N return — i.e., we observe overlap. Use a barrier.
+    """
+    import threading
+
+    eval_set = [
+        {"query": f"Q{i}", "should_trigger": True} for i in range(4)
+    ]
+    barrier = threading.Barrier(4)
+    call_count = 0
+    lock = threading.Lock()
+
+    def waits_for_barrier(**kwargs):
+        nonlocal call_count
+        with lock:
+            call_count += 1
+        # All 4 calls should reach this barrier together — proves they ran in parallel
+        barrier.wait(timeout=5.0)
+        return _res(True)
+
+    with patch("lib.run_eval_sandbox.run_query_in_sandbox", side_effect=waits_for_barrier):
+        output = run_eval_over_sandbox(
+            eval_set=eval_set,
+            skill_name="subtext:proof",
+            description="desc",
+            plugin_source_path="/host/subtext",
+            runs_per_query=1,
+            num_workers=4,
+        )
+    assert call_count == 4
+    assert output["summary"]["passed"] == 4

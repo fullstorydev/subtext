@@ -12,6 +12,7 @@ import json
 import re
 import sys
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # Make this runnable as `python -m lib.run_eval_sandbox` from tools/skill-eval/
@@ -54,49 +55,73 @@ def run_eval_over_sandbox(
     timeout_s: int = 180,
     verbose: bool = False,
     query_style: str = "user-facing",
+    num_workers: int = 4,
 ) -> dict:
     """Iterate the eval-set, dispatch each query through the sandbox, tally results."""
-    results = []
+    # Pre-compute per-query metadata (clean_name, effective_query) so the
+    # parallel dispatch only needs to fan out the run-level work.
+    per_query_meta: list[tuple[int, dict, str, str]] = []  # (item_index, item, clean_name, effective_query)
     for item_index, item in enumerate(eval_set):
-        triggers = 0
-        # Use a fresh uuid per *query* so different queries don't collide on
-        # staged command filenames inside the container. Runs within a
-        # query can share it (we reset the container anyway each run).
         unique_id = uuid.uuid4().hex[:8]
         clean_name = f"{skill_name}-skill-{unique_id}".replace(":", "-")
+        effective_query = (
+            wrap_subagent_query(item["query"], task_num=item_index + 1)
+            if query_style == "subagent"
+            else item["query"]
+        )
+        per_query_meta.append((item_index, item, clean_name, effective_query))
 
-        errors = 0
-        observed_models: set[str] = set()
-        for run_idx in range(runs_per_query):
-            if verbose:
-                print(
-                    f"[{item['query'][:50]}] run {run_idx + 1}/{runs_per_query}",
-                    file=sys.stderr,
-                )
-            try:
-                # Phase 2C: optionally wrap the query as a subagent-dispatch
-                # prompt to measure framework-flow routing surface.
-                effective_query = (
-                    wrap_subagent_query(item["query"], task_num=item_index + 1)
-                    if query_style == "subagent"
-                    else item["query"]
-                )
-                r: SandboxResult = run_query_in_sandbox(
-                    query=effective_query,
-                    clean_name=clean_name,
-                    description=description,
-                    plugin_source_path=plugin_source_path,
-                    timeout_s=timeout_s,
-                    model=model,
-                )
-                if r.triggered:
-                    triggers += 1
-                if r.model:
-                    observed_models.add(r.model)
-            except Exception as e:  # noqa: BLE001 — log and carry on
-                errors += 1
-                print(f"  warn: query failed: {e}", file=sys.stderr)
+    def _run_one(item_index: int, item: dict, clean_name: str, effective_query: str, run_idx: int) -> tuple[int, SandboxResult | Exception]:
+        """Worker function — returns (item_index, result-or-exception)."""
+        if verbose:
+            print(
+                f"[{item['query'][:50]}] run {run_idx + 1}/{runs_per_query}",
+                file=sys.stderr,
+            )
+        try:
+            r = run_query_in_sandbox(
+                query=effective_query,
+                clean_name=clean_name,
+                description=description,
+                plugin_source_path=plugin_source_path,
+                timeout_s=timeout_s,
+                model=model,
+            )
+            return (item_index, r)
+        except Exception as e:  # noqa: BLE001 — log and carry on
+            return (item_index, e)
 
+    # Per-query state, indexed by item_index.
+    triggers_by_query: dict[int, int] = {i: 0 for i in range(len(eval_set))}
+    errors_by_query: dict[int, int] = {i: 0 for i in range(len(eval_set))}
+    models_by_query: dict[int, set[str]] = {i: set() for i in range(len(eval_set))}
+
+    # Build the full job list: one entry per (query, run).
+    jobs = [
+        (item_index, item, clean_name, effective_query, run_idx)
+        for (item_index, item, clean_name, effective_query) in per_query_meta
+        for run_idx in range(runs_per_query)
+    ]
+
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        future_list = [executor.submit(_run_one, *job) for job in jobs]
+        for future in as_completed(future_list):
+            item_index, result_or_exc = future.result()
+            if isinstance(result_or_exc, Exception):
+                errors_by_query[item_index] += 1
+                print(f"  warn: query failed: {result_or_exc}", file=sys.stderr)
+            else:
+                if result_or_exc.triggered:
+                    triggers_by_query[item_index] += 1
+                if result_or_exc.model:
+                    models_by_query[item_index].add(result_or_exc.model)
+
+    # Aggregate per-query results in the original eval-set order.
+    results = []
+    for item_index, item in enumerate(eval_set):
+        triggers = triggers_by_query[item_index]
+        errors = errors_by_query[item_index]
+        observed_models = models_by_query[item_index]
         trigger_rate = triggers / runs_per_query
         should_trigger = item["should_trigger"]
         did_pass = (
@@ -104,9 +129,6 @@ def run_eval_over_sandbox(
             if should_trigger
             else trigger_rate < trigger_threshold
         )
-        # observed_models will usually be a single model across all runs of
-        # one query; surface as comma-separated string if multiple (rare —
-        # would only happen if model rotated mid-run).
         result_model = ",".join(sorted(observed_models)) if observed_models else None
         results.append({
             "query": item["query"],
@@ -162,6 +184,14 @@ def main():
              "subagent: wrap each query in a subagent-dispatch-prompt template "
              "to measure framework-flow routing surface.",
     )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=4,
+        help="Number of parallel docker run workers (default 4). "
+             "Each worker spins up its own container; tune based on host "
+             "CPU/memory.",
+    )
     args = parser.parse_args()
 
     skill_path = Path(args.skill_path)
@@ -179,6 +209,7 @@ def main():
         model=args.model,
         verbose=args.verbose,
         query_style=args.query_style,
+        num_workers=args.num_workers,
     )
 
     if args.verbose:
