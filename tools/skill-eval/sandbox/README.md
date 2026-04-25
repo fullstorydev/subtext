@@ -140,3 +140,96 @@ Both configs sit lower than the Phase 2A host-isolated baseline (27/30 at n=3). 
 - **proof MUST description is robust enough to deploy.** Routing-contest losses are bounded (3 of 30 queries) and predictable (explicit TDD framing wins TDD). No over-triggering regression. We can ship this state and tune in follow-ups based on which collisions matter most for actual users.
 
 Environment: docker images `subtext-sandbox-claude:latest`, `subtext-sandbox-claude-superpowers:latest`, `Darwin arm64 (Apple Silicon)` host.
+
+## Validation (Phase 3 clean re-baselines, 2026-04-25)
+
+Phase 3 added streaming Popen + early-exit (TriggerDetector class) + parallel worker pool + Docker layer caching + `--models` matrix dimension. Sonnet 4.6 is the canonical model. The Phase 2B (n=1) and aborted Phase 2C numbers above are superseded by these clean baselines.
+
+### Phase 2B re-run — user-facing query style
+
+`eval-set-v3` × `[subtext-only, subtext-plus-superpowers]` × `runs_per_query=3` × `claude-sonnet-4-6` × user-facing prompts.
+
+| Config | Passed | Failed | With errors | Models |
+|---|---|---|---|---|
+| subtext-only | 18/30 | 12 | 0 | claude-sonnet-4-6 |
+| subtext-plus-superpowers | 13/30 | 17 | 0 | claude-sonnet-4-6 |
+
+Matrix output: `skills/proof/evals/results/proof-matrix-user-facing-20260425T111654.{json,md}`. Total wallclock: ~4 minutes (vs Phase 2B's ~60 min serial — **15× speedup**).
+
+### Phase 2C re-run — subagent-style query style
+
+Same matrix, same n=3, same Sonnet 4.6, but each query wrapped in a subagent-dispatch template per `lib/subagent_wrap.py`.
+
+| Config | Passed | Failed | With errors | Models |
+|---|---|---|---|---|
+| subtext-only | **26/30** | 4 | 0 | claude-sonnet-4-6 |
+| subtext-plus-superpowers | 14/30 | 16 | 0 | claude-sonnet-4-6 |
+
+Matrix output: `skills/proof/evals/results/proof-matrix-subagent-20260425T112217.{json,md}`. Total wallclock: ~4 minutes (Phase 2C's earlier attempt was aborted at ~22% completion after ~50 minutes — subagent prompts hit 300s timeouts in the buffered runner).
+
+### Cross-mode comparison (subtext-only baseline, no SP loaded)
+
+| Query style | Pass rate |
+|---|---|
+| User-facing | 18/30 (60%) |
+| Subagent | **26/30 (87%)** |
+
+**Headline finding:** subagent-shape framing **boosts proof routing by 8 queries (+27 percentage points)** in a clean no-competition environment. The "You are implementing Task N. ## Task Description: ... ## Your Job: 1. Implement..." wrap creates a much clearer routing signal for proof's MUST description than user-facing prompts do — the literal "implementing" verb in the wrap echoes proof's "implementing, fixing, or refactoring code" trigger phrase.
+
+This explains why Phase 2A's host-isolated baseline (27/30 on Opus 4.7) was much higher than Phase 2B's sandbox-with-Sonnet number (18/30 user-facing): host-isolated tests actually use a more subagent-shaped invocation pattern internally. The 27/30 vs 18/30 gap is mostly explained by query style + model, not by mode (host vs sandbox).
+
+### Cross-config comparison — what does Superpowers cost?
+
+| Query style | subtext-only | subtext-plus-superpowers | Δ |
+|---|---|---|---|
+| User-facing | 18/30 | 13/30 | -5 (-17pp) |
+| Subagent | 26/30 | 14/30 | **-12 (-40pp)** |
+
+**Headline finding:** **Superpowers eats almost all of the subagent-shape gains.** When SP is loaded, the subagent-style boost evaporates — proof's 26/30 baseline collapses to 14/30, almost identical to the 13/30 SP-loaded user-facing rate. SP's `test-driven-development` skill is a more-specific lexical match for "Follow TDD" / "implementing" cues that the subagent wrap injects, and it wins those routing contests.
+
+### Divergences (≥0.5 trigger-rate gap)
+
+| Query style | Number of divergent queries | All favor |
+|---|---|---|
+| User-facing | 5 | subtext-only |
+| Subagent | **12** | subtext-only |
+
+The subagent matrix surfaces ~2.4× more divergences than user-facing — consistent with the cross-config pass-rate gap (-40pp vs -17pp). Diverging queries span UI work (button hover, modal close, color scheme), backend work (retry loop, race condition, schema migration), and the explicit-TDD subagent prompts.
+
+### Hard-negative behavior — zero regressions across all 4 cells
+
+All 13 hard negatives correctly held in all 4 (config × query-style) cells. **Adding Superpowers does not cause proof to over-trigger.** All routing-contest losses are positive-side (proof yielding routing wins to a competing skill); never negative-side (proof firing where it shouldn't).
+
+### Soft-ambiguous edge cases (informational)
+
+- "Bump React from 18 to 19" — trigger_rate 0.0–0.33 across cells. Marginal in all 4. Soft positive marked in eval-set; the 1/3 trigger in subtext-plus-superpowers (subagent) is a single dice roll, not a meaningful signal.
+- "Change 'Submit' button text to 'Save'" — 0.0/0.33 split between user-facing/subagent in subtext-plus-superpowers. Soft positive; not surprising it sits near threshold.
+
+### Harness performance gains (Phase 2B/2C → Phase 3)
+
+| Metric | Phase 2B baseline | Phase 3 | Improvement |
+|---|---|---|---|
+| Per-query latency (user-facing) | ~58s | ~5s | **12×** |
+| Per-query latency (subagent-style) | 300s timeout (~30% rate) | ~5s | **60× — clean, no timeouts** |
+| Wallclock for 2-config × 30-query × n=1 | ~60min | ~2min (extrapolated) | **30×** |
+| Wallclock for 2-config × 30-query × n=3 | not feasible (~180min projected) | ~4min | **45×** |
+| Build time (default) | ~3-5min always | seconds (cached) | layer cache hits |
+
+Three independent levers compose:
+
+1. **Streaming + early-exit-on-trigger** in `lib/sandbox_runner.py` cuts per-query latency from ~60s (or 300s timeout for subagent) to ~5s. The detector decision arrives in the first ~5s of any response; the rest was wasted budget.
+2. **Parallel worker pool** (`--num-workers 4` default) in `lib/run_eval_sandbox.py` quadruples wallclock throughput.
+3. **Docker layer cache** (default in `sandbox/build.sh`, `--force-rebuild` opt-in) reduces incremental rebuilds from minutes to seconds.
+
+### What this unblocks
+
+- **Phase 4 (within-vendor model matrix)**: 30 queries × 2 configs × 4 models × 2 query styles × n=3 = 1,440 jobs. At ~5s/job × 4 workers = ~30 min wallclock. Tractable.
+- **Phase 5 (cross-vendor)**: still requires per-vendor detector + invocation glue, scope intact. Documented in `docs/skill-eval-research/framework-targets.md`.
+
+### What this confirms about proof's MUST description
+
+- **In a no-other-frameworks context, proof's MUST description is highly responsive to subagent-shape framing.** 87% trigger rate in subagent mode means proof reliably routes when explicitly dispatched as a subagent — the framework-flow surface that matters most.
+- **Under framework competition, routing contests are the bottleneck, not proof's description.** SP wins ~40pp of routing wins in subagent mode because its TDD skill has stronger lexical matches for the wrap's framing. This is a skill-collision problem, not a description-quality problem.
+- **No false-positive regressions.** All 13 hard negatives correctly held in all 4 cells. Adding Superpowers makes proof yield routing wins, never adds incorrect ones.
+
+Environment: docker images `subtext-sandbox-claude:latest`, `subtext-sandbox-claude-superpowers:latest`, `Darwin arm64 (Apple Silicon)` host. Models: `claude-sonnet-4-6` (canonical baseline). Phase 3 commits: `6db710b` (TriggerDetector), `6f79547` (streaming runner), `9634add` (build cache), `4a1c73f` (parallel pool), `c3476e4` (--models).
