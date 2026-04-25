@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from lib.sandbox_runner import run_query_in_sandbox, SandboxResult
+from lib.sandbox_runner import run_query_in_sandbox, SandboxResult, parse_model_from_stream
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -98,3 +98,22 @@ def test_docker_command_shape():
     assert any(e.startswith("EVAL_DESCRIPTION=") for e in env_flags)
     # FULLSTORY_API_KEY must NOT be forwarded in eval mode
     assert not any(e.startswith("FULLSTORY_API_KEY=") for e in env_flags)
+
+
+def test_model_field_parsed_from_stream():
+    """The fixture stream contains a system/init event with a model field;
+    SandboxResult.model should be populated from it."""
+    stdout = (FIXTURES / "stream_triggered.jsonl").read_bytes()
+    with patch("lib.sandbox_runner.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=stdout, stderr=b"", returncode=0)
+        result = run_query_in_sandbox(
+            query="Change the button color",
+            clean_name="fixture-skill-fix1",
+            description="button style changes",
+            plugin_source_path="/host/subtext",
+            timeout_s=60,
+        )
+    assert result.model is not None
+    # Don't pin to a specific model name — fixture might rotate over time.
+    # Just verify it looks like a Claude model identifier.
+    assert "claude" in result.model.lower()

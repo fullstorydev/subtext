@@ -78,10 +78,10 @@ def test_output_shape_matches_run_eval():
             runs_per_query=1,
         )
     assert set(output.keys()) == {"skill_name", "description", "results", "summary"}
-    assert set(output["summary"].keys()) == {"total", "passed", "failed", "with_errors"}
+    assert set(output["summary"].keys()) == {"total", "passed", "failed", "with_errors", "models"}
     result = output["results"][0]
     assert set(result.keys()) == {
-        "query", "should_trigger", "trigger_rate", "triggers", "runs", "pass", "errors"
+        "query", "should_trigger", "trigger_rate", "triggers", "runs", "pass", "errors", "model"
     }
 
 

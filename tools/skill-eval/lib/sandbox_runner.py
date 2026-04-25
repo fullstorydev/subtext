@@ -6,11 +6,38 @@ Serial by design in Phase 1. Phase 3 will add parallel worker pools.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from lib.detect_trigger import detect_trigger_from_stream
+
+
+def parse_model_from_stream(lines: Iterable[str]) -> str | None:
+    """Extract the model identifier from a claude -p stream-json output.
+
+    claude -p emits a `system/init` event near the start of every run with a
+    `model` field (e.g., 'claude-sonnet-4-6', 'claude-opus-4-7'). Returns the
+    first such model name found, or None if no init event is present.
+
+    Used by sandbox_runner to surface which model was actually used in
+    SandboxResult, closing a reproducibility gap in result JSONs.
+    """
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "system" and event.get("subtype") == "init":
+            model = event.get("model")
+            if model:
+                return model
+    return None
 
 
 @dataclass
@@ -19,6 +46,7 @@ class SandboxResult:
     exit_code: int
     stdout_bytes: int
     stderr_tail: str
+    model: str | None = None
 
 
 def run_query_in_sandbox(
@@ -74,9 +102,11 @@ def run_query_in_sandbox(
     lines = stdout.splitlines()
 
     triggered = detect_trigger_from_stream(lines, clean_name)
+    model = parse_model_from_stream(lines)
     return SandboxResult(
         triggered=triggered,
         exit_code=completed.returncode,
         stdout_bytes=len(completed.stdout),
         stderr_tail=stderr[-200:] if stderr else "",
+        model=model,
     )

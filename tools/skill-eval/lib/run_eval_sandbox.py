@@ -66,6 +66,7 @@ def run_eval_over_sandbox(
         clean_name = f"{skill_name}-skill-{unique_id}".replace(":", "-")
 
         errors = 0
+        observed_models: set[str] = set()
         for run_idx in range(runs_per_query):
             if verbose:
                 print(
@@ -90,6 +91,8 @@ def run_eval_over_sandbox(
                 )
                 if r.triggered:
                     triggers += 1
+                if r.model:
+                    observed_models.add(r.model)
             except Exception as e:  # noqa: BLE001 — log and carry on
                 errors += 1
                 print(f"  warn: query failed: {e}", file=sys.stderr)
@@ -101,6 +104,10 @@ def run_eval_over_sandbox(
             if should_trigger
             else trigger_rate < trigger_threshold
         )
+        # observed_models will usually be a single model across all runs of
+        # one query; surface as comma-separated string if multiple (rare —
+        # would only happen if model rotated mid-run).
+        result_model = ",".join(sorted(observed_models)) if observed_models else None
         results.append({
             "query": item["query"],
             "should_trigger": should_trigger,
@@ -109,11 +116,20 @@ def run_eval_over_sandbox(
             "runs": runs_per_query,
             "pass": did_pass,
             "errors": errors,
+            "model": result_model,
         })
 
     passed = sum(1 for r in results if r["pass"])
     with_errors = sum(1 for r in results if r["errors"] > 0)
     total = len(results)
+    # Union of all models observed across all queries. Usually a single
+    # model; comma-separated if the eval rotated models (shouldn't happen
+    # within one run, but defensive).
+    summary_models: set[str] = set()
+    for r in results:
+        if r["model"]:
+            for m in r["model"].split(","):
+                summary_models.add(m)
     return {
         "skill_name": skill_name,
         "description": description,
@@ -123,6 +139,7 @@ def run_eval_over_sandbox(
             "passed": passed,
             "failed": total - passed,
             "with_errors": with_errors,
+            "models": sorted(summary_models),
         },
     }
 
