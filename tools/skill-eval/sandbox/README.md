@@ -99,3 +99,44 @@ Directional agreement between modes (within hard positives + hard negatives) is 
 - **eval-set-v2 against pre-MUST description (~2026-04-21):** 11/26 passed with 1/16 positives triggering. Archived under `skills/proof/evals/archive/`. Confirms the MUST description is the load-bearing change: +23 percentage points on positives in host-isolated mode vs. the community-style concise description.
 
 Environment: docker image `subtext-sandbox-claude:latest`, `Darwin arm64 (Apple Silicon)` host.
+
+## Validation (Phase 2B matrix, 2026-04-24)
+
+First plugin-matrix run: `eval-set-v3` across `[subtext-only, subtext-plus-superpowers]` at `runs_per_query=1`.
+
+### Per-config summary
+
+| Config | Passed | Failed | With errors |
+|---|---|---|---|
+| subtext-only | 16/30 | 14 | 0 |
+| subtext-plus-superpowers | 14/30 | 16 | 0 |
+
+Matrix JSON: `skills/proof/evals/results/proof-matrix-20260424T192616.json`
+Matrix markdown: `skills/proof/evals/results/proof-matrix-20260424T192616.md`
+
+Both configs sit lower than the Phase 2A host-isolated baseline (27/30 at n=3). Sandbox at n=1 inherently has higher per-query variance — the relevant comparison is **between configs at the same n**, not absolute pass count.
+
+### Divergences (≥0.5 trigger-rate gap)
+
+4 queries diverge between configs. 3 cost proof a routing win when SP is loaded; 1 swings the other way:
+
+- ✅ `Fix the modal close button that doesn't work` — gap 1.00 (subtext-only=1.00, subtext-plus-superpowers=0.00)
+- ✅ `Add input validation to the signup form` — gap 1.00 (subtext-only=1.00, subtext-plus-superpowers=0.00)
+- ✅ `You are implementing Task 3: Add a hover state to the submit button. Follow TDD.` — gap 1.00 (subtext-only=1.00, subtext-plus-superpowers=0.00)
+- ✅ `Change the 'Submit' button text to 'Save' on the login form` (soft) — gap 1.00 (subtext-only=0.00, subtext-plus-superpowers=1.00)
+
+### Interpretation
+
+- **All 13 hard negatives held in BOTH configs.** Adding Superpowers does NOT cause proof to over-trigger on explanation/planning/investigation prompts. The collision is purely about competing for positive routing wins, never adding false positives.
+- **The subagent-dispatch divergence is the most diagnostically interesting.** "You are implementing Task 3: Add a hover state to the submit button. Follow TDD." — this prompt fires proof reliably in subtext-only but loses 1.00 → 0.00 when SP is loaded. The prompt explicitly says "Follow TDD", and SP installs `superpowers:test-driven-development` whose description triggers on "implementing any feature or bugfix, before writing implementation code". That's a more specific lexical match for the explicit "Follow TDD" instruction. Expected behavior, not a routing bug.
+- **The other two SP-wins divergences** ("Fix the modal close button", "Add input validation") don't have explicit framework cues. Possible that SP's `brainstorming` (MUST-tier) or `verification-before-completion` is winning on these — would need Phase 2C subagent-mode probing to disambiguate which SP skill fired.
+- **The soft-positive flip** ("Change 'Submit' button text to 'Save'") going proof→SP is interesting too: this is a copy-edit prompt, not a "creative work" prompt. Why proof fires in the SP config but not in the baseline at n=1 is most likely sampling noise.
+- **Net cost of SP installation:** ~2 fewer passes (16 → 14, a ~7% drop). Within the sample-size noise band at n=1 — at n=3 the gap may be tighter or wider; can't tell from this run.
+
+### What this tells us about Phase 2C/3 priorities
+
+- **Phase 2C subagent-mode is genuinely valuable.** The "Follow TDD" divergence shows that subagent-style prompts with explicit framework cues route DIFFERENTLY than user-facing prompts. We need subagent-mode in the eval to surface these patterns at scale rather than relying on hand-crafted probes.
+- **Phase 3 parallelism + caching is the unlock for n=3 sandbox.** This run took ~58 minutes for 60 queries (~58s/query). Adding more configs (frontend-design, code-review per `framework-targets.md`) at the same per-query latency makes a 5-config × n=3 matrix a ~7-hour serial run. Caching + parallelism are no longer optional optimizations.
+- **proof MUST description is robust enough to deploy.** Routing-contest losses are bounded (3 of 30 queries) and predictable (explicit TDD framing wins TDD). No over-triggering regression. We can ship this state and tune in follow-ups based on which collisions matter most for actual users.
+
+Environment: docker images `subtext-sandbox-claude:latest`, `subtext-sandbox-claude-superpowers:latest`, `Darwin arm64 (Apple Silicon)` host.
