@@ -33,7 +33,7 @@ VENV_PY="$HARNESS_DIR/venv/bin/python"
 
 SKILL_PATH="$REPO_ROOT/skills/$SKILL_NAME"
 SKILL_MD="$SKILL_PATH/SKILL.md"
-EVAL_SET="$SKILL_PATH/evals/eval-set.json"
+EVAL_SET="${EVAL_SET_OVERRIDE:-$SKILL_PATH/evals/eval-set-v3.json}"
 RESULTS_PARENT="$SKILL_PATH/evals/results"
 
 if [ ! -f "$SKILL_MD" ]; then

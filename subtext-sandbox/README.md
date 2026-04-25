@@ -52,6 +52,29 @@ The script automatically:
 3. Starts the Vite dev server inside the container
 4. Launches Claude Code with the plugin pre-installed and authenticated
 
+## Eval mode (non-interactive)
+
+The container has a second mode used by the skill-eval harness (`tools/skill-eval/bin/eval-sandboxed`). When the entrypoint sees a non-empty `EVAL_QUERY` environment variable, it skips the Vite dev server and the interactive Claude shell and instead runs `claude -p` once with the query, streaming `stream-json` events to stdout.
+
+The contract between the harness (Python, on the host) and the entrypoint (bash, in the container) is four env vars:
+
+| Env var | Required | Purpose |
+|---|---|---|
+| `EVAL_QUERY` | yes (in eval mode) | The user message sent to `claude -p`. Presence of this var is what selects eval mode. |
+| `EVAL_CLEAN_NAME` | yes | The skill basename (e.g., `proof`) — used by the harness's trigger detector to recognize when Claude invokes the skill. |
+| `EVAL_DESCRIPTION` | yes | The frontmatter `description:` value to stage on the skill before `claude -p` runs. Allows the harness to test alternative descriptions without rewriting `SKILL.md` on disk. |
+| `EVAL_MODEL` | no | Claude model to dispatch against (e.g., `claude-sonnet-4-6`). When unset, `claude -p` picks its default. |
+| `ANTHROPIC_API_KEY` | yes | Forwarded into `claude -p`. `FULLSTORY_API_KEY` is **not** required in eval mode — the entrypoint deletes `/workspace/.mcp.json` before the run, so MCP servers are never contacted. |
+
+The harness is the only consumer of this mode. See `tools/skill-eval/lib/sandbox_runner.py` for the producer side and `entrypoint.sh` (the `if [ -n "$EVAL_QUERY" ]` branch) for the consumer.
+
+The eval mode is exercised via two distinct images, both built by `tools/skill-eval/sandbox/build.sh --config <name>`:
+
+| Image tag | Plugin set | Built from |
+|---|---|---|
+| `subtext-sandbox-claude` (config `subtext-only`) | Subtext only | `Dockerfile` |
+| `subtext-sandbox-superpowers` (config `subtext-plus-superpowers`) | Subtext + Superpowers | `Dockerfile.superpowers` (extends the base) |
+
 ## How it works
 
 ### Startup sequence

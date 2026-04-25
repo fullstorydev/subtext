@@ -13,7 +13,7 @@ import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from lib.detect_trigger import TriggerDetector, detect_trigger_from_stream
+from lib.detect_trigger import TriggerDetector
 
 
 def parse_model_from_stream(lines: Iterable[str]) -> str | None:
@@ -85,11 +85,15 @@ def run_query_in_sandbox(
         cmd.extend(["-e", f"EVAL_MODEL={model}"])
     cmd.append(image)
 
+    # Note: not setting bufsize=1 here — Python only honors line-buffering
+    # when text=True. With binary mode (text=False, default), bufsize=1
+    # silently downgrades to default block buffering. claude -p flushes its
+    # stream-json output per line on stdout, so readline() still returns
+    # one event at a time without explicit line buffering.
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        bufsize=1,  # line-buffered
     )
 
     detector = TriggerDetector(clean_name)
