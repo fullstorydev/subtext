@@ -1,0 +1,422 @@
+{
+  "configs": [
+    "subtext-only",
+    "subtext-plus-superpowers"
+  ],
+  "queries": [
+    {
+      "query": "Make the navbar dropdown shadow more subtle \u2014 it looks too heavy on light backgrounds",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "The sidebar icon labels are getting clipped on narrow screens, fix the truncation",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Swap the loading spinner for a skeleton screen on the dashboard cards",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Increase the contrast on disabled form fields so they pass WCAG AA",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Build a /health endpoint that checks DB and cache connectivity and returns 200 or 503",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Wire up email notifications when an invoice transitions to overdue status",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add server-side pagination to the /api/orders listing endpoint",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Pull the rate-limiting logic out of the individual route handlers and into a shared middleware",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Break the 400-line UserService class into smaller focused domain modules",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "The session token isn't being cleared on logout \u2014 users stay logged in after signing out",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "You are implementing Task 5: Add a sortable column header to the invoices table. Use the existing DataTable component.",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "You are implementing Task 11: Persist filter selections in localStorage so they survive page refresh. Write tests first.",
+      "should_trigger": true,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 1.0,
+          "triggers": 3,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "What's the best approach for caching API responses in this architecture?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Can you trace how a payment flows through the system end to end?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Which components re-render when the global theme context value changes?",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add a JSDoc comment to parseDate explaining the accepted format strings",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Update the architecture decision record for our current auth strategy",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Set the default log level to warn in the staging environment config file",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.6666666666666666,
+          "triggers": 2,
+          "runs": 3,
+          "pass": false,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Add \"strict\": true to the root tsconfig.json",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "query": "Rename the private helper _fmt to _formatLabel inside ChartUtils.ts",
+      "should_trigger": false,
+      "results": {
+        "subtext-only": {
+          "trigger_rate": 0.0,
+          "triggers": 0,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        },
+        "subtext-plus-superpowers": {
+          "trigger_rate": 0.3333333333333333,
+          "triggers": 1,
+          "runs": 3,
+          "pass": true,
+          "errors": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "subtext-only": {
+      "total": 20,
+      "passed": 18,
+      "failed": 2,
+      "with_errors": 0
+    },
+    "subtext-plus-superpowers": {
+      "total": 20,
+      "passed": 8,
+      "failed": 12,
+      "with_errors": 0
+    }
+  }
+}
