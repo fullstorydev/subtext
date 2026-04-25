@@ -180,3 +180,12 @@ const shutdown = () => {
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+// Last-resort handlers to keep the MCP server alive if something slips
+// through. There is no process manager to restart us, so a crash means
+// Claude Code loses the tunnel tools entirely.
+process.on("unhandledRejection", (reason) => {
+    log(`Unhandled rejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
+});
+process.on("uncaughtException", (err) => {
+    log(`Uncaught exception: ${err.stack ?? err.message}`);
+});
