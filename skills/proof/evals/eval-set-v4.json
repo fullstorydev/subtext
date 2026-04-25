@@ -1,0 +1,102 @@
+[
+  {
+    "query": "Make the navbar dropdown shadow more subtle — it looks too heavy on light backgrounds",
+    "should_trigger": true,
+    "note": "hard positive — canonical visual change, UI styling"
+  },
+  {
+    "query": "The sidebar icon labels are getting clipped on narrow screens, fix the truncation",
+    "should_trigger": true,
+    "note": "hard positive — layout/overflow bug, UI code"
+  },
+  {
+    "query": "Swap the loading spinner for a skeleton screen on the dashboard cards",
+    "should_trigger": true,
+    "note": "hard positive — visual/UX component change"
+  },
+  {
+    "query": "Increase the contrast on disabled form fields so they pass WCAG AA",
+    "should_trigger": true,
+    "note": "hard positive — accessibility visual change"
+  },
+  {
+    "query": "Build a /health endpoint that checks DB and cache connectivity and returns 200 or 503",
+    "should_trigger": true,
+    "note": "hard positive — backend impl, new endpoint"
+  },
+  {
+    "query": "Wire up email notifications when an invoice transitions to overdue status",
+    "should_trigger": true,
+    "note": "hard positive — backend impl, event-driven logic"
+  },
+  {
+    "query": "Add server-side pagination to the /api/orders listing endpoint",
+    "should_trigger": true,
+    "note": "hard positive — backend impl, API change"
+  },
+  {
+    "query": "Pull the rate-limiting logic out of the individual route handlers and into a shared middleware",
+    "should_trigger": true,
+    "note": "hard positive — refactor with observable diff"
+  },
+  {
+    "query": "Break the 400-line UserService class into smaller focused domain modules",
+    "should_trigger": true,
+    "note": "hard positive — structural refactor"
+  },
+  {
+    "query": "The session token isn't being cleared on logout — users stay logged in after signing out",
+    "should_trigger": true,
+    "note": "hard positive — security/functional bug fix"
+  },
+  {
+    "query": "You are implementing Task 5: Add a sortable column header to the invoices table. Use the existing DataTable component.",
+    "should_trigger": true,
+    "note": "hard positive — subagent-style dispatch prompt, UI feature"
+  },
+  {
+    "query": "You are implementing Task 11: Persist filter selections in localStorage so they survive page refresh. Write tests first.",
+    "should_trigger": true,
+    "note": "hard positive — subagent-style dispatch prompt, frontend persistence"
+  },
+  {
+    "query": "What's the best approach for caching API responses in this architecture?",
+    "should_trigger": false,
+    "note": "hard negative — design question, no code touched"
+  },
+  {
+    "query": "Can you trace how a payment flows through the system end to end?",
+    "should_trigger": false,
+    "note": "hard negative — exploratory tracing, understanding not changing"
+  },
+  {
+    "query": "Which components re-render when the global theme context value changes?",
+    "should_trigger": false,
+    "note": "hard negative — investigation/analysis question, no implementation"
+  },
+  {
+    "query": "Add a JSDoc comment to parseDate explaining the accepted format strings",
+    "should_trigger": false,
+    "note": "hard negative — doc/comment only, no behavioral change"
+  },
+  {
+    "query": "Update the architecture decision record for our current auth strategy",
+    "should_trigger": false,
+    "note": "hard negative — documentation edit, no code"
+  },
+  {
+    "query": "Set the default log level to warn in the staging environment config file",
+    "should_trigger": false,
+    "note": "hard negative — config-only change, no code logic touched"
+  },
+  {
+    "query": "Add \"strict\": true to the root tsconfig.json",
+    "should_trigger": false,
+    "note": "hard negative — config/non-code change (tsconfig, no implementation)"
+  },
+  {
+    "query": "Rename the private helper _fmt to _formatLabel inside ChartUtils.ts",
+    "should_trigger": false,
+    "note": "soft — ambiguous. Touches code but zero behavioral change; private symbol, single-file scope. Reasonable engineers might disagree."
+  }
+]
