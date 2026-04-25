@@ -1,6 +1,6 @@
 {
   "name": "@fullstory/subtext-tunnel",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "MCP server for reverse tunneling to localhost — connects hosted Subtext browser tools to local dev servers.",
   "type": "module",
   "bin": {
