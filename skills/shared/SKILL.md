@@ -36,7 +36,7 @@ The **subtext-tunnel** MCP server (for the reverse tunnel client) is a separate 
 
 ## Discovering MCP Tool Parameters
 
-Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`subtext:session`, `subtext:live`, `subtext:comments`, or `subtext:privacy`) for which tools exist, then let the schema guide parameter usage.
+Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`subtext:session`, `subtext:live`, or `subtext:comments`) for which tools exist, then let the schema guide parameter usage.
 
 ## Security Rules
 
