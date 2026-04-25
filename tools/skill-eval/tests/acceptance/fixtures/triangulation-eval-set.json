@@ -1,0 +1,17 @@
+[
+  {
+    "query": "Update the button hover state to be slightly darker",
+    "should_trigger": true,
+    "note": "Clear UI/visual change; expected to fire under any UI-inclusive description"
+  },
+  {
+    "query": "Change the color scheme to match our new brand colors",
+    "should_trigger": true,
+    "note": "Visual styling change; expected to fire under UI-inclusive description"
+  },
+  {
+    "query": "Fix the modal close button that doesn't work",
+    "should_trigger": true,
+    "note": "UI bug fix with visual + functional component"
+  }
+]

@@ -20,17 +20,54 @@ if [ -n "${EVAL_QUERY:-}" ]; then
   : "${EVAL_CLEAN_NAME:?EVAL_CLEAN_NAME must be set in eval mode}"
   : "${EVAL_DESCRIPTION:?EVAL_DESCRIPTION must be set in eval mode}"
 
-  # Stage the skill as a command file so Claude advertises it.
-  # printf '%s' takes variable values as literal strings, so descriptions
-  # containing $ or backticks don't get shell-interpreted. This was a real
-  # bug under heredoc staging (flagged in Phase 1 final review).
-  mkdir -p /workspace/.claude/commands
-  INDENTED_DESC="$(printf '%s' "$EVAL_DESCRIPTION" | sed 's/^/  /')"
-  printf -- '---\ndescription: |\n%s\n---\n\n# %s\n\nThis skill handles: %s\n' \
-    "$INDENTED_DESC" \
-    "$EVAL_CLEAN_NAME" \
-    "$EVAL_DESCRIPTION" \
-    > "/workspace/.claude/commands/${EVAL_CLEAN_NAME}.md"
+  # The plugin mount at /opt/subtext is read-only, but we need to rewrite
+  # SKILL.md's frontmatter description so the routing layer sees the test
+  # description. Copy to a writable location and modify there.
+  #
+  # Pre-fix history: prior to 2026-04-25, EVAL_DESCRIPTION was staged at
+  # /workspace/.claude/commands/<name>.md (a slash command file), which is
+  # NOT auto-routable. The model routed against the on-disk SKILL.md instead.
+  # See tools/skill-eval/iterations/2026-04-25-proof/diagnostic-1/results.md.
+  RUNTIME_PLUGIN_DIR=/tmp/subtext-runtime
+  rm -rf "$RUNTIME_PLUGIN_DIR"
+  cp -R "$PLUGIN_DIR" "$RUNTIME_PLUGIN_DIR"
+
+  SKILL_FILE="$RUNTIME_PLUGIN_DIR/skills/${EVAL_CLEAN_NAME}/SKILL.md"
+  if [ ! -f "$SKILL_FILE" ]; then
+    echo "Error: SKILL.md not found at $SKILL_FILE" >&2
+    exit 1
+  fi
+
+  # Rewrite the frontmatter description: line in place. EVAL_DESCRIPTION
+  # must be single-line — newlines would break YAML. ENVIRON avoids awk's
+  # backslash-escape processing on the value.
+  if EVAL_DESCRIPTION="$EVAL_DESCRIPTION" awk '
+    BEGIN { fm = 0; new_desc = ENVIRON["EVAL_DESCRIPTION"]; replaced = 0 }
+    /^---$/ { fm++ }
+    fm == 1 && /^description: / && !replaced { print "description: " new_desc; replaced = 1; next }
+    { print }
+    END { if (!replaced) exit 1 }
+  ' "$SKILL_FILE" > "$SKILL_FILE.tmp"; then
+    mv "$SKILL_FILE.tmp" "$SKILL_FILE"
+  else
+    echo "Error: no 'description: ' line found in frontmatter of $SKILL_FILE" >&2
+    rm -f "$SKILL_FILE.tmp"
+    exit 1
+  fi
+
+  # Diagnostic echo: confirm what landed in the SKILL.md the loader sees.
+  echo "[entrypoint] Staged description on $SKILL_FILE:" >&2
+  grep -m1 '^description: ' "$SKILL_FILE" | head -c 300 >&2
+  echo >&2
+
+  # Dry-run hook for the acceptance test suite: short-circuit before exec'ing
+  # claude so T1 can exercise staging without firing the API. Also dumps the
+  # full staged frontmatter to stderr for content assertions.
+  if [ -n "${EVAL_DRY_RUN:-}" ]; then
+    echo "[entrypoint] EVAL_DRY_RUN=1 set; skipping claude. Frontmatter:" >&2
+    awk '/^---$/{c++; print; if (c==2) exit; next} c==1 {print}' "$SKILL_FILE" >&2
+    exit 0
+  fi
 
   # Disable MCP connections (not needed for trigger detection, and they
   # delay startup waiting for network). Remove the .mcp.json baked in by
@@ -41,7 +78,7 @@ if [ -n "${EVAL_QUERY:-}" ]; then
   # programmatic claude -p usage is safe to unset.
   unset CLAUDECODE
 
-  exec claude --plugin-dir "$PLUGIN_DIR" \
+  exec claude --plugin-dir "$RUNTIME_PLUGIN_DIR" \
     -p "$EVAL_QUERY" \
     --output-format stream-json \
     --verbose \

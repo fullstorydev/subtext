@@ -1,0 +1,28 @@
+{
+  "harness_mode": "sandbox-subtext-only",
+  "description": "Use this skill ONLY for backend Python services and database migrations. Do NOT use for frontend, UI, React, TypeScript, CSS, or any visual work whatsoever.",
+  "models": [
+    "claude-sonnet-4-6"
+  ],
+  "runs_per_query": 3,
+  "results": [
+    {
+      "query": "Update the button hover state to be slightly darker",
+      "triggers": 0,
+      "runs": 3,
+      "trigger_rate": 0.0
+    },
+    {
+      "query": "Change the color scheme to match our new brand colors",
+      "triggers": 0,
+      "runs": 3,
+      "trigger_rate": 0.0
+    },
+    {
+      "query": "Fix the modal close button that doesn't work",
+      "triggers": 0,
+      "runs": 3,
+      "trigger_rate": 0.0
+    }
+  ]
+}

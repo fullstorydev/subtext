@@ -42,6 +42,7 @@ QUERY_STYLE="user-facing"
 # via a --models matrix dimension; Sonnet 4.6 stays as the default so
 # numbers across phases are comparable on a fixed model.
 MODEL="claude-sonnet-4-6"
+DESCRIPTION_OVERRIDE=""
 FORWARDED_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -67,6 +68,14 @@ while [ $# -gt 0 ]; do
       ;;
     --model=*)
       MODEL="${1#*=}"
+      shift
+      ;;
+    --description)
+      DESCRIPTION_OVERRIDE="$2"
+      shift 2
+      ;;
+    --description=*)
+      DESCRIPTION_OVERRIDE="${1#*=}"
       shift
       ;;
     *)
@@ -147,6 +156,10 @@ echo "  output:       $OUT"
 echo
 
 cd "$HARNESS_DIR"
+DESCRIPTION_ARGS=()
+if [ -n "$DESCRIPTION_OVERRIDE" ]; then
+  DESCRIPTION_ARGS=(--description "$DESCRIPTION_OVERRIDE")
+fi
 SANDBOX_IMAGE="$IMAGE" "$PYTHON_BIN" -m lib.run_eval_sandbox \
   --skill-path "$SKILL_PATH" \
   --eval-set "$EVAL_SET" \
@@ -154,6 +167,7 @@ SANDBOX_IMAGE="$IMAGE" "$PYTHON_BIN" -m lib.run_eval_sandbox \
   --query-style "$QUERY_STYLE" \
   --model "$MODEL" \
   --verbose \
+  "${DESCRIPTION_ARGS[@]}" \
   "${FORWARDED_ARGS[@]}" \
   | tee "$OUT"
 

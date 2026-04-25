@@ -11,7 +11,6 @@ import argparse
 import json
 import re
 import sys
-import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -58,12 +57,24 @@ def run_eval_over_sandbox(
     num_workers: int = 4,
 ) -> dict:
     """Iterate the eval-set, dispatch each query through the sandbox, tally results."""
-    # Pre-compute per-query metadata (clean_name, effective_query) so the
-    # parallel dispatch only needs to fan out the run-level work.
+    # Use the skill basename (e.g., "proof" for "subtext:proof") as the
+    # clean_name. This serves two purposes:
+    #   1. Entrypoint lookup: the entrypoint (subtext-sandbox/entrypoint.sh)
+    #      stages EVAL_DESCRIPTION into /tmp/subtext-runtime/skills/<basename>/
+    #      SKILL.md. The basename must match the actual on-disk skill dir.
+    #   2. Trigger detection: TriggerDetector substring-matches clean_name
+    #      against tool_input.skill. The basename matches "subtext:proof"
+    #      (the routable skill name) via substring.
+    #
+    # Vendor's run_eval.py uses a UUID-suffixed clean_name (e.g.,
+    # "subtext-proof-skill-abc12345") to avoid false positives in isolated
+    # mode where the staged file was the only "proof"-named entity. In
+    # sandbox mode we route directly to the plugin's actual skill, so the
+    # UUID suffix is unnecessary and would break the entrypoint lookup.
+    skill_basename = skill_name.split(":")[-1]
     per_query_meta: list[tuple[int, dict, str, str]] = []  # (item_index, item, clean_name, effective_query)
     for item_index, item in enumerate(eval_set):
-        unique_id = uuid.uuid4().hex[:8]
-        clean_name = f"{skill_name}-skill-{unique_id}".replace(":", "-")
+        clean_name = skill_basename
         effective_query = (
             wrap_subagent_query(item["query"], task_num=item_index + 1)
             if query_style == "subagent"
@@ -171,6 +182,12 @@ def main():
     parser.add_argument("--skill-path", required=True, help="Path to skill directory (containing SKILL.md)")
     parser.add_argument("--eval-set", required=True, help="Path to eval-set JSON")
     parser.add_argument("--plugin-source", required=True, help="Host path to the subtext plugin source")
+    parser.add_argument(
+        "--description",
+        default=None,
+        help="Override the description tested. When unset, reads from SKILL.md frontmatter. "
+             "Useful for testing alternative descriptions without mutating disk.",
+    )
     parser.add_argument("--runs-per-query", type=int, default=3)
     parser.add_argument("--trigger-threshold", type=float, default=0.5)
     parser.add_argument("--timeout", type=int, default=180)
@@ -196,7 +213,8 @@ def main():
 
     skill_path = Path(args.skill_path)
     eval_set = json.loads(Path(args.eval_set).read_text())
-    skill_name, description = _parse_skill_md(skill_path)
+    skill_name, on_disk_description = _parse_skill_md(skill_path)
+    description = args.description if args.description is not None else on_disk_description
 
     output = run_eval_over_sandbox(
         eval_set=eval_set,
