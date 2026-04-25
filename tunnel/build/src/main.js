@@ -57,13 +57,11 @@ server.registerTool("tunnel-connect", {
         connectionId,
         log,
     });
-    // Remove from active map and surface a clear error if resume is rejected.
+    // Surface a clear error if the initial handshake fails with a rejection.
     let needsLiveTunnel = false;
     client.once('need_live_tunnel', () => {
         needsLiveTunnel = true;
         log(`Tunnel needs a fresh live-tunnel call (resume token rejected)`);
-        if (client.tunnelId)
-            clients.delete(client.tunnelId);
     });
     client.connect();
     // Wait briefly for the handshake to complete
@@ -72,7 +70,12 @@ server.registerTool("tunnel-connect", {
         await new Promise((r) => setTimeout(r, 100));
     }
     if (client.tunnelId) {
-        clients.set(client.tunnelId, client);
+        const id = client.tunnelId;
+        clients.set(id, client);
+        // Capture id now: tunnelId is cleared by #onDisconnect() before the
+        // reconnect that triggers need_live_tunnel, so reading client.tunnelId
+        // at event-fire time is always undefined → stale map entry.
+        client.once('need_live_tunnel', () => clients.delete(id));
     }
     if (needsLiveTunnel) {
         return {
