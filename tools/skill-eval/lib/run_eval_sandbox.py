@@ -19,6 +19,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 from lib.sandbox_runner import run_query_in_sandbox, SandboxResult
+from lib.subagent_wrap import wrap_subagent_query
 
 
 def _parse_skill_md(skill_path: Path) -> tuple[str, str]:
@@ -52,10 +53,11 @@ def run_eval_over_sandbox(
     model: str | None = None,
     timeout_s: int = 180,
     verbose: bool = False,
+    query_style: str = "user-facing",
 ) -> dict:
     """Iterate the eval-set, dispatch each query through the sandbox, tally results."""
     results = []
-    for item in eval_set:
+    for item_index, item in enumerate(eval_set):
         triggers = 0
         # Use a fresh uuid per *query* so different queries don't collide on
         # staged command filenames inside the container. Runs within a
@@ -71,8 +73,15 @@ def run_eval_over_sandbox(
                     file=sys.stderr,
                 )
             try:
+                # Phase 2C: optionally wrap the query as a subagent-dispatch
+                # prompt to measure framework-flow routing surface.
+                effective_query = (
+                    wrap_subagent_query(item["query"], task_num=item_index + 1)
+                    if query_style == "subagent"
+                    else item["query"]
+                )
                 r: SandboxResult = run_query_in_sandbox(
-                    query=item["query"],
+                    query=effective_query,
                     clean_name=clean_name,
                     description=description,
                     plugin_source_path=plugin_source_path,
@@ -128,6 +137,14 @@ def main():
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--model", default=None)
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--query-style",
+        choices=["user-facing", "subagent"],
+        default="user-facing",
+        help="user-facing (default): pass queries to claude -p as-is. "
+             "subagent: wrap each query in a subagent-dispatch-prompt template "
+             "to measure framework-flow routing surface.",
+    )
     args = parser.parse_args()
 
     skill_path = Path(args.skill_path)
@@ -144,6 +161,7 @@ def main():
         timeout_s=args.timeout,
         model=args.model,
         verbose=args.verbose,
+        query_style=args.query_style,
     )
 
     if args.verbose:

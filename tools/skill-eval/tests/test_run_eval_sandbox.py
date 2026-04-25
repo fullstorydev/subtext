@@ -126,3 +126,50 @@ def test_summary_with_errors_counts_results_with_errors():
     # Q1 is a positive with 0 triggers → FAIL. Q2 is a negative with 0 triggers → PASS.
     assert output["summary"]["passed"] == 1
     assert output["summary"]["failed"] == 1
+
+
+def test_subagent_query_style_wraps_query_before_dispatch():
+    """When query_style='subagent', run_query_in_sandbox should receive a
+    wrapped prompt (not the raw query). The wrap is verified by checking the
+    'You are implementing Task' framing in the dispatched query."""
+    eval_set = [{"query": "Add input validation", "should_trigger": True}]
+    captured_queries = []
+
+    def capture_query(**kwargs):
+        captured_queries.append(kwargs["query"])
+        return _res(True)
+
+    with patch("lib.run_eval_sandbox.run_query_in_sandbox", side_effect=capture_query):
+        run_eval_over_sandbox(
+            eval_set=eval_set,
+            skill_name="subtext:proof",
+            description="desc",
+            plugin_source_path="/host/subtext",
+            runs_per_query=1,
+            query_style="subagent",
+        )
+    assert len(captured_queries) == 1
+    assert captured_queries[0].startswith("You are implementing Task")
+    assert "Add input validation" in captured_queries[0]
+
+
+def test_user_facing_query_style_passes_query_unchanged():
+    """When query_style='user-facing' (default), run_query_in_sandbox should
+    receive the raw query unchanged."""
+    eval_set = [{"query": "Add input validation", "should_trigger": True}]
+    captured_queries = []
+
+    def capture_query(**kwargs):
+        captured_queries.append(kwargs["query"])
+        return _res(True)
+
+    with patch("lib.run_eval_sandbox.run_query_in_sandbox", side_effect=capture_query):
+        run_eval_over_sandbox(
+            eval_set=eval_set,
+            skill_name="subtext:proof",
+            description="desc",
+            plugin_source_path="/host/subtext",
+            runs_per_query=1,
+            # query_style defaults to user-facing
+        )
+    assert captured_queries == ["Add input validation"]
