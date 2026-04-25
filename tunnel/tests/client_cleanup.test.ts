@@ -255,6 +255,62 @@ describe('TunnelClient – disconnect and error handling', () => {
     }
   });
 
+  // ── clients-map eviction — post-reconnect need_live_tunnel ───────────────
+
+  it('need_live_tunnel after initial ready evicts client from clients map', async () => {
+    // Regression: main.ts registered .once('need_live_tunnel') before connect()
+    // and checked client.tunnelId at fire time. But #onDisconnect() clears
+    // tunnelId before the reconnect attempt that emits the event → delete is a
+    // no-op and the stale client leaks in the map forever.
+    //
+    // Fix: capture the id in a closure after clients.set().
+    const client = createClient();
+    const clients = new Map<string, TunnelClient>();
+
+    let connCount = 0;
+    let resolveSecond!: (ws: WsClient) => void;
+    const secondConn = new Promise<WsClient>(r => {
+      resolveSecond = r;
+    });
+    function onConn(ws: WsClient) {
+      if (++connCount === 2) resolveSecond(ws);
+    }
+    wss.on('connection', onConn);
+    try {
+      const relayWs = await connectAndReady(client, 't_map');
+
+      // Fixed pattern: capture id before it's cleared by #onDisconnect().
+      if (client.tunnelId) {
+        const id = client.tunnelId;
+        clients.set(id, client);
+        client.once('need_live_tunnel', () => clients.delete(id));
+      }
+      assert.equal(clients.size, 1, 'client should be in map after initial connect');
+
+      // Drop the connection; the client will reconnect after backoff.
+      // Use terminate() — same pattern as the other reconnect tests — so the
+      // close is synchronous and ws2's message listener is registered before
+      // the hello event fires (avoids a race with the graceful-close round-trip).
+      relayWs.terminate();
+
+      // Await the reconnect connection directly — no polling gap — so we can
+      // register nextMessage(ws2) before the hello fires.
+      const ws2 = await secondConn;
+      await nextMessage(ws2); // consume hello
+
+      const fired = new Promise<void>(r => client.once('need_live_tunnel', r));
+      ws2.send(JSON.stringify({type: 'error', message: 'resume rejected'}));
+      await fired;
+      await waitFor(() => client.state === 'disconnected');
+
+      // Bug: tunnelId was cleared by #onDisconnect before this fired → no-op.
+      assert.equal(clients.size, 0, 'client must be evicted from map on need_live_tunnel');
+    } finally {
+      client.disconnect();
+      wss.off('connection', onConn);
+    }
+  });
+
   // ── server-side rejection — the only legitimate stop condition ─────────────
 
   it('emits need_live_tunnel and stops reconnecting on relay handshake error', async () => {
