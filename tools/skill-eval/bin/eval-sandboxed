@@ -32,6 +32,7 @@ fi
 SKILL_NAME="$1"; shift
 
 CONFIG="subtext-only"
+QUERY_STYLE="user-facing"
 FORWARDED_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,12 +44,29 @@ while [ $# -gt 0 ]; do
       CONFIG="${1#*=}"
       shift
       ;;
+    --query-style)
+      QUERY_STYLE="$2"
+      shift 2
+      ;;
+    --query-style=*)
+      QUERY_STYLE="${1#*=}"
+      shift
+      ;;
     *)
       FORWARDED_ARGS+=("$1")
       shift
       ;;
   esac
 done
+
+case "$QUERY_STYLE" in
+  user-facing|subagent) ;;
+  *)
+    echo "Error: unknown --query-style '$QUERY_STYLE'" >&2
+    echo "Known styles: user-facing, subagent" >&2
+    exit 1
+    ;;
+esac
 
 case "$CONFIG" in
   subtext-only)
@@ -95,13 +113,14 @@ fi
 
 mkdir -p "$RESULTS_DIR"
 TIMESTAMP="$(date +%Y%m%dT%H%M%S)"
-OUT="$RESULTS_DIR/${SKILL_NAME}-sandboxed-${CONFIG}-${TIMESTAMP}.json"
+OUT="$RESULTS_DIR/${SKILL_NAME}-sandboxed-${CONFIG}-${QUERY_STYLE}-${TIMESTAMP}.json"
 
 PYTHON_BIN="$HARNESS_DIR/venv/bin/python"
 if [ ! -x "$PYTHON_BIN" ]; then PYTHON_BIN="python3"; fi
 
 echo "Running sandbox eval for '$SKILL_NAME'"
 echo "  config:       $CONFIG"
+echo "  query style:  $QUERY_STYLE"
 echo "  image:        $IMAGE"
 echo "  skill:        $SKILL_PATH"
 echo "  eval-set:     $EVAL_SET"
@@ -114,6 +133,7 @@ SANDBOX_IMAGE="$IMAGE" "$PYTHON_BIN" -m lib.run_eval_sandbox \
   --skill-path "$SKILL_PATH" \
   --eval-set "$EVAL_SET" \
   --plugin-source "$PLUGIN_SOURCE" \
+  --query-style "$QUERY_STYLE" \
   --verbose \
   "${FORWARDED_ARGS[@]}" \
   | tee "$OUT"
