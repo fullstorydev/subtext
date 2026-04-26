@@ -11,20 +11,26 @@ The sight map defines the runtime model of your application — mapping CSS sele
 - **Views** — map URL route patterns to screen names (e.g., `ProductDetail`, `UserSettings`)
 - **Requests** — map API endpoints to semantic names with payload schemas (e.g., `FetchFlights`, `CreateOrder`)
 
-## File Location
+## File organization
 
-Place definition files anywhere under `.sightmap/` in the project root. All `*.yaml` and `*.yml` files are discovered recursively and merged. Organize however makes sense for your project:
+The recommended layout — and what `@sightmap/react` enforces by convention — is **feature-scoped**: one file per top-level route, with view + scoped components co-located.
 
 ```
 .sightmap/
-  components.yaml           # global components (NavBar, Footer)
-  views.yaml                # view definitions with scoped components
-  pages/
-    search.yaml             # components specific to search page
-    cart.yaml               # components specific to cart page
+  login.yaml             # view + components for /login
+  dashboard.yaml         # view + components for /dashboard
+  shared.yaml            # components used across multiple routes
+  extras.yaml            # non-derivable additions: modals, dynamic requests, third-party widgets
 ```
 
-All files use the same schema and can contain `components`, `views`, `requests`, or any combination. The directory structure is for human organization — at load time everything merges.
+This pattern scales from small apps (where you may only have one feature file) to large ones (FullStory's production sightmap converged here organically).
+
+When using `@sightmap/react`:
+- The plugin owns structural fields (`name`, `route`, `selector`, `children`) within feature files and writes them on each build.
+- You own `memory` entries (and any unknown field). The plugin's smart-merge preserves them across regenerations.
+- The plugin never touches `extras.yaml`. Use it for anything not derivable from the router or `data-sightmap` source props.
+
+For projects not using `@sightmap/react`, the spec is permissive — all `*.yaml` and `*.yml` files under `.sightmap/` are discovered recursively and merged, so you can organize however makes sense. Starting with the feature-scoped layout makes future SDK adoption frictionless.
 
 ## Components
 
