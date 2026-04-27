@@ -1,5 +1,5 @@
 ---
-name: subtext:review
+name: review
 description: Review a completed Subtext session and produce a structured summary. Use when you have a session URL and want to understand what happened — whether to verify another agent's proof work, walk through a dev / staging / preview flow, or summarize a captured session. Optionally emits reproduction steps on request (execution lives in `subtext:live`). Skip for tasks that modify code (use `subtext:proof`) or drive a running app (use `subtext:live`).
 metadata:
   requires:

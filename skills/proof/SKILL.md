@@ -1,5 +1,5 @@
 ---
-name: subtext:proof
+name: proof
 description: You MUST use this skill when implementing, fixing, or refactoring code. Captures evidence artifacts (screenshots, network traces, code diffs, trace session links) into a proof document as you work.
 metadata:
   requires:

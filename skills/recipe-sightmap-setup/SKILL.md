@@ -1,5 +1,5 @@
 ---
-name: subtext:recipe-sightmap-setup
+name: recipe-sightmap-setup
 description: Short recipe to create sightmap definitions for a project from scratch.
 metadata:
   requires:

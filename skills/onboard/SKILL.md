@@ -1,5 +1,5 @@
 ---
-name: subtext:onboard
+name: onboard
 description: Guided onboarding for new Subtext users. Installs the plugin, agent explores the site, reviews the session, bootstraps sightmap, then reproduces with metrics — all as an interactive conversation.
 metadata:
   platform: claude-code

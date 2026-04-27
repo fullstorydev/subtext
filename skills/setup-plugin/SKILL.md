@@ -1,5 +1,5 @@
 ---
-name: subtext:setup-plugin
+name: setup-plugin
 description: Install the Subtext plugin and configure MCP servers. Authenticates via OAuth or API Key.
 metadata:
   platform: claude-code
