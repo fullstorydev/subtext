@@ -1,12 +1,13 @@
 {
   "name": "subtext",
   "description": "Tools that let coding agents verify and show their work against your running application",
-  "version": "0.1.51",
+  "version": "0.1.53",
   "license": "MIT",
   "author": {
     "name": "Subtext",
     "email": "subtext@fullstory.com"
   },
   "keywords": ["subtext", "automation", "verification", "testing", "session-replay", "debugging", "fullstory"],
-  "logo": "assets/logo.svg"
+  "logo": "assets/logo.svg",
+  "hooks": "./hooks/hooks-cursor.json"
 }
