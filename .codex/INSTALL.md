@@ -4,10 +4,10 @@
 
 1. **Clone subtext repository:**
    ```bash
-   mkdir -p ~/.codex/subtext
-   cd ~/.codex/subtext
-   git clone https://github.com/fullstorydev/subtext.git .
+   git clone https://github.com/fullstorydev/subtext.git ~/.codex/subtext
    ```
+
+   To update later: `cd ~/.codex/subtext && git pull`.
 
 2. **Update `~/.codex/AGENTS.md` to include this section:**
    ````markdown
