@@ -1,5 +1,5 @@
 ---
-name: subtext:onboard
+name: onboard
 description: Guided onboarding for new Subtext users. Installs the plugin, agent explores the site, reviews the session, bootstraps sightmap, then reproduces with metrics — all as an interactive conversation.
 metadata:
   platform: claude-code
@@ -121,11 +121,11 @@ Analyzing the session from my exploration.
 ---
 ```
 
-Invoke `subtext:session-analysis-workflow` with the captured session URL.
+Invoke `subtext:review` with the captured session URL. Ask explicitly for a structured summary **plus reproduction steps** — those steps feed Step 5.
 
-**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 5.
+**Important:** Save the reproduction steps from the review output — they'll be used verbatim in Step 5.
 
-After the review, explain: "That's what Subtext sees when it analyzes a session. It maps interactions to your source code, identifies friction, and spots issues — all from a single session. The agent's own difficulty notes are part of the timeline."
+After the review, explain: "That's what Subtext sees when it analyzes a session. It reads the chapter markers the agent left, surfaces errors and inflection points, and produces structured reproduction steps — all from a single session recording."
 
 ## Step 4: Sightmap Bootstrap
 
@@ -189,12 +189,11 @@ Reproducing the same flow — this time with sightmap enrichment.
 ---
 ```
 
-**Run as subagent.** Dispatch `subtext:reproduce-workflow` with:
-- The reproduction steps extracted from Step 3
-- The sightmap is uploaded automatically after `review-open`/`live-connect` (see `subtext:shared`)
-- The same app URL
+**Run as subagent.** The subagent's job is to drive the app through the same flow captured in Step 3 using live browser tools, now with sightmap context. Dispatch with:
 
-**Capture from subagent result:** interaction count, tokens, duration_ms.
+- **Task:** "Reproduce the following user flow using `subtext:live` tools. For each step: use `live-act-*` to drive the browser, confirm the expected state before moving on, and call `comment-add` at key moments as chapter markers. Do not analyze or diagnose — just execute. Read `subtext:live` and `subtext:comments` for tool catalogs. The sightmap uploads automatically after `live-connect`."
+- **Steps:** the reproduction steps extracted from Step 3
+- **App URL:** the same URL used in Step 2 (tunnel is automatic for localhost)
 
 **Capture from subagent result:** session URL, trace URL, interaction count, tokens, duration_ms.
 
@@ -262,7 +261,6 @@ You can review both sessions with agent comments via the viewer URLs above.
 
 A few things you can explore from here:
 
-- **`/subtext:workflow`** — Paste any session URL and Subtext will analyze it, fix bugs, review UX, or reproduce issues
-- **`/subtext:privacy`** — Manage privacy rules: detect PII, create rules, promote to production
-- **Channels** — Connect session URLs from support tickets, alerts, or dashboards to get automatic analysis
-- **Fullstory** — Subtext works even better with Fullstory's opportunity detection and user segmentation"
+- **`/subtext:review`** — Paste any session URL to get a structured summary, with optional reproduction steps on request
+- **`/subtext:proof`** — When you're making UI changes, get automatic before/after visual evidence and a replay link you can hand to reviewers
+- **Channels** — Connect session URLs from support tickets, alerts, or dashboards to get automatic analysis"

@@ -1,5 +1,5 @@
 ---
-name: subtext:session
+name: session
 description: Session replay tools for analyzing Fullstory session recordings. Sparse API catalog — tools are self-describing.
 metadata:
   requires:

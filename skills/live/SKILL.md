@@ -1,5 +1,5 @@
 ---
-name: subtext:live
+name: live
 description: Live browser MCP tools for driving a hosted browser — connections, views, interactions, console, network, and tunnel. Use when reproducing flows, taking screenshots, or interacting with a running app.
 metadata:
   requires:
