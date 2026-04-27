@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { fileURLToPath } from 'url';
-import { extractFrontmatter, walkSkillsDir } from '../lib/skills-core.js';
+import { walkSkillsDir } from '../lib/skills-core.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
 const SKILLS_DIR = path.join(PLUGIN_ROOT, 'skills');
 const BOOTSTRAP_FILE = path.join(__dirname, 'subtext-bootstrap.md');
+const USING_SUBTEXT_FILE = path.join(SKILLS_DIR, 'using-subtext', 'SKILL.md');
 
 function cmdBootstrap() {
-  // Print bootstrap content
+  // Print bootstrap envelope
   if (fs.existsSync(BOOTSTRAP_FILE)) {
     process.stdout.write(fs.readFileSync(BOOTSTRAP_FILE, 'utf8'));
+    process.stdout.write('\n\n');
+  }
+
+  // Inline using-subtext SKILL.md so Codex agents see the same discipline content
+  // that Claude Code / Cursor agents receive via SessionStart hook.
+  if (fs.existsSync(USING_SUBTEXT_FILE)) {
+    process.stdout.write(fs.readFileSync(USING_SUBTEXT_FILE, 'utf8'));
     process.stdout.write('\n\n');
   }
 
