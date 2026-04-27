@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# SessionStart hook for the subtext plugin.
+# Reads using-subtext SKILL.md and emits a platform-correct JSON envelope.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+skill_content=$(cat "${PLUGIN_ROOT}/skills/using-subtext/SKILL.md" 2>&1 || echo "Error reading using-subtext skill")
+
+# Fast JSON-escape via parameter substitution (5 single-pass replacements).
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+skill_escaped=$(escape_for_json "$skill_content")
+session_context="<EXTREMELY_IMPORTANT>\nYou have subtext.\n\n**Below is the full content of your 'subtext:using-subtext' skill — your introduction to using subtext skills. For all other skills, use the 'Skill' tool:**\n\n${skill_escaped}\n</EXTREMELY_IMPORTANT>"
+
+# Emit the right JSON shape per harness.
+# - Cursor: top-level snake_case `additional_context`
+# - Claude Code: nested `hookSpecificOutput.additionalContext`
+# - Copilot CLI / SDK fallback: top-level camelCase `additionalContext`
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  printf '{\n  "additional_context": "%s"\n}\n' "$session_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$session_context"
+fi
+
+exit 0
