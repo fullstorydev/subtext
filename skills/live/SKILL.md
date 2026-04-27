@@ -34,7 +34,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-view-close` | Close a view |
 | `live-view-snapshot` | Component tree snapshot (no screenshot) |
 | `live-view-inspect` | Component tree with full CSS selectors — for sightmap authoring only, not general use |
-| `live-view-screenshot` | Visual screenshot of current view |
+| `live-view-screenshot` | Visual screenshot of current view. Pass `component_id` to clip to a specific element's bounding box; optional `expand_pct` (0–100) grows the clip rect outward for surrounding context, clamped to the viewport. |
 | `live-view-resize` | Resize the viewport |
 
 ### Interactions
@@ -106,6 +106,7 @@ to that one tool.
 
 - Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
 - `live-view-snapshot` is cheaper than `live-view-screenshot`. Prefer snapshots; use screenshots for visual evidence.
+- When the screenshot is evidence about a specific element, clip to it with `component_id` (and small `expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
 - `live-view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `live-view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
 - Close connections when done to free server resources.

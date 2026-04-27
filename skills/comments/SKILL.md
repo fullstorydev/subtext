@@ -42,6 +42,8 @@ Comment tools do **not** auto-capture screenshots. To attach a screenshot, pass 
 
 > **Note:** To attach a screenshot, first capture one via `live-view-screenshot` or `review-view`, then pass the returned URL as `screenshot_url`.
 
+When the comment is about a specific element, capture a focused clip by passing `component_id` (and a small `expand_pct` for context) to the screenshot tool. A focused clip is far more useful in a comment than a full viewport — the reader sees exactly what you're pointing at.
+
 ## Intents
 
 When adding a comment, classify it:

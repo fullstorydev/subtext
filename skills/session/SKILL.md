@@ -17,7 +17,7 @@ API catalog for the session replay tools (all prefixed `review-`). These tools l
 | Tool | Description |
 |------|-------------|
 | `review-open` | Open a session for analysis. Returns event summaries, metadata, timestamps. |
-| `review-view` | Capture UI state at a timestamp — component tree + screenshot |
+| `review-view` | Capture UI state at a timestamp — component tree + screenshot. Pass `component_id` to clip to a specific element's bounding box; optional `expand_pct` (0–100) grows the clip rect outward for surrounding context, clamped to the viewport. |
 | `review-inspect` | Component tree with full CSS selectors — for sightmap authoring only, not general use |
 | `review-diff` | Compare UI state between two timestamps |
 | `review-close` | Close the session and free resources |
@@ -44,6 +44,7 @@ All five paths return the same trace_id-keyed handle; the entry point doesn't ch
 ## Tips
 
 - Event summaries from `review-open` are cheap. `review-view` is expensive. Start with summaries.
+- When investigating a single suspect element, clip with `component_id` (and small `expand_pct` for context). Smaller payload, sharper evidence. `expand_pct` caps at 100, so very short elements still produce thin slices — clip to a wider parent in that case.
 - `review-diff` between before/after is the most revealing tool — it shows exactly what changed.
 - Console errors and network failures in event summaries are highest-signal starting points.
 - Component names in `review-view`/`review-diff` output include `[src: ...]` annotations — use these to find source files directly.
