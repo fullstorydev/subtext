@@ -42,7 +42,7 @@ At each milestone listed below, call the `workflow-event` tool to log an analyti
 **Rules for metadata fields:**
 - Use the exact field names shown at each step. Values must be short strings.
 - Use enums for all classification fields. Valid enums are listed below.
-- `outcome`: `success` | `skipped` | `partial` | `fail` (per-step; see each step for valid values)
+- `outcome` (top-level param, not inside metadata): `success` | `skipped` | `partial` | `fail` (per-step; see each step for valid values)
 - `flow_type`: `user_described` | `feeling_lucky`
 - `sightmap_quality`: `high` (10+ components with memories) | `medium` (5-10 components or few memories) | `low` (fewer than 5 components)
 - `use_case`: `e-commerce` | `saas-dashboard` | `marketing-site` | `docs-site` | `social-platform` | `developer-tool` | `internal-tool` | `other`. Infer from package.json, site content, or the user's description.
@@ -108,7 +108,7 @@ Checking that the Subtext plugin and MCP servers are installed and connected.
 If not complete → invoke `subtext:setup-plugin`
 If complete → "Plugin's already set up. Moving on."
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"plugin_setup"` and metadata containing `outcome` (`success` | `skipped`).
+**Telemetry (if enabled):** Call `workflow-event` with step=`"plugin_setup"` and outcome=`"success"` or `"skipped"`.
 
 ## Step 2: First Session (Blind Exploration)
 
@@ -155,7 +155,7 @@ After the subagent completes, tell the user:
 
 Now let me analyze what I found."
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"first_session"` and metadata containing `outcome` (`success` | `fail`), `interaction_count`, `tokens`, `duration_ms`, and `flow_type` (`user_described` | `feeling_lucky`).
+**Telemetry (if enabled):** Call `workflow-event` with step=`"first_session"`, outcome=`"success"` or `"fail"`, and metadata containing `interaction_count`, `tokens`, `duration_ms`, and `flow_type` (`user_described` | `feeling_lucky`).
 
 ## Step 3: Session Review
 
@@ -176,7 +176,7 @@ Invoke `subtext:session-analysis-workflow` with the captured session URL.
 
 After the review, explain: "That's what Subtext sees when it analyzes a session. It maps interactions to your source code, identifies friction, and spots issues — all from a single session. The agent's own difficulty notes are part of the timeline."
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"session_review"` and metadata containing `outcome` (`success` | `fail`) and `issue_count`.
+**Telemetry (if enabled):** Call `workflow-event` with step=`"session_review"`, outcome=`"success"` or `"fail"`, and metadata containing `issue_count`.
 
 ## Step 4: Sightmap Bootstrap
 
@@ -227,7 +227,7 @@ Example:
     - "Audience toggle switches ALL copy between 'For Builders' and 'For Agents' perspectives"
 ```
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"sightmap_bootstrap"` and metadata containing `outcome` (`success` | `skipped`), `component_count`, and `memory_count`.
+**Telemetry (if enabled):** Call `workflow-event` with step=`"sightmap_bootstrap"`, outcome=`"success"` or `"skipped"`, and metadata containing `component_count` and `memory_count`.
 
 ## Step 5: Informed Reproduction (Pass 2)
 
@@ -255,7 +255,7 @@ After the subagent completes: "Done! Reproduced the flow in {interaction_count} 
 
 Now let's see how the two passes compare."
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"reproduction"` and metadata containing `outcome` (`success` | `fail`), `interaction_count`, `tokens`, and `duration_ms`.
+**Telemetry (if enabled):** Call `workflow-event` with step=`"reproduction"`, outcome=`"success"` or `"fail"`, and metadata containing `interaction_count`, `tokens`, and `duration_ms`.
 
 ## Step 6: Results
 
@@ -299,7 +299,7 @@ Present both viewer URLs so the user can review each session with agent comments
 - **Pass 1 (Blind):** {pass1_viewer_url}
 - **Pass 2 (Sightmap):** {pass2_viewer_url}
 
-**Telemetry (if enabled):** Call `workflow-event` with step=`"complete"` and metadata containing `outcome` (`success` | `partial` | `fail` — see classification rules in Workflow Telemetry section), `interaction_delta_pct`, `token_delta_pct`, `time_delta_pct`, `sightmap_quality` (`high` | `medium` | `low`), and `use_case` (inferred from the app).
+**Telemetry (if enabled):** Call `workflow-event` with step=`"complete"`, outcome=`"success"`, `"partial"`, or `"fail"` (see classification rules in Workflow Telemetry section), and metadata containing `interaction_delta_pct`, `token_delta_pct`, `time_delta_pct`, `sightmap_quality` (`high` | `medium` | `low`), and `use_case` (inferred from the app).
 
 ## Recap
 
