@@ -145,13 +145,13 @@ Ask the user:
 - The app URL from the dev server gate
 - The user's flow description (or "feeling lucky")
 
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
+**Capture from subagent result:** session URL, trace URL, interaction count, tokens, duration_ms.
 
 After the subagent completes, tell the user:
 
 "Done! I explored your site in {interaction_count} interactions, leaving comments along the way. You can watch my exploration with my comments in the sidebar:
 
-{viewer_url}
+{trace_url}
 
 Now let me analyze what I found."
 
@@ -247,11 +247,13 @@ Reproducing the same flow — this time with sightmap enrichment.
 - The sightmap is uploaded automatically after `review-open`/`live-connect` (see `subtext:shared`)
 - The same app URL
 
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
+**Capture from subagent result:** interaction count, tokens, duration_ms.
+
+**Capture from subagent result:** session URL, trace URL, interaction count, tokens, duration_ms.
 
 After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. You can review the replay with agent comments here:
 
-{viewer_url}
+{trace_url}
 
 Now let's see how the two passes compare."
 
@@ -294,10 +296,10 @@ Take a snapshot from the same page in both sessions and show them side-by-side (
 
 ### Agent playback links
 
-Present both viewer URLs so the user can review each session with agent comments in the sidebar:
+Present both trace URLs so the user can review each session with agent comments in the sidebar:
 
-- **Pass 1 (Blind):** {pass1_viewer_url}
-- **Pass 2 (Sightmap):** {pass2_viewer_url}
+- **Pass 1 (Blind):** {pass1_trace_url}
+- **Pass 2 (Sightmap):** {pass2_trace_url}
 
 **Telemetry (if enabled):** Call `workflow-event` with step=`"complete"`, outcome=`"success"`, `"partial"`, or `"fail"` (see classification rules in Workflow Telemetry section), and metadata containing `interaction_delta_pct`, `token_delta_pct`, `time_delta_pct`, `sightmap_quality` (`high` | `medium` | `low`), and `use_case` (inferred from the app).
 

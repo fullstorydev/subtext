@@ -16,12 +16,21 @@ Tool catalog and judgment rules for comment-based agent-user collaboration. Comm
 
 | Tool | Description |
 |------|-------------|
-| `comment-list` | Read all comments/annotations with thread structure |
-| `comment-add` | Leave a comment on a session, optionally tied to a page and timestamp |
+| `comment-list` | Read all comments/annotations on a trace, with thread structure |
+| `comment-add` | Leave a comment on a trace, optionally tied to a page and timestamp |
 | `comment-reply` | Reply to an existing comment by ID |
 | `comment-resolve` | Mark a comment thread as resolved |
 
-All comment tools are **stateless** — they take a `session_id` parameter (in `deviceId:sessionId` format) rather than requiring an active connection. UUID-format session IDs are automatically resolved to durable IDs.
+All comment tools are **stateless** — they identify the parent trace by `trace_id` (preferred) or `session_id` (deprecated; in `deviceId:sessionId` format), rather than requiring an active connection.
+
+### `trace_id` vs `session_id`
+
+Comments hang off a **trace** — the durable parent identifier that survives even when no FullStory session was captured. Every tool that needs a parent accepts either:
+
+- `trace_id` — the 12-char base62 id you get from `live-connect` (`trace_id:` line, or parse the trailing path of `trace_url`) and from `review-open` (`trace_id:` line in the response). **Prefer this.** It's stable, works for traces with no underlying FS session, and is the only key the storage layer actually uses.
+- `session_id` — the legacy `deviceId:sessionId` form. Still accepted for callers that only have an FS session URL on hand. The server promotes it to a trace_id under the hood. Responses include a one-line deprecation hint when you use this path.
+
+`comment-resolve` only needs `comment_id`; the parent is looked up server-side.
 
 ## Discovering Parameters
 
@@ -32,6 +41,8 @@ Parameter schemas are visible in the tool definition at call time.
 Comment tools do **not** auto-capture screenshots. To attach a screenshot, pass a `screenshot_url` to `comment-add`. This URL must point to a pre-captured screenshot (e.g., from `live-view-screenshot` or another source).
 
 > **Note:** To attach a screenshot, first capture one via `live-view-screenshot` or `review-view`, then pass the returned URL as `screenshot_url`.
+
+When the comment is about a specific element, capture a focused clip by passing `component_id` (and a small `expand_pct` for context) to the screenshot tool. A focused clip is far more useful in a comment than a full viewport — the reader sees exactly what you're pointing at.
 
 ## Intents
 

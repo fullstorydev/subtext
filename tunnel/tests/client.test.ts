@@ -471,4 +471,266 @@ describe('TunnelClient', () => {
 
     client.disconnect();
   });
+
+  it('reconnect sends resume subprotocol when resumeToken is set', async () => {
+    const client = createClient();
+
+    const firstConnPromise = new Promise<{ws: WsClient; req: http.IncomingMessage}>(resolve => {
+      wss.once('connection', (ws, req) => resolve({ws, req}));
+    });
+    client.connect();
+    const {ws: ws1} = await firstConnPromise;
+    await nextMessage(ws1); // hello
+    ws1.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_rp1', connectionId: 'c1', resumeToken: 'tok-abc',
+    }));
+    await waitFor(() => client.state === 'ready');
+
+    const secondConnPromise = new Promise<{ws: WsClient; req: http.IncomingMessage}>(resolve => {
+      wss.once('connection', (ws, req) => resolve({ws, req}));
+    });
+    ws1.close();
+
+    const {ws: ws2, req: req2} = await secondConnPromise;
+    assert.ok(
+      req2.headers['sec-websocket-protocol']?.includes('subtext-resume.v1.tok-abc'),
+      `Expected resume subprotocol, got: ${req2.headers['sec-websocket-protocol']}`,
+    );
+
+    // Settle the new handshake before disconnect so the in-flight upgrade
+    // doesn't emit an unhandled close error after the test ends.
+    await nextMessage(ws2);
+    ws2.send(JSON.stringify({type: 'ready', tunnelId: 't_rp2', connectionId: 'c2'}));
+    await waitFor(() => client.state === 'ready');
+    client.disconnect();
+  });
+
+  it('resumeToken rotates: each reconnect uses the latest token', async () => {
+    const client = createClient();
+
+    const conn1Promise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    client.connect();
+    const ws1 = await conn1Promise;
+    await nextMessage(ws1);
+    ws1.send(JSON.stringify({type: 'ready', tunnelId: 't_rot1', connectionId: 'c1', resumeToken: 'token-1'}));
+    await waitFor(() => client.state === 'ready');
+
+    // Second connection: complete handshake and issue token-2.
+    const conn2Promise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    ws1.close();
+    const ws2 = await conn2Promise;
+    await nextMessage(ws2); // hello (with resume subprotocol)
+    ws2.send(JSON.stringify({type: 'ready', tunnelId: 't_rot2', connectionId: 'c2', resumeToken: 'token-2'}));
+    await waitFor(() => client.state === 'ready');
+
+    // Third connection: verify token-2 is used.
+    const conn3Promise = new Promise<{ws: WsClient; req: http.IncomingMessage}>(resolve => {
+      wss.once('connection', (ws, req) => resolve({ws, req}));
+    });
+    ws2.close();
+    const {ws: ws3, req: req3} = await conn3Promise;
+    assert.ok(
+      req3.headers['sec-websocket-protocol']?.includes('subtext-resume.v1.token-2'),
+      `Expected token-2 in subprotocol, got: ${req3.headers['sec-websocket-protocol']}`,
+    );
+
+    // Settle the in-flight upgrade before disconnect.
+    await nextMessage(ws3);
+    ws3.send(JSON.stringify({type: 'ready', tunnelId: 't_rot3', connectionId: 'c3'}));
+    await waitFor(() => client.state === 'ready');
+    client.disconnect();
+  });
+
+  it('emits need_live_tunnel on 401 and stops reconnecting', async () => {
+    // Separate HTTP server that returns 401 for resume subprotocol upgrades.
+    const rawHttpServer = http.createServer();
+    const rawWss = new WebSocketServer({noServer: true});
+    rawHttpServer.on('upgrade', (req, socket, head) => {
+      const proto = req.headers['sec-websocket-protocol'] ?? '';
+      if (proto.includes('subtext-resume')) {
+        socket.write(
+          'HTTP/1.1 401 Unauthorized\r\nContent-Length: 12\r\nContent-Type: text/plain\r\n\r\nresume_replay',
+        );
+        socket.end();
+        return;
+      }
+      rawWss.handleUpgrade(req, socket, head, ws => rawWss.emit('connection', ws, req));
+    });
+    await new Promise<void>(resolve => rawHttpServer.listen(0, '127.0.0.1', resolve));
+    const rawAddr = rawHttpServer.address() as {port: number};
+    const rawUrl = `ws://127.0.0.1:${rawAddr.port}`;
+
+    logs = [];
+    const client = new TunnelClient({relayUrl: rawUrl, target: 'http://localhost:9999', log: msg => logs.push(msg)});
+    const needLiveTunnel = new Promise<void>(resolve => client.once('need_live_tunnel', resolve));
+
+    // First connect succeeds via nonce path.
+    const conn1Promise = new Promise<WsClient>(resolve => rawWss.once('connection', resolve));
+    client.connect();
+    const ws1 = await conn1Promise;
+    await nextMessage(ws1); // hello
+    ws1.send(JSON.stringify({type: 'ready', tunnelId: 't_401', connectionId: 'c1', resumeToken: 'bad-tok'}));
+    await waitFor(() => client.state === 'ready');
+
+    // Drop the connection → client reconnects with subprotocol → 401 → event.
+    ws1.close();
+    await needLiveTunnel;
+
+    await waitFor(() => client.state === 'disconnected');
+    assert.equal(client.state, 'disconnected');
+
+    client.disconnect();
+    rawWss.close();
+    await new Promise<void>(resolve => rawHttpServer.close(() => resolve()));
+  });
+
+  it('resume reconnect strips spent nonce params from URL', async () => {
+    // If the client reused the original URL (with ?token=<spent>&connection_id=...)
+    // on reconnect, lidar would log warnings and 401 every reconnect attempt.
+    // Build a client with a nonce-style URL and verify the resume reconnect URL
+    // has no token/connection_id and uses the subprotocol header.
+    logs = [];
+    const nonceUrl = `${relayUrl}/?token=spent-nonce&connection_id=initial-cid`;
+    const client = new TunnelClient({
+      relayUrl: nonceUrl,
+      target: 'http://localhost:9999',
+      connectionId: 'initial-cid',
+      log: msg => logs.push(msg),
+    });
+
+    const firstConnPromise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    client.connect();
+    const ws1 = await firstConnPromise;
+    await nextMessage(ws1);
+    ws1.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_hyg1', connectionId: 'server-cid', resumeToken: 'T1',
+    }));
+    await waitFor(() => client.state === 'ready');
+
+    const secondConnPromise = new Promise<{ws: WsClient; req: http.IncomingMessage}>(resolve => {
+      wss.once('connection', (ws, req) => resolve({ws, req}));
+    });
+    ws1.close();
+    const {ws: ws2, req: req2} = await secondConnPromise;
+
+    const upgradeUrl = new URL(req2.url!, `http://${req2.headers.host}`);
+    assert.equal(upgradeUrl.searchParams.get('token'), null, 'spent token must not appear on reconnect');
+    assert.equal(upgradeUrl.searchParams.get('connection_id'), null, 'connection_id must not appear on reconnect');
+    assert.ok(
+      req2.headers['sec-websocket-protocol']?.includes('subtext-resume.v1.T1'),
+      `Expected resume subprotocol, got: ${req2.headers['sec-websocket-protocol']}`,
+    );
+
+    // Complete the handshake before disconnecting; otherwise disconnect races
+    // the in-flight upgrade and the ws library emits an unhandled error.
+    await nextMessage(ws2); // hello
+    ws2.send(JSON.stringify({type: 'ready', tunnelId: 't_hyg2', connectionId: 'c2'}));
+    await waitFor(() => client.state === 'ready');
+
+    client.disconnect();
+  });
+
+  it('end-to-end: proxies a request, drops, resumes, and proxies another', async () => {
+    // Real HTTP target behind the tunnel.
+    const targetServer = http.createServer((req, res) => {
+      res.writeHead(200, {'Content-Type': 'text/plain'});
+      res.end(`hello ${req.url}`);
+    });
+    await new Promise<void>(resolve => targetServer.listen(0, '127.0.0.1', resolve));
+    const targetPort = (targetServer.address() as net.AddressInfo).port;
+    const client = createClient(`http://127.0.0.1:${targetPort}`);
+
+    // First connection + ready with resume token + trace id.
+    const conn1Promise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    client.connect();
+    const ws1 = await conn1Promise;
+    await nextMessage(ws1); // hello
+    ws1.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_e2e_1', connectionId: 'c1',
+      resumeToken: 'T1', traceId: 'trace-e2e',
+    }));
+    await waitFor(() => client.state === 'ready');
+    assert.equal(client.traceId, 'trace-e2e');
+    assert.equal(client.tunnelId, 't_e2e_1');
+
+    // Proxy a request over the first tunnel.
+    const firstReq: RequestMessage = {
+      type: 'request', requestId: 'r_before', method: 'GET',
+      url: '/before', headers: {}, body: null,
+    };
+    ws1.send(JSON.stringify(firstReq));
+    const resp1 = (await nextMessage(ws1)) as ResponseMessage;
+    assert.equal(resp1.status, 200);
+    assert.equal(Buffer.from(resp1.body!, 'base64').toString(), 'hello /before');
+
+    // Simulate a transient drop.
+    const conn2Promise = new Promise<{ws: WsClient; req: http.IncomingMessage}>(resolve => {
+      wss.once('connection', (ws, req) => resolve({ws, req}));
+    });
+    ws1.close();
+
+    // Reconnect uses the resume subprotocol.
+    const {ws: ws2, req: req2} = await conn2Promise;
+    assert.ok(
+      req2.headers['sec-websocket-protocol']?.includes('subtext-resume.v1.T1'),
+      `Expected resume subprotocol, got: ${req2.headers['sec-websocket-protocol']}`,
+    );
+
+    await nextMessage(ws2); // hello
+    ws2.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_e2e_2', connectionId: 'c2',
+      resumeToken: 'T2', traceId: 'trace-e2e',
+    }));
+    await waitFor(() => client.state === 'ready');
+
+    // traceId stable, tunnelId rotated, resumeToken rotated.
+    assert.equal(client.traceId, 'trace-e2e', 'traceId must survive the drop');
+    assert.equal(client.tunnelId, 't_e2e_2', 'tunnelId should update to the new ready');
+
+    // Proxy another request on the RESUMED tunnel — the real proof.
+    const secondReq: RequestMessage = {
+      type: 'request', requestId: 'r_after', method: 'GET',
+      url: '/after', headers: {}, body: null,
+    };
+    ws2.send(JSON.stringify(secondReq));
+    const resp2 = (await nextMessage(ws2)) as ResponseMessage;
+    assert.equal(resp2.status, 200, 'resumed tunnel must serve requests');
+    assert.equal(Buffer.from(resp2.body!, 'base64').toString(), 'hello /after');
+
+    client.disconnect();
+    targetServer.close();
+  });
+
+  it('traceId persists across reconnects', async () => {
+    const client = createClient();
+
+    const conn1Promise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    client.connect();
+    const ws1 = await conn1Promise;
+    await nextMessage(ws1);
+    ws1.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_tid1', connectionId: 'c1',
+      traceId: 'trace-stable', resumeToken: 'tok',
+    }));
+    await waitFor(() => client.state === 'ready');
+    assert.equal(client.traceId, 'trace-stable');
+
+    // Drop connection; traceId should survive while reconnecting.
+    const conn2Promise = new Promise<WsClient>(resolve => wss.once('connection', resolve));
+    ws1.close();
+    await waitFor(() => client.state !== 'ready');
+    assert.equal(client.traceId, 'trace-stable');
+
+    // Complete the reconnect with the same traceId.
+    const ws2 = await conn2Promise;
+    await nextMessage(ws2);
+    ws2.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_tid2', connectionId: 'c2',
+      traceId: 'trace-stable', resumeToken: 'tok2',
+    }));
+    await waitFor(() => client.state === 'ready');
+    assert.equal(client.traceId, 'trace-stable');
+
+    client.disconnect();
+  });
 });

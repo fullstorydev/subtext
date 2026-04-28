@@ -8,6 +8,8 @@ export interface HelloMessage {
   type: 'hello';
   target: string;
   connectionId?: string;
+  protocol?: 'yamux';
+  streaming?: boolean;
 }
 
 // Relay → Client
@@ -15,6 +17,10 @@ export interface ReadyMessage {
   type: 'ready';
   tunnelId: string;
   connectionId: string;
+  protocol?: 'yamux';
+  streaming?: boolean;
+  resumeToken?: string;
+  traceId?: string;
 }
 
 // Relay → Client
@@ -41,6 +47,12 @@ export interface ResponseMessage {
 export interface ErrorMessage {
   type: 'error';
   requestId: string;
+  message: string;
+}
+
+// Relay → Client (fatal handshake error, e.g. RotateConnection failure)
+export interface ServerErrorMessage {
+  type: 'error';
   message: string;
 }
 
@@ -96,13 +108,33 @@ export interface StreamErrorMessage {
   message: string;
 }
 
+// Relay → Client: pause reading from the target TCP socket (flow control).
+export interface StreamPauseMessage {
+  type: 'pause';
+  streamId: string;
+}
+
+// Relay → Client: resume reading from the target TCP socket.
+export interface StreamResumeMessage {
+  type: 'resume';
+  streamId: string;
+}
+
 export type RelayMessage =
   | ReadyMessage
   | RequestMessage
   | ConnectMessage
   | StreamDataMessage
   | StreamEndMessage
-  | PingMessage;
+  | StreamPauseMessage
+  | StreamResumeMessage
+  | PingMessage
+  | ServerErrorMessage;
+
+// Resume subprotocol: the client sends `${RESUME_SUBPROTOCOL_PREFIX}${token}`
+// as a Sec-WebSocket-Protocol; the server echoes the same full string on success.
+export const RESUME_SUBPROTOCOL = 'subtext-resume.v1';
+export const RESUME_SUBPROTOCOL_PREFIX = RESUME_SUBPROTOCOL + '.';
 
 // Limits
 export const MAX_INFLIGHT = 20;
@@ -111,6 +143,5 @@ export const REQUEST_TIMEOUT_MS = 30_000; // 30s
 export const RECONNECT_BASE_MS = 1_000; // 1s
 export const RECONNECT_MAX_MS = 30_000; // 30s
 export const STALE_CONNECTION_MS = 90_000; // 90s — no messages at all
-export const MAX_RECONNECT_ATTEMPTS = 5;
 
 export type TunnelState = 'disconnected' | 'connecting' | 'connected' | 'ready';

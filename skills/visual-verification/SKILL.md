@@ -29,6 +29,8 @@ Does NOT activate for purely logic changes (API handlers, utils, tests) unless t
 
 After modifying UI code, take a screenshot of the affected area before reporting done. Use Subtext MCP tools (e.g. `live-view-screenshot`, `live-view-snapshot`).
 
+When the change is to a specific component, clip the screenshot to it via `live-view-screenshot`'s `component_id` (and a small `expand_pct` for surrounding context). A focused clip is sharper evidence than a full viewport.
+
 If you don't know the URL or the dev server isn't running, ask.
 
 ### 2. Self-verify vs checkpoint
@@ -46,15 +48,15 @@ If it's a content-only change, skip the variants.
 
 ### 4. Compare against user feedback
 
-When the user provides visual feedback (screenshot, description of what's wrong), after making the fix, screenshot the same area and compare. Don't just say "fixed" — show it.
+When the user provides visual feedback (screenshot, description of what's wrong), after making the fix, screenshot the same area and compare. Don't just say "fixed" — show it. If the feedback is about a specific element, clip to that element (`component_id`) so the before/after framing matches.
 
 ### 5. Snapshot before modifying unfamiliar UI
 
 Before changing a component you haven't seen yet, take a snapshot to understand the current state. Don't guess at the existing layout from code alone.
 
-### 6. Share the viewer URL as the last step
+### 6. Share the trace URL as the last step
 
-After verifying, **output the `viewer_url`** from the `live-connect` response so the user can review your work. The link opens the live viewer with agent comments in the sidebar.
+After verifying, **output the `trace_url`** from the `live-connect` response so the user can review your work. The link opens the live viewer with agent comments in the sidebar.
 
 ## Leaving comments
 

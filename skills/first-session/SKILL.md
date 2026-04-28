@@ -67,7 +67,7 @@ Use `comment-add` (from `subtext:comments`) to leave observations throughout exp
 ## Output
 
 Return to the orchestrator:
-- **Viewer URL** — the `viewer_url` from `live-connect` (print to the user so they can watch live)
+- **Trace URL** — the `trace_url` from `live-connect` (print to the user so they can watch live)
 - **Session URL** from the hosted browser handshake
 - **Total interaction count**
 - Subagent usage stats (tokens, duration) are captured automatically by the orchestrator

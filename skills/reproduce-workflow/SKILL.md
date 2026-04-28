@@ -50,7 +50,7 @@ Also needs: local dev URL and login instructions if auth required.
 
 **When to check for errors:**
 - After each interaction: snapshot for component hierarchy
-- At bug/observation point: snapshot + screenshot for evidence
+- At bug/observation point: snapshot + screenshot for evidence (clip the screenshot to the offending element via `component_id` when applicable)
 - Check console messages for errors at key moments
 - Check network requests when issue might be data-related
 
