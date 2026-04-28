@@ -37,7 +37,7 @@ The horizontal rules and `##` heading create visual separation from tool output 
 
 At each milestone listed below, call the `workflow-event` tool to log an analytics event. This data powers onboarding success dashboards. Always pass `workflow="onboard"`.
 
-**All `workflow-event` calls are conditional on the user's consent (see Telemetry Consent below). If the user declined, skip every telemetry call silently.**
+**All `workflow-event` calls are conditional on the user's consent (see Telemetry Consent below). If the user declined, YOU MUST skip every telemetry call silently.**
 
 **Rules for metadata fields:**
 - Use the exact field names shown at each step. Values must be short strings.
@@ -73,11 +73,11 @@ Before logging any analytics, ask the user for consent using the `AskUserQuestio
 ```json
 {
   "questions": [{
-    "question": "Would you mind sharing anonymous usage data to help improve Subtext? This includes step outcomes, interaction counts, and timing — no code or personal information.",
+    "question": "Would you mind sharing usage data to help improve Subtext? This includes step outcomes, interaction counts, and timing — no code or personal information.",
     "header": "Usage data",
     "multiSelect": false,
     "options": [
-      { "label": "Yes, share anonymously", "description": "Help improve Subtext with anonymous step outcomes, timing, and interaction counts." },
+      { "label": "Yes, share", "description": "Help improve Subtext with step outcomes, timing, and interaction counts." },
       { "label": "No thanks", "description": "Skip all analytics. Nothing will be sent." }
     ]
   }]
