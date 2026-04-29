@@ -26,22 +26,22 @@ Before creating or modifying any skill, read [`authoring.md`](authoring.md).
 
 ## Onboarding — "getting started"
 
-- **subtext:onboard** — Guided six-step setup for new users: plugin install → first session → review → sightmap → informed reproduction → metrics.
-- **subtext:setup-plugin** — Install the Subtext plugin and configure MCP servers.
+- **subtext:onboard** — Three-step first-run flow: connect to the user's local dev server, prove a small change with before/after evidence, bootstrap a starter `.sightmap/` from what was learned.
+- **subtext:setup-plugin** — Install the Subtext plugin and configure MCP servers (invoked implicitly by `onboard` if MCP isn't reachable).
 - **subtext:first-session** — Agent-driven exploration of the user's site via the hosted browser.
 
 ## How they compose
 
 ```
 onboard
-  ├─ setup-plugin        (install)
-  ├─ first-session       (capture)
-  ├─ review              (analyze)
-  └─ recipe-sightmap-setup  (enrich)
+  ├─ setup-plugin   (implicit health check; only runs on failure)
+  ├─ tunnel + live  (connect to user's local dev server)
+  ├─ proof          (small change → before/after evidence)
+  └─ sightmap       (write .sightmap/components.yaml from what was learned)
 
-proof        ──▶ captures a session ──▶ review  (optional handoff)
+proof   ──▶ captures a session ──▶ review  (optional handoff)
 
-review       ──▶ produces repro steps ──▶ subtext:live  (execution)
+review  ──▶ produces repro steps ──▶ subtext:live  (execution)
 ```
 
 Atomics (`shared`, `session`, `live`, `sightmap`, `tunnel`, `comments`) are required by whichever workflow or recipe needs their tool catalogs. Dependencies point down: workflows compose atomics, recipes reference atomics, atomics stand alone.
