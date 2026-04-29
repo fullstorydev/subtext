@@ -13,7 +13,7 @@ metadata:
 
 **Type:** User-facing workflow. Conversational. Three visible steps.
 
-The goal: walk a new user through one real, useful Subtext run end-to-end. They watch a recorded trace as the agent makes a small visible change to their running app, see before/after screenshots they can point at, and end up with a starter `.sightmap/` file as a natural byproduct of the work.
+The goal: walk a new user through one real, useful Subtext run end-to-end. They watch live in the trace as the agent makes a small visible change to their running app, see before/after screenshots they can point at, and end up with a starter `.sightmap/` file as a natural byproduct of the work. The trace itself stays valid after the run as a replayable recording.
 
 ## Implicit health check
 
@@ -21,9 +21,13 @@ Do **not** announce a "plugin setup" step. Trust that the plugin is installed �
 
 ## Greeting
 
-Open with one short paragraph — no banner, no checklist:
+Open with two short paragraphs — no banner, no checklist:
 
-> "Welcome to Subtext. We're going to make one small visible change to your running app together. You'll watch it happen in a recorded trace, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
+> "Welcome to Subtext.
+>
+> Subtext helps me learn your product, validate changes against the actual running app, and leave proof of work — recorded sessions, before/after screenshots, comment markers, and a sightmap of your components — that you and downstream reviewers can replay.
+>
+> We're going to make one small visible change to your running app together. You'll watch it happen live in a trace you can replay later, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
 
 ## Step 1 — Connect to your local dev server
 
@@ -64,7 +68,7 @@ Watch along here:
 
 Tell the user briefly:
 
-> "I'm connected. Open that link in another window — you'll see the recorded session as I work. The link stays valid after we finish, so you can come back to it."
+> "I'm connected. Open that link in another window — you'll watch live as I work. The same link stays valid as a replayable recording after we finish, so you can come back to it."
 
 ## Step 2 — Make a small change
 
@@ -123,7 +127,7 @@ Print:
 Then create or extend `.sightmap/components.yaml` using the `subtext:sightmap` schema. Include:
 
 - **Component definitions** for elements you actually touched during the proof run. Use stable selectors — prefer `data-*` attributes when present.
-- **Memory entries** for anything that wasn't obvious. If you had to figure out a state, a piece of validation, or a non-trivial element location — write a one-line note in `memory:` so the next agent doesn't have to re-learn it.
+- **Memory entries** about runtime behavior you observed — state changes, validation, gating, anything not obvious from the rendered DOM. Skip code-structure tips, file paths, JSX/CSS patterns, and external doc references; those don't belong in the sightmap. See `subtext:sightmap` for the full rule.
 
 Stay honest about scope: only describe what you actually touched. Don't pad the file with components you didn't interact with — those are best added when an agent works with them later, not speculatively now.
 
