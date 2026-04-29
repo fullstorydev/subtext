@@ -1,5 +1,5 @@
 ---
-name: subtext:sightmap
+name: sightmap
 description: Use when setting up the sight map (.sightmap/ YAML files) — defining components, views, requests, or other runtime semantics for the application. Also use when snapshot output shows generic a11y roles instead of meaningful names.
 ---
 
