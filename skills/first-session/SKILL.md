@@ -1,6 +1,6 @@
 ---
 name: first-session
-description: Agent explores the user's site via hosted broswer (live), leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, viewer URL, and metrics.
+description: Agent explores the user's site via hosted broswer (live), leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, trace URL, and metrics.
 metadata:
   requires:
     skills: ["subtext:shared", "subtext:live", "subtext:tunnel", "subtext:comments"]
@@ -8,6 +8,8 @@ metadata:
 ---
 
 # First Session
+
+> **PREREQUISITE — Read inline before any other action:** Read skills `subtext:shared`, `subtext:live`, `subtext:tunnel`, `subtext:comments`.
 
 Explore the user's site via hosted browser tools, leaving comments as a breadcrumb trail of agent reasoning.
 
@@ -67,7 +69,7 @@ Use `comment-add` (from `subtext:comments`) to leave observations throughout exp
 ## Output
 
 Return to the orchestrator:
-- **Trace URL** — the `trace_url` from `live-connect` (print to the user so they can watch live)
+- **Trace URL** — the `trace_url` from the connect step (`live-connect` for remote URLs, `live-view-new` for tunnel-first). Print to the user so they can watch live.
 - **Session URL** from the hosted browser handshake
 - **Total interaction count**
 - Subagent usage stats (tokens, duration) are captured automatically by the orchestrator

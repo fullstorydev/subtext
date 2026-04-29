@@ -20,7 +20,7 @@ Verify the plugin is working by testing actual connectivity — do NOT read conf
 Try calling a lightweight MCP tool to verify the server is reachable. For example, list the available tools on the `subtext` MCP server. If the call succeeds, the plugin is installed and connected.
 
 Check these servers:
-- `subtext` — required (for review, live, comments, privacy)
+- `subtext` — required (for review, live, comments)
 - `subtext-tunnel` — optional (local tunnel client)
 
 If MCP tools are available, the plugin is working. Report which servers connected and move on.
@@ -68,6 +68,6 @@ After the user has addressed authentication, re-run the MCP connectivity check t
 ## Explain
 
 After setup, explain what was installed:
-- **Skills** — guided workflows for session analysis, bug fixing, UX review, and reproduction
-- **MCP servers** — subtext (review, live, comments, privacy) and subtext-tunnel
-- **Sightmap** — semantic component mapping, uploaded automatically after session open (set up later in onboarding)
+- **Skills** — `proof` (before/after evidence for UI changes), `review` (structured summary of any session), `onboard` (first-run walkthrough), plus the underlying tool catalogs (`live`, `session`, `comments`, `tunnel`, `sightmap`)
+- **MCP servers** — `subtext` (review, live, comments) and `subtext-tunnel` (local tunnel client)
+- **Sightmap** — semantic component mapping, uploaded automatically after each connection. Created naturally as agents work; see `subtext:sightmap`.

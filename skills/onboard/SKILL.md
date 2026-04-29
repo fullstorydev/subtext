@@ -51,15 +51,15 @@ Once you have a `http://localhost:…` (or `http://127.0.0.1:…`) URL, follow t
 
 1. `live-tunnel()` → `connectionId`, `relayUrl`
 2. `tunnel-connect({ relayUrl, target: <base of the localhost URL> })` → confirm `state: "ready"`
-3. `live-view-new({ connection_id, url: <full localhost URL> })` → returns `viewer_url` (and the initial snapshot)
+3. `live-view-new({ connection_id, url: <full localhost URL> })` → returns `trace_url` (and the initial snapshot)
 
 If any of these calls fails because the MCP server is unreachable, invoke `subtext:setup-plugin`, then retry.
 
-**Print the `viewer_url` immediately, on its own line, before saying anything else:**
+**Print the `trace_url` immediately, on its own line, before saying anything else:**
 
 ```
 Watch along here:
-{viewer_url}
+{trace_url}
 ```
 
 Tell the user briefly:
@@ -89,7 +89,7 @@ Ask for a small visible change. Give concrete examples so the user doesn't have 
 
 Once the user describes the change, follow the **`subtext:proof`** workflow you already read inline. Important:
 
-- The connection from Step 1 is reusable. Skip proof's Step 1 (`live-connect`) and Step 2 (share viewer URL — already done). Start at proof's Step 3 (BEFORE capture).
+- The connection from Step 1 is reusable. Skip proof's Step 1 (connect) and Step 2 (share trace URL — already done). Start at proof's Step 3 (BEFORE capture).
 - Use the existing `connection_id` and `view_id` from Step 1 in `live-view-screenshot` and `comment-add` calls.
 
 When proof's loop completes, recap to the user in a single message:
@@ -98,7 +98,7 @@ When proof's loop completes, recap to the user in a single message:
 >
 > - **Before:** {before_screenshot_url}
 > - **After:** {after_screenshot_url}
-> - **Trace:** {viewer_url}
+> - **Trace:** {trace_url}
 >
 > Does the result look right?"
 
@@ -137,7 +137,7 @@ Recap and point to next steps:
 
 > "You're set up. Recap:
 >
-> 1. **Trace** — the recorded session of the change you just made: {viewer_url}
+> 1. **Trace** — the recorded session of the change you just made: {trace_url}
 > 2. **Before / After** — {before_screenshot_url} → {after_screenshot_url}
 > 3. **Sightmap** — `.sightmap/components.yaml` ready to commit
 >
