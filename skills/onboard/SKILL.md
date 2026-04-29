@@ -13,7 +13,7 @@ metadata:
 
 **Type:** User-facing workflow. Conversational. Three visible steps.
 
-The goal: walk a new user through one real, useful Subtext run end-to-end. They watch a recorded trace as the agent makes a small visible change to their running app, see before/after screenshots they can point at, and end up with a starter `.sightmap/` file as a natural byproduct of the work.
+The goal: walk a new user through one real, useful Subtext run end-to-end. They watch live in the trace as the agent makes a small visible change to their running app, see before/after screenshots they can point at, and end up with a starter `.sightmap/` file as a natural byproduct of the work. The trace itself stays valid after the run as a replayable recording.
 
 ## Implicit health check
 
@@ -23,7 +23,7 @@ Do **not** announce a "plugin setup" step. Trust that the plugin is installed �
 
 Open with one short paragraph — no banner, no checklist:
 
-> "Welcome to Subtext. We're going to make one small visible change to your running app together. You'll watch it happen in a recorded trace, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
+> "Welcome to Subtext. We're going to make one small visible change to your running app together. You'll watch it happen live in a trace you can replay later, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
 
 ## Step 1 — Connect to your local dev server
 
@@ -64,7 +64,7 @@ Watch along here:
 
 Tell the user briefly:
 
-> "I'm connected. Open that link in another window — you'll see the recorded session as I work. The link stays valid after we finish, so you can come back to it."
+> "I'm connected. Open that link in another window — you'll watch live as I work. The same link stays valid as a replayable recording after we finish, so you can come back to it."
 
 ## Step 2 — Make a small change
 
