@@ -9,7 +9,7 @@ metadata:
 
 # Onboarding
 
-> **PREREQUISITE — Read inline before any other action:** Read skills `proof`, `sightmap`, `live`, `tunnel`, `shared`.
+> **PREREQUISITE — Read inline before any other action:** Read skills `subtext:proof`, `subtext:sightmap`, `subtext:live`, `subtext:tunnel`, `subtext:shared`.
 
 **Type:** User-facing workflow. Conversational. Three visible steps.
 
