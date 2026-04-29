@@ -98,13 +98,13 @@ Ask the user:
 - The app URL from the dev server gate
 - The user's flow description (or "feeling lucky")
 
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
+**Capture from subagent result:** session URL, trace URL, interaction count, tokens, duration_ms.
 
 After the subagent completes, tell the user:
 
 "Done! I explored your site in {interaction_count} interactions, leaving comments along the way. You can watch my exploration with my comments in the sidebar:
 
-{viewer_url}
+{trace_url}
 
 Now let me analyze what I found."
 
@@ -195,11 +195,11 @@ Reproducing the same flow — this time with sightmap enrichment.
 - **Steps:** the reproduction steps extracted from Step 3
 - **App URL:** the same URL used in Step 2 (tunnel is automatic for localhost)
 
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
+**Capture from subagent result:** session URL, trace URL, interaction count, tokens, duration_ms.
 
 After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. You can review the replay with agent comments here:
 
-{viewer_url}
+{trace_url}
 
 Now let's see how the two passes compare."
 
@@ -240,10 +240,10 @@ Take a snapshot from the same page in both sessions and show them side-by-side (
 
 ### Agent playback links
 
-Present both viewer URLs so the user can review each session with agent comments in the sidebar:
+Present both trace URLs so the user can review each session with agent comments in the sidebar:
 
-- **Pass 1 (Blind):** {pass1_viewer_url}
-- **Pass 2 (Sightmap):** {pass2_viewer_url}
+- **Pass 1 (Blind):** {pass1_trace_url}
+- **Pass 2 (Sightmap):** {pass2_trace_url}
 
 ## Recap
 

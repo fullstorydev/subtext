@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { WebSocket } from './third_party/index.js';
-import { RECONNECT_BASE_MS, RECONNECT_MAX_MS, RESUME_SUBPROTOCOL_PREFIX, STALE_CONNECTION_MS, MAX_RECONNECT_ATTEMPTS, } from './types.js';
+import { RECONNECT_BASE_MS, RECONNECT_MAX_MS, RESUME_SUBPROTOCOL_PREFIX, STALE_CONNECTION_MS, } from './types.js';
 import { LegacyTransport } from './transport_legacy.js';
 import { YamuxTransport } from './transport_yamux.js';
 /**
@@ -170,7 +170,12 @@ export class TunnelClient extends EventEmitter {
             }
             // Transport.serve() resolves when the WebSocket closes or the session
             // tears down. The close handler below then triggers reconnect.
-            void this.#transport.serve();
+            // Catch unexpected rejections so they don't become unhandled and kill
+            // the process -- treat them the same as a connection drop.
+            this.#transport.serve().catch((err) => {
+                this.#log(`Transport error: ${err instanceof Error ? err.message : String(err)}`);
+                this.#onDisconnect();
+            });
         };
         ws.on('message', handshakeHandler);
         ws.on('close', (code, reason) => {
@@ -203,10 +208,6 @@ export class TunnelClient extends EventEmitter {
         this.#scheduleReconnect();
     }
     #scheduleReconnect() {
-        if (this.#reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            this.#log(`Reached max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}); stopping reconnect loop`);
-            return;
-        }
         const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, this.#reconnectAttempts), RECONNECT_MAX_MS);
         // Add jitter: 0-25% of delay
         const jitter = Math.random() * delay * 0.25;
@@ -243,6 +244,9 @@ export class TunnelClient extends EventEmitter {
         }
         if (this.#ws) {
             this.#ws.removeAllListeners();
+            // Re-attach a no-op error handler: close() on a CONNECTING socket emits
+            // 'error' synchronously; without a listener Node throws.
+            this.#ws.on('error', () => { });
             this.#ws.close();
             this.#ws = null;
         }
