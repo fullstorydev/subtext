@@ -17,11 +17,9 @@ What you get:
 - A `[Guide]` section at the top of every enriched snapshot surfaces the `memory:` entries on whatever components are visible — so the next agent picks up where the last one left off (auth gates, state quirks, validation rules).
 - The artifact is a few small YAML files in your repo. It travels with the code, works in any agent (Claude, Cursor, Codex, anything that reads files), and is curated incrementally as agents work — not authored up-front.
 
-The full canonical spec lives at [`sightmap.org`](https://sightmap.org) and the schema doc at [github.com/sightmap/spec](https://github.com/sightmap/spec/blob/main/spec/v1/schema.md). What follows is the working reference for authoring `.sightmap/` files in this project.
-
 ## What you define
 
-The sight map maps CSS selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. Three definition types:
+The `.sightmap` maps selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. Three definition types:
 
 - **Components** — map CSS selectors to semantic names (e.g., `NavBar`, `SearchBox`)
 - **Views** — map URL route patterns to screen names (e.g., `ProductDetail`, `UserSettings`)
