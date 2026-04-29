@@ -9,7 +9,7 @@ metadata:
 
 # Proof
 
-> **PREREQUISITE:** Read `subtext:shared` for MCP conventions and sightmap upload.
+> **PREREQUISITE — Read inline before any other action:** Read skills `subtext:shared`, `subtext:live`, `subtext:comments`.
 
 **Type:** Rigid workflow — follow exactly. Skipping steps means unverified work ships.
 
@@ -37,18 +37,18 @@ comment-add({ ..., screenshot_url, intent: "looks-good", text: "AFTER: ..." })
 
 ### Step 1: Connect to the running app
 
-Call `live-connect` with the URL where the change will be visible.
+Open a browser connection per `subtext:live`'s connect flow — `live-connect` for remote URLs, tunnel-first (`live-tunnel` → `tunnel-connect` → `live-view-new`) for localhost. The hosted browser cannot reach localhost without the tunnel; see `subtext:live` for both flows in detail.
 
-- If the URL is localhost, the tunnel sets up automatically.
-- If the app isn't running, **try to start the dev server yourself first.** Look for `package.json` scripts (`dev`, `start`, `serve`), a `Makefile`, or a `docker-compose.yml`. Run the appropriate command in the background. Only ask the user if you can't figure out how to start it.
-- Read any existing comments with `comment-list` — prior feedback may inform your work.
+If the app isn't running, **try to start the dev server yourself first.** Look for `package.json` scripts (`dev`, `start`, `serve`), a `Makefile`, or a `docker-compose.yml`. Run the appropriate command in the background. Only ask the user if you can't figure out how to start it.
 
-### Step 2: Share the viewer URL
+Read any existing comments with `comment-list` — prior feedback may inform your work.
 
-**Immediately** print the `viewer_url` returned by `live-connect` on its own line. This lets the user watch the agent's browser in real time and gives downstream reviewers (including `subtext:review` follow-ups) a stable entry point to the recorded session.
+### Step 2: Share the trace URL
+
+**Immediately** print the `trace_url` from the connect step on its own line. (`live-connect` returns it for remote; `live-view-new` returns it for tunnel-first.) This lets the user watch the agent's browser in real time and gives downstream reviewers (including `subtext:review` follow-ups) a stable entry point to the recorded session.
 
 ```
-Viewer: {viewer_url}
+Trace: {trace_url}
 I'm connected to the app. Starting verification.
 ```
 
@@ -109,7 +109,7 @@ Once the change is verified:
 2. Call `comment-add` with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
 3. If a PR exists or will be created:
    - Include before/after screenshot URLs (from Step 3 and Step 5) in the PR description
-   - Include the `viewer_url` (from `live-connect`) so reviewers can watch the full recorded session
+   - Include the `trace_url` (from the connect step) so reviewers can watch the full recorded session
 
 ```markdown
 ## Visual Evidence
@@ -120,7 +120,7 @@ Once the change is verified:
 **After:**
 ![after]({after_screenshot_url})
 
-**Session replay:** [Review the full session]({viewer_url})
+**Session replay:** [Review the full session]({trace_url})
 ```
 
 The `screenshot_url` values are signed URLs from `live-view-screenshot` with `upload: true`. They render directly in GitHub PR descriptions as inline images.
@@ -146,7 +146,7 @@ The `screenshot_url` values are signed URLs from `live-view-screenshot` with `up
 
 Comments you leave during verification serve two purposes:
 
-1. **Live collaboration** — the user watching the viewer URL sees your annotations in real-time in the sidebar
+1. **Live collaboration** — the user watching the trace URL sees your annotations in real-time in the sidebar
 2. **Session replay chapters** — anyone reviewing the recorded session later can jump to your BEFORE/AFTER markers to understand what changed and why
 
 Leave comments at every significant moment:
@@ -180,6 +180,6 @@ If the change affects more than one page or state:
 
 ## Composition
 
-- **Requires:** `subtext:live` (browser tools, returns `viewer_url`), `subtext:comments` (annotations)
+- **Requires:** `subtext:live` (browser tools, returns `trace_url`), `subtext:comments` (annotations)
 - **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
 - **Triggers from:** any file edit to UI code, or when the user asks for a visual change

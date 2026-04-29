@@ -84,8 +84,6 @@ After every connection is established — via `live-connect` or `live-view-new` 
 Viewer: {trace_url}
 ```
 
-> **Renamed from `viewer_url`** in SUBTEXT-281. The path shape is unchanged — only the response field name and the documentation moved. The trailing trace_id segment is the parent id for comment tools.
-
 ## Capture Status
 
 Every live tool response that touches a view includes a `capture_status` field —
