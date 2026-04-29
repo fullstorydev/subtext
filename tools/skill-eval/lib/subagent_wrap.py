@@ -13,10 +13,26 @@ actually dispatch:
   - A '## Your Job' numbered list (with SP's literal phrasing)
   - Status-report sign-off
 
+Queries that already begin with subagent-dispatch framing
+(e.g. "You are implementing Task 7: ...") pass through unwrapped — wrapping
+them again double-nests the Task envelope and breaks routing
+(observed in 2026-04-29 plus-superpowers eval run).
+
 Pure stdlib. No subprocess. Used by lib.run_eval_sandbox.
 """
 
 from __future__ import annotations
+
+import re
+
+# Matches queries that are already in subagent-dispatch shape, e.g.
+#   "You are implementing Task 3: ..."
+#   "You are researching Task 11: ..."
+# Case-insensitive; tolerates leading whitespace.
+_ALREADY_TASK_FRAMED = re.compile(
+    r"^\s*You are (?:implementing|researching) Task \d+",
+    re.IGNORECASE,
+)
 
 
 SUBAGENT_TEMPLATE = """You are implementing Task {task_num}.
@@ -60,6 +76,9 @@ def wrap_subagent_query(query: str, task_num: int = 1) -> str:
     Returns:
         A subagent-dispatch-style prompt that embeds the original query and
         leaves work-style framing (TDD or otherwise) conditional on what the
-        original query asks for.
+        original query asks for. Queries already in subagent-dispatch shape
+        pass through unchanged.
     """
+    if _ALREADY_TASK_FRAMED.match(query):
+        return query
     return SUBAGENT_TEMPLATE.format(task_num=task_num, query=query)
