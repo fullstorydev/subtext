@@ -101,6 +101,23 @@ uid=1_20 ProductCard, PromotedProduct "Cool Shoes" visible interactive
   ```
 - Children selectors are automatically scoped to parent subtree
 
+### Writing memory entries
+
+A memory entry should help the **next agent driving or reviewing the running app** understand what's on screen — *runtime behavior*, not source structure. Useful gut check: would this note show up usefully in the `[Guide]` of a snapshot the agent's about to interact with? If the answer requires holding the codebase in hand too, it belongs in source comments or `CLAUDE.md`, not here.
+
+**Good memory candidates:** stateful behavior (how toggles change the rendered UI), auth gates and credentials, form rules, multi-step interactions, runtime quirks.
+
+**Stay out of memory:** file paths, JSX/CSS patterns, style conventions, external doc references — all discoverable elsewhere or owned by other artifacts.
+
+Concrete — after editing a `Hero` component:
+
+```yaml
+- "Audience toggle re-renders all H1 copy between 'builders' and 'agents'"   # ✓ runtime
+- "Headline copy lives in the `copy` object as JSX with both variants"        # ✗ source structure
+- "H1 emphasis uses <em className='italic text-[var(--accent)]'>…</em>"       # ✗ implementation
+- "Positioning doc at src/.../current.md retires 'sight' language"            # ✗ external ref
+```
+
 ## Views
 
 A view represents a screen or route in the application. Views provide:

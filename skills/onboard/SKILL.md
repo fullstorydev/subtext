@@ -127,7 +127,7 @@ Print:
 Then create or extend `.sightmap/components.yaml` using the `subtext:sightmap` schema. Include:
 
 - **Component definitions** for elements you actually touched during the proof run. Use stable selectors — prefer `data-*` attributes when present.
-- **Memory entries** for anything that wasn't obvious. If you had to figure out a state, a piece of validation, or a non-trivial element location — write a one-line note in `memory:` so the next agent doesn't have to re-learn it.
+- **Memory entries** about runtime behavior you observed — state changes, validation, gating, anything not obvious from the rendered DOM. Skip code-structure tips, file paths, JSX/CSS patterns, and external doc references; those don't belong in the sightmap. See `subtext:sightmap` for the full rule.
 
 Stay honest about scope: only describe what you actually touched. Don't pad the file with components you didn't interact with — those are best added when an agent works with them later, not speculatively now.
 
