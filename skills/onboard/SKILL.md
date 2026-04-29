@@ -21,9 +21,13 @@ Do **not** announce a "plugin setup" step. Trust that the plugin is installed �
 
 ## Greeting
 
-Open with one short paragraph — no banner, no checklist:
+Open with two short paragraphs — no banner, no checklist:
 
-> "Welcome to Subtext. We're going to make one small visible change to your running app together. You'll watch it happen in a recorded trace, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
+> "Welcome to Subtext.
+>
+> Subtext helps me learn your product, validate changes against the actual running app, and leave proof of work — recorded sessions, before/after screenshots, comment markers, and a sightmap of your components — that you and downstream reviewers can replay.
+>
+> We're going to make one small visible change to your running app together. You'll watch it happen in a recorded trace, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
 
 ## Step 1 — Connect to your local dev server
 
