@@ -5,7 +5,23 @@ description: Use when setting up the sight map (.sightmap/ YAML files) — defin
 
 # Sightmap
 
-The sight map defines the runtime model of your application — mapping CSS selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. There are three definition types:
+## Why this exists
+
+`sitemap.xml` tells search engines how to crawl your site. `.sightmap/` **teaches** agents how to use it.
+
+A `.sightmap/` directory at the project root is a small set of YAML files that name your app's views, components, and API routes — checked in alongside your code, learned from the running app, and read by every coding agent that touches the repo. Each definition can carry a `memory:` list: freeform notes about quirks, invariants, and shortcuts the source code doesn't record.
+
+What you get:
+
+- Snapshots and network traces show **semantic names** (`NavBar`, `CheckoutForm`, `FetchFlights`) instead of generic a11y roles (`navigation`, `region`, `generic`).
+- A `[Guide]` section at the top of every enriched snapshot surfaces the `memory:` entries on whatever components are visible — so the next agent picks up where the last one left off (auth gates, state quirks, validation rules).
+- The artifact is a few small YAML files in your repo. It travels with the code, works in any agent (Claude, Cursor, Codex, anything that reads files), and is curated incrementally as agents work — not authored up-front.
+
+The full canonical spec lives at [`sightmap.org`](https://sightmap.org) and the schema doc at [github.com/sightmap/spec](https://github.com/sightmap/spec/blob/main/spec/v1/schema.md). What follows is the working reference for authoring `.sightmap/` files in this project.
+
+## What you define
+
+The sight map maps CSS selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. Three definition types:
 
 - **Components** — map CSS selectors to semantic names (e.g., `NavBar`, `SearchBox`)
 - **Views** — map URL route patterns to screen names (e.g., `ProductDetail`, `UserSettings`)
