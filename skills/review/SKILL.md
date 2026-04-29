@@ -39,7 +39,7 @@ Review a completed session. Produce a structured summary of what happened. Optio
 
 ### Step 1: Open the session
 
-Call `review-open` with the session URL. This loads the session for inspection.
+Call `review-open` with whichever identifier you have — see `subtext:session` for the five accepted forms (`trace_id`, `session_url`, `device_id` + `session_id`, `email_address`, `user_uid`). When handed off from `subtext:proof`, prefer the `trace_id` from the proof run — no URL construction needed.
 
 ### Step 2: Read the chapter markers
 
