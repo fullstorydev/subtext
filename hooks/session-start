@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # SessionStart hook for the subtext plugin.
 # Reads using-subtext SKILL.md and emits a platform-correct JSON envelope.
+#
+# Adapted from superpowers (https://github.com/obra/superpowers/blob/main/hooks/session-start)
+# Copyright (c) 2025 Jesse Vincent. Licensed under MIT. See NOTICE.md.
 
 set -euo pipefail
 
