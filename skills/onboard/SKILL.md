@@ -19,6 +19,27 @@ The goal: walk a new user through one real, useful Subtext run end-to-end. They 
 
 Do **not** announce a "plugin setup" step. Trust that the plugin is installed — the user just ran a slash command from it. If the first MCP call below fails (server unreachable, auth missing), invoke `subtext:setup-plugin`, then retry the call. Otherwise stay silent about plumbing.
 
+## Workflow Telemetry
+
+At each milestone listed below, call the `workflow-event` tool to log an analytics event. This data powers onboarding success dashboards. Always pass `workflow="onboard"`.
+
+**All `workflow-event` calls are conditional on the user's consent (see Telemetry Consent below). If the user declined, YOU MUST skip every telemetry call silently.**
+
+**Tracking time and tokens:** Record a timestamp at the start of each step. At the end of each step, compute `duration_ms` (wall-clock milliseconds) and `tokens` (total input + output tokens consumed during the step). Include both in the step's `workflow-event` metadata.
+
+**Rules for metadata fields:**
+- Use the exact field names shown at each step. Values must be short strings.
+- Use enums for all classification fields. Valid enums are listed below.
+- `outcome` (top-level param, not inside metadata): `success` | `skipped` | `partial` | `fail` (per-step; see each step for valid values)
+- `use_case`: `e-commerce` | `saas-dashboard` | `marketing-site` | `docs-site` | `social-platform` | `developer-tool` | `internal-tool` | `other`. Infer from package.json, site content, or the user's description.
+- Only include fields that are known at that step. Don't guess ahead.
+- The `metadata` parameter must be a valid JSON string.
+
+**Outcome classification for the `complete` step:**
+- `success`: all steps completed successfully
+- `partial`: workflow finished but a step had degraded results
+- `fail`: a step failed and the workflow couldn't finish
+
 ## Greeting
 
 Open with two short paragraphs — no banner, no checklist:
@@ -28,6 +49,28 @@ Open with two short paragraphs — no banner, no checklist:
 > Subtext helps me learn your product, validate changes against the actual running app, and leave proof of work — recorded sessions, before/after screenshots, comment markers, and a sightmap of your components — that you and downstream reviewers can replay.
 >
 > We're going to make one small visible change to your running app together. You'll watch it happen live in a trace you can replay later, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
+
+### Telemetry Consent
+
+Before logging any analytics, ask the user for consent using the `AskUserQuestion` tool:
+
+```json
+{
+  "questions": [{
+    "question": "Would you mind sharing usage data to help improve Subtext? This includes step outcomes, interaction counts, and timing — no code or personal information.",
+    "header": "Usage data",
+    "multiSelect": false,
+    "options": [
+      { "label": "Yes, share", "description": "Help improve Subtext with step outcomes, timing, and interaction counts." },
+      { "label": "No thanks", "description": "Skip all analytics. Nothing will be sent." }
+    ]
+  }]
+}
+```
+
+Store the result as `telemetry_enabled` (true/false). If the user selects **Yes, share**, set `telemetry_enabled = true`. If they select **No thanks** or **Other**, set `telemetry_enabled = false`.
+
+**Telemetry (if enabled):** Call `workflow-event` with step=`"start"` and metadata containing `harness` (e.g. `claude-code`, `cursor`, `codex`) and `model` (the active model ID, e.g. `claude-sonnet-4-6, GPT-5.5`).
 
 ## Step 1 — Connect to your local dev server
 
@@ -70,6 +113,8 @@ Tell the user briefly:
 
 > "I'm connected. Open that link in another window — you'll watch live as I work. The same link stays valid as a replayable recording after we finish, so you can come back to it."
 
+**Telemetry (if enabled):** Call `workflow-event` with step=`"connect"`, outcome=`"success"` or `"fail"`, and metadata containing `duration_ms` and `tokens`.
+
 ## Step 2 — Make a small change
 
 Print:
@@ -108,6 +153,8 @@ When proof's loop completes, recap to the user in a single message:
 
 If the user says no, ask whether to revert, retry, or stop. If yes, continue to Step 3.
 
+**Telemetry (if enabled):** Call `workflow-event` with step=`"proof"`, outcome=`"success"` or `"fail"`, and metadata containing `interaction_count` (number of `live-interact` calls made during the proof loop), `duration_ms`, and `tokens`.
+
 ## Step 3 — Bootstrap a sightmap from what we just learned
 
 Print:
@@ -135,6 +182,8 @@ After writing, show the user the file and a brief commit pointer:
 
 > "Wrote `.sightmap/components.yaml`. Commit it alongside your code change — it travels with the repo, and every future agent that reads it gets a head start."
 
+**Telemetry (if enabled):** Call `workflow-event` with step=`"sightmap_bootstrap"`, outcome=`"success"` or `"skipped"`, and metadata containing `component_count`, `memory_count`, `duration_ms`, and `tokens`.
+
 ## Wrap-up
 
 Recap and point to next steps:
@@ -149,3 +198,5 @@ Recap and point to next steps:
 > - **`/proof`** — use this any time you make a UI change. Same before/after evidence loop, no onboarding wrapper.
 > - **`/review`** — paste any session URL to get a structured summary, with optional reproduction steps on request.
 > - **Learn more about sightmap** — read `skills/sightmap/SKILL.md` to teach agents about more of your app's surface (views, requests, scoped components, memory entries)."
+
+**Telemetry (if enabled):** Call `workflow-event` with step=`"complete"`, outcome=`"success"`, `"partial"`, or `"fail"` (see classification rules in Workflow Telemetry section), and metadata containing `total_duration_ms` (wall-clock time for the entire onboarding), `total_tokens` (sum across all steps), `sightmap_quality` (`high` | `medium` | `low`), and `use_case` (inferred from the app).
