@@ -29,7 +29,7 @@ User CLAUDE.md > using-subtext > default system prompt.
 ## How to Access Skills
 
 - **Claude Code & Cursor:** use the `Skill` tool.
-- **Codex:** `~/.codex/subtext/.codex/subtext-codex use-skill <name>`.
+- **Codex:** Skills load natively from `~/.agents/skills/subtext/`. Read the relevant SKILL.md directly when its description matches your task.
 
 ## When to Reach for Subtext
 
