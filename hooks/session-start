@@ -21,7 +21,7 @@ escape_for_json() {
 }
 
 skill_escaped=$(escape_for_json "$skill_content")
-session_context="<EXTREMELY_IMPORTANT>\nYou have subtext.\n\n**Below is the full content of your 'subtext:using-subtext' skill — your introduction to using subtext skills. For all other skills, use the 'Skill' tool:**\n\n${skill_escaped}\n</EXTREMELY_IMPORTANT>"
+session_context="<SUBTEXT_BOOTSTRAP>\nThis session has the Subtext plugin available. The skill below explains what tools you have and when to use them. After reading it, use the Skill tool to invoke any specific Subtext skill by name.\n\n${skill_escaped}\n</SUBTEXT_BOOTSTRAP>"
 
 # Emit the right JSON shape per harness.
 # - Cursor: top-level snake_case `additional_context`
