@@ -26,6 +26,8 @@ live-view-screenshot({ connection_id, view_id, upload: true })
 
 **Do NOT use `artifact-upload` for screenshots.** It requires base64-encoding the entire PNG and frequently fails on large images. The `upload: true` flag on `live-view-screenshot` handles the upload server-side — smaller payload, no encoding issues.
 
+**Pass `screenshot_url` through verbatim — query string included.** The full signed URL is the credential. Don't strip `?Expires=…&GoogleAccessId=…&Signature=…` when copying it into PR descriptions, comments, or summaries — without those params GCS returns 403 and the image won't render.
+
 To attach a screenshot to a comment:
 
 ```
