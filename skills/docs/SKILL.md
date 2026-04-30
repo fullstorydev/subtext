@@ -149,7 +149,7 @@ GCS-backed attachments (`base64_data`, `text`, `artifact_id`) are stored as `gs:
 
 Create a doc at the **start** of any significant workflow:
 
-- Opening a `bug-fix-workflow` or `ux-review-workflow`
+- Running the `proof` skill for a code change (create at Step 1, close at Step 7)
 - Starting a multi-step changeset (PR review, deployment verification)
 - Any time the user will want a permanent record of what the agent did and why
 
@@ -241,4 +241,4 @@ User receives: "Fix complete. Proof document: https://..."
 
 - `subtext:shared` — MCP conventions
 - `subtext:comments` — inline session annotations (separate from proof docs)
-- `subtext:bug-fix-workflow` — workflow that uses docs at each phase
+- `proof` — workflow skill that integrates doc evidence capture with visual verification
