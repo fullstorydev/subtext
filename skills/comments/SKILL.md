@@ -1,5 +1,5 @@
 ---
-name: subtext:comments
+name: comments
 description: Comment MCP tools for agent-user collaboration. Use when reviewing sessions or live pages to leave observations, read user feedback, reply, and resolve.
 metadata:
   requires:
@@ -40,7 +40,7 @@ Parameter schemas are visible in the tool definition at call time.
 
 Comment tools do **not** auto-capture screenshots. To attach a screenshot, pass a `screenshot_url` to `comment-add`. This URL must point to a pre-captured screenshot (e.g., from `live-view-screenshot` or another source).
 
-> **Note:** To attach a screenshot, first capture one via `live-view-screenshot` or `review-view`, then pass the returned URL as `screenshot_url`.
+> **Note:** To attach a screenshot, first capture one via `live-view-screenshot` or `review-view`, then pass the returned URL as `screenshot_url` **verbatim** — the signed query string (`?Expires=…&GoogleAccessId=…&Signature=…`) is the credential. Stripping it returns 403 from GCS and the image won't render.
 
 When the comment is about a specific element, capture a focused clip by passing `component_id` (and a small `expand_pct` for context) to the screenshot tool. A focused clip is far more useful in a comment than a full viewport — the reader sees exactly what you're pointing at.
 
@@ -69,7 +69,7 @@ Comments enable asynchronous review between agents and users:
 
 1. Agent does work → runs visual verification
 2. Agent calls `comment-add` with observations (`bug`, `tweak`, `looks-good`)
-3. Agent shares the viewer URL with the user
+3. Agent shares the trace URL with the user
 4. User reviews → reads agent comments → leaves own comments/replies
 5. User shares URL back to agent
 6. Agent calls `comment-list` to read ALL feedback

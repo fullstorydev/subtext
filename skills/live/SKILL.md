@@ -1,5 +1,5 @@
 ---
-name: subtext:live
+name: live
 description: Live browser MCP tools for driving a hosted browser — connections, views, interactions, console, network, and tunnel. Use when reproducing flows, taking screenshots, or interacting with a running app.
 metadata:
   requires:
@@ -83,8 +83,6 @@ After every connection is established — via `live-connect` or `live-view-new` 
 ```
 Viewer: {trace_url}
 ```
-
-> **Renamed from `viewer_url`** in SUBTEXT-281. The path shape is unchanged — only the response field name and the documentation moved. The trailing trace_id segment is the parent id for comment tools.
 
 ## Capture Status
 

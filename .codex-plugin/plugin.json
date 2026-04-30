@@ -1,6 +1,6 @@
 {
   "name": "subtext",
-  "version": "0.1.51",
+  "version": "0.2.0",
   "description": "Tools that let coding agents verify and show their work against your running application",
   "author": {
     "name": "Subtext",

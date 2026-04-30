@@ -1,11 +1,25 @@
 ---
-name: subtext:sightmap
+name: sightmap
 description: Use when setting up the sight map (.sightmap/ YAML files) — defining components, views, requests, or other runtime semantics for the application. Also use when snapshot output shows generic a11y roles instead of meaningful names.
 ---
 
 # Sightmap
 
-The sight map defines the runtime model of your application — mapping CSS selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. There are three definition types:
+## Why this exists
+
+`sitemap.xml` tells search engines how to crawl your site. `.sightmap/` **teaches** agents how to use it.
+
+A `.sightmap/` directory at the project root is a small set of YAML files that name your app's views, components, and API routes — checked in alongside your code, learned from the running app, and read by every coding agent that touches the repo. Each definition can carry a `memory:` list: freeform notes about quirks, invariants, and shortcuts the source code doesn't record.
+
+What you get:
+
+- Snapshots and network traces show **semantic names** (`NavBar`, `CheckoutForm`, `FetchFlights`) instead of generic a11y roles (`navigation`, `region`, `generic`).
+- A `[Guide]` section at the top of every enriched snapshot surfaces the `memory:` entries on whatever components are visible — so the next agent picks up where the last one left off (auth gates, state quirks, validation rules).
+- The artifact is a few small YAML files in your repo. It travels with the code, works in any agent (Claude, Cursor, Codex, anything that reads files), and is curated incrementally as agents work — not authored up-front.
+
+## What you define
+
+The `.sightmap` maps selectors, URL patterns, and API routes to semantic names that agents and analytics tools share across sessions. Three definition types:
 
 - **Components** — map CSS selectors to semantic names (e.g., `NavBar`, `SearchBox`)
 - **Views** — map URL route patterns to screen names (e.g., `ProductDetail`, `UserSettings`)
@@ -86,6 +100,23 @@ uid=1_20 ProductCard, PromotedProduct "Cool Shoes" visible interactive
     - "[role='search']"
   ```
 - Children selectors are automatically scoped to parent subtree
+
+### Writing memory entries
+
+A memory entry should help the **next agent driving or reviewing the running app** understand what's on screen — *runtime behavior*, not source structure. Useful gut check: would this note show up usefully in the `[Guide]` of a snapshot the agent's about to interact with? If the answer requires holding the codebase in hand too, it belongs in source comments or `CLAUDE.md`, not here.
+
+**Good memory candidates:** stateful behavior (how toggles change the rendered UI), auth gates and credentials, form rules, multi-step interactions, runtime quirks.
+
+**Stay out of memory:** file paths, JSX/CSS patterns, style conventions, external doc references — all discoverable elsewhere or owned by other artifacts.
+
+Concrete — after editing a `Hero` component:
+
+```yaml
+- "Audience toggle re-renders all H1 copy between 'builders' and 'agents'"   # ✓ runtime
+- "Headline copy lives in the `copy` object as JSX with both variants"        # ✗ source structure
+- "H1 emphasis uses <em className='italic text-[var(--accent)]'>…</em>"       # ✗ implementation
+- "Positioning doc at src/.../current.md retires 'sight' language"            # ✗ external ref
+```
 
 ## Views
 
