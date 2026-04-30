@@ -1,5 +1,5 @@
 ---
-name: subtext:docs
+name: docs
 description: Proof document MCP tools for creating, updating, and closing agent work documentation. Use when tracking a bug fix, UX review, or changeset to produce a permanent, evidence-backed record.
 metadata:
   requires:
