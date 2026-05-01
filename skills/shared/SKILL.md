@@ -30,6 +30,7 @@ Tools within the subtext server are grouped by prefix:
 | `review-` | Session replay: `review-open`, `review-view`, `review-diff`, `review-close` |
 | `live-` | Browser automation: `live-connect`, `live-disconnect`, `live-view-*`, `live-act-*`, `live-log-*`, `live-net-*`, `live-tunnel`, `live-emulate`, `live-eval-script` |
 | `comment-` | Comments: `comment-add`, `comment-list`, `comment-reply`, `comment-resolve` |
+| `doc-` | Proof documents: `doc-create`, `doc-update`, `doc-attach`, `doc-close`, `doc-read`, `doc-diff`, `doc-list` |
 
 The **subtext-tunnel** MCP server (for the reverse tunnel client) is a separate stdio server with its own tool namespace.
 
