@@ -71,6 +71,10 @@ I'm connected to the app. Starting verification.
 
 Do NOT bury the link in a wall of text. It goes first, on its own line.
 
+### Polling discipline (Steps 3–6)
+
+While the trace is open, the human reviewer can leave comments or take browser control at any time. Between any two `live-*` calls in the loop below, call `live-signal` with the cursor saved from the previous call (omit `since` on the first call to baseline). New comments come back inline — read each, reply via `comment-reply` if it directs the work, and save the new `cursor`. The `operator` field on every response is the source of truth for control state. See `subtext:live` for the full response shape and operator-gate behavior.
+
 ### Step 3: Navigate to the affected area and capture BEFORE
 
 Drive the browser to the exact page/component/state where the change will be visible.
@@ -100,7 +104,7 @@ doc-attach(doc_id, section: "Changes", render_as: "link",
            label: {one-line description of what changed})
 ```
 
-If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry, and do not continue UI-facing work until control is returned. Backend changes that don't need visual verification can continue.
+If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry. Continue polling `live-signal`; when `operator` flips back to `agent`, resume UI-facing work. Backend changes that don't need visual verification can continue while you wait.
 
 ### Step 5: Verify the change with live tools
 
@@ -220,3 +224,28 @@ If the change affects more than one page or state:
 - **Requires:** `subtext:live` (browser tools, returns `trace_url`), `subtext:comments` (annotations), `subtext:docs` (proof document)
 - **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
 - **Triggers from:** any file edit to UI code, or when the user asks for a visual change
+
+## Async heartbeat (Claude Code only, optional)
+
+The polling discipline above keeps you in sync as long as you're actively
+calling `live-*` tools. Long idle gaps inside a proof run — multi-minute
+compilations, deep code work without browser tool calls, waiting on a build —
+can leave the agent unaware of comments or control changes that arrived during
+the gap.
+
+On Claude Code, schedule an async heartbeat with `/loop` to cover that case:
+
+```
+/loop 60s call live-signal with trace_id=<id> and the saved cursor;
+if signals[] is non-empty, summarize and route any actionable comments;
+if operator=human, note "user has control" and stop input actions.
+```
+
+60s is the floor on Claude Code's scheduler. Stop the loop before Step 7
+(`/loop` stop, or whatever your harness exposes) so async ticks don't
+interleave with the closing summary.
+
+**Other harnesses.** Cursor, Codex, opencode, Gemini CLI, and Open SWE don't
+expose an in-session scheduler equivalent to `/loop`. The in-context polling
+discipline above is the supported path on those harnesses; the idle-gap case
+isn't covered today and lands when the agent's next tool call fires.
