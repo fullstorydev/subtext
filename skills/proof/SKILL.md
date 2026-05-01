@@ -238,12 +238,23 @@ On Claude Code, schedule an async heartbeat with `/loop` to cover that case:
 ```
 /loop 60s call live-signal with trace_id=<id> and the saved cursor;
 if signals[] is non-empty, summarize and route any actionable comments;
-if operator=human, note "user has control" and stop input actions.
+if operator=human, note "user has control" and stop input actions;
+if signals=null and operator=agent for 5 consecutive ticks, call
+CronDelete <job_id> and report "idle, loop stopped".
 ```
 
 60s is the floor on Claude Code's scheduler. Stop the loop before Step 7
 (`/loop` stop, or whatever your harness exposes) so async ticks don't
 interleave with the closing summary.
+
+**Idle-stop is the unhappy-path equivalent.** The trailing clause keeps a
+forgotten loop from running all the way to its 7-day cron auto-expiry — if the
+agent loses context, gets reassigned, or just forgets to stop the loop at Step
+7, it self-terminates after ~5 quiet minutes (5 ticks × 60s) instead of polling
+into the void. Pass the scheduled job id into `<job_id>` at `/loop` time so the
+prompt can call `CronDelete` against itself. Tune the threshold for the task:
+5 is forgiving enough that brief AFK moments don't trigger it, short enough
+that a forgotten loop doesn't burn tokens overnight.
 
 **Other harnesses.** Cursor, Codex, opencode, Gemini CLI, and Open SWE don't
 expose an in-session scheduler equivalent to `/loop`. The in-context polling
