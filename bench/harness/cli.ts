@@ -89,7 +89,10 @@ Options:
       const maxSpend = parseFloat(process.env.LEARN_MAX_SPEND ?? '50');
       const patience = parseInt(process.env.LEARN_PATIENCE ?? '2', 10);
       const { resolve } = await import('node:path');
-      const repoRoot = resolve(import.meta.dirname, '..', '..');
+      // import.meta.dirname is build/harness/. Go up 3 to reach the repo
+      // root that contains bench/ — profile.sightmap_files paths are
+      // relative to there ("bench/apps/.sightmap/todo.yaml").
+      const repoRoot = resolve(import.meta.dirname, '..', '..', '..');
       const journalPath = resolve(repoRoot, 'bench', 'results', 'learn', `${scenarioId}-${profileId}-${new Date().toISOString().replace(/[:.]/g, '-')}.md`);
       const { runLearnLoop } = await import('./learn/loop.js');
       const s = await runLearnLoop({
