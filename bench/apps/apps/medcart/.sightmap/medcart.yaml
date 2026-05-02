@@ -1,66 +1,68 @@
+version: 1
+
 components:
   - name: Sidebar
-    selectors: [".sidebar"]
+    selector: [".sidebar"]
     source: components/Sidebar.tsx
     memory: ["App navigation sidebar with patient name and nav links"]
 
   - name: Dashboard
-    selectors: [".dashboard"]
+    selector: [".dashboard"]
     source: components/Dashboard.tsx
     memory: ["Main dashboard with patient summary, recent orders, medications, and support preview"]
 
   - name: PatientSummary
-    selectors: [".patient-summary"]
+    selector: [".patient-summary"]
     source: components/Dashboard.tsx
     memory: ["Card showing patient name, email, phone, DOB, and insurance info"]
 
   - name: ProfileForm
-    selectors: [".profile-card form"]
+    selector: [".profile-card form"]
     source: components/Profile.tsx
     memory: ["Editable form with first name, last name, email, phone, DOB, SSN, insurance provider, and member ID"]
 
   - name: OrderCard
-    selectors: [".order-card"]
+    selector: [".order-card"]
     source: components/Orders.tsx
     memory: ["Individual order with items, shipping address, phone, and tracking number"]
 
   - name: ShippingInfo
-    selectors: [".shipping-info"]
+    selector: [".shipping-info"]
     source: components/Orders.tsx
     memory: ["Shipping details block with recipient name, street address, phone, and tracking link"]
 
   - name: AddressCard
-    selectors: [".address-card"]
+    selector: [".address-card"]
     source: components/Addresses.tsx
     memory: ["Saved address with recipient name, street address, city/state/zip, and phone"]
 
   - name: AddressForm
-    selectors: [".address-form"]
+    selector: [".address-form"]
     source: components/Addresses.tsx
     memory: ["Form for adding a new address with label, recipient name, phone, street, apt, city, state, zip"]
 
   - name: PaymentCard
-    selectors: [".payment-card"]
+    selector: [".payment-card"]
     source: components/Payments.tsx
     memory: ["Credit card display with masked card number, cardholder name, and expiry date"]
 
   - name: MedicalRecord
-    selectors: [".record-card"]
+    selector: [".record-card"]
     source: components/Records.tsx
     memory: ["Medical record with date, facility, provider name, NPI, diagnosis, and medications"]
 
   - name: ClinicalNotes
-    selectors: [".record-notes"]
+    selector: [".record-notes"]
     source: components/Records.tsx
     memory: ["Clinical notes containing patient name, DOB, SSN fragments, insurance IDs, and medical details"]
 
   - name: ChatLayout
-    selectors: [".chat-layout"]
+    selector: [".chat-layout"]
     source: components/Chat.tsx
     memory: ["Split-pane chat UI with thread list on left and message view on right"]
 
   - name: ChatMessage
-    selectors: [".message"]
+    selector: [".message"]
     source: components/Chat.tsx
     memory: ["Individual chat message bubble — may contain names, addresses, phone numbers, SSN, insurance IDs, Rx numbers, card numbers"]
 
