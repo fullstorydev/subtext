@@ -87,6 +87,12 @@ export class ClaudeMcpRunner implements Runner {
         // MCP tool call. The bench runs in a controlled sandbox against
         // local apps; skipping permission prompts is appropriate here.
         '--dangerously-skip-permissions',
+        // Restrict the agent to MCP tools only. Without this the agent has
+        // access to Bash/Read/Edit/Write and we observed it editing the
+        // bench-app source files during scenarios — contaminating the test
+        // and biasing results. The bench is a benchmark of browser-driving
+        // tools; the agent should drive the browser, not the codebase.
+        '--allowedTools', 'mcp__*',
         '--system-prompt', systemPrompt,
         '--max-budget-usd', String(scenario.max_budget ?? config.max_budget),
       ], {
@@ -213,6 +219,8 @@ export function parseClaudeOutput(output: string): {
   turns: number;
   inputTokens: number;
   outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
   actionTimeMs: number;
   llmTimeMs: number;
   errorCount: number;
@@ -223,8 +231,15 @@ export function parseClaudeOutput(output: string): {
   // Parse stream-json lines
   const lines = output.split('\n').filter(l => l.trim());
   let turns = 0;
+  // Sum token usage across every assistant turn. The terminal `result` event
+  // sometimes reports the LAST turn's input_tokens (not the session total),
+  // which under-reports drastically on cache-heavy runs (we saw 108 tokens
+  // for a 91-turn run that actually cost $0.55). Per-turn summation gives
+  // the true session totals.
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheReadTokens = 0;
+  let cacheCreationTokens = 0;
   let errorCount = 0;
   let costUsd = 0;
   const steps: StepMetrics[] = [];
@@ -234,18 +249,29 @@ export function parseClaudeOutput(output: string): {
       const event = JSON.parse(line);
       if (event.type === 'assistant') {
         turns++;
+        const usage = event.message?.usage;
+        if (usage) {
+          inputTokens += usage.input_tokens ?? 0;
+          outputTokens += usage.output_tokens ?? 0;
+          cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+          cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
+        }
       }
       if (event.type === 'result') {
-        // claude --print stream-json puts the rollup token counts under
-        // `usage` on the terminal `result` event. Older versions had
-        // top-level `input_tokens`/`output_tokens`; keep those as a fallback.
-        inputTokens = event.usage?.input_tokens ?? event.input_tokens ?? 0;
-        outputTokens = event.usage?.output_tokens ?? event.output_tokens ?? 0;
         // total_cost_usd is the agent's cumulative spend across the
         // session (includes cache reads/writes, model calls). Trust it
         // verbatim — Claude CLI computes it.
         if (typeof event.total_cost_usd === 'number') {
           costUsd = event.total_cost_usd;
+        }
+        // Fallback path for older stream-json schemas where assistant
+        // events didn't carry usage. Only use the result event's counts
+        // when we got nothing from the per-turn pass.
+        if (inputTokens === 0 && outputTokens === 0) {
+          inputTokens = event.usage?.input_tokens ?? event.input_tokens ?? 0;
+          outputTokens = event.usage?.output_tokens ?? event.output_tokens ?? 0;
+          cacheReadTokens = event.usage?.cache_read_input_tokens ?? 0;
+          cacheCreationTokens = event.usage?.cache_creation_input_tokens ?? 0;
         }
       }
       if (event.type === 'tool_result' && event.is_error) {
@@ -260,6 +286,8 @@ export function parseClaudeOutput(output: string): {
     turns,
     inputTokens,
     outputTokens,
+    cacheReadTokens,
+    cacheCreationTokens,
     actionTimeMs: 0,  // TODO: extract from tool timing
     llmTimeMs: 0,     // TODO: extract from API timing
     errorCount,

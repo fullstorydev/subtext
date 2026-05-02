@@ -25,6 +25,7 @@ Usage:
   bench list                          List scenarios and profiles
   bench run <scenario> [--profile p]  Run a single scenario
   bench suite <suite-id>              Run all scenarios in a suite
+  bench learn <scenario> --profile p  Autoresearch loop: friction → propose → apply → re-run
   bench compare                       Compare latest run against baseline
   bench baseline pin|show             Pin or show baseline
   bench optimize [--iterations N]     Auto-optimize loop
@@ -74,6 +75,38 @@ Options:
       console.log(`Running suite "${suiteId}": ${suite.scenarios.length} scenarios`);
       const { runSuite } = await import('./orchestrator.js');
       await runSuite(suiteId, config);
+      break;
+    }
+
+    case 'learn': {
+      const scenarioId = args[0];
+      if (!scenarioId) {
+        console.error('Usage: bench learn <scenario-id> --profile <id> [--max-iters N] [--max-spend $X] [--patience N]');
+        process.exit(1);
+      }
+      const profileId = values.profile ?? 'sightmap-mcp';
+      const maxIters = parseInt(values.iterations ?? '5', 10);
+      const maxSpend = parseFloat(process.env.LEARN_MAX_SPEND ?? '50');
+      const patience = parseInt(process.env.LEARN_PATIENCE ?? '2', 10);
+      const { resolve } = await import('node:path');
+      const repoRoot = resolve(import.meta.dirname, '..', '..');
+      const journalPath = resolve(repoRoot, 'bench', 'results', 'learn', `${scenarioId}-${profileId}-${new Date().toISOString().replace(/[:.]/g, '-')}.md`);
+      const { runLearnLoop } = await import('./learn/loop.js');
+      const s = await runLearnLoop({
+        scenarioId,
+        profileId,
+        maxIters,
+        maxSpendUsd: maxSpend,
+        patience,
+        repoRoot,
+        journalPath,
+      });
+      console.log('');
+      console.log('━'.repeat(72));
+      console.log(`Autoresearch complete: ${s.iterations.length} iteration(s), spend $${s.totalSpendUsd.toFixed(2)}`);
+      console.log(`  Baseline score: ${s.baseline.score.toFixed(2)}  →  Final score: ${s.final.score.toFixed(2)}`);
+      console.log(`  Accepted edits: ${s.acceptedEdits.length}`);
+      console.log(`  Journal: ${journalPath}`);
       break;
     }
 

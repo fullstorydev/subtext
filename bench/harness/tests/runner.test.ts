@@ -77,19 +77,41 @@ describe('parseClaudeOutput', () => {
     assert.strictEqual(result.turns, 1);
   });
 
-  it('extracts tokens from result.usage (current claude --print schema)', () => {
+  it('sums tokens across assistant events (per-turn schema)', () => {
     const output = [
-      '{"type":"assistant","content":"first"}',
-      '{"type":"assistant","content":"second"}',
-      '{"type":"result","usage":{"input_tokens":187,"output_tokens":30781,"cache_read_input_tokens":3135540}}',
+      JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 50, output_tokens: 200 } } }),
+      JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 30, output_tokens: 150 } } }),
+      JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 20, output_tokens: 100 } } }),
+      JSON.stringify({ type: 'result', usage: { input_tokens: 20, output_tokens: 100 } }),
     ].join('\n');
     const result = parseClaudeOutput(output);
-    assert.strictEqual(result.turns, 2);
-    assert.strictEqual(result.inputTokens, 187);
-    assert.strictEqual(result.outputTokens, 30781);
+    assert.strictEqual(result.turns, 3);
+    // Per-turn sum: 50+30+20=100 input, 200+150+100=450 output. NOT 20/100
+    // (which is what reading result.usage alone would give — that's just
+    // the LAST turn's input_tokens, not the session total).
+    assert.strictEqual(result.inputTokens, 100);
+    assert.strictEqual(result.outputTokens, 450);
   });
 
-  it('falls back to top-level input_tokens for legacy result events', () => {
+  it('also sums cache_read and cache_creation tokens per turn', () => {
+    const output = [
+      JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 5, output_tokens: 100, cache_read_input_tokens: 1000, cache_creation_input_tokens: 500 } } }),
+      JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 5, output_tokens: 200, cache_read_input_tokens: 2000, cache_creation_input_tokens: 0 } } }),
+    ].join('\n');
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.cacheReadTokens, 3000);
+    assert.strictEqual(result.cacheCreationTokens, 500);
+  });
+
+  it('falls back to result.usage when no assistant usage is present (legacy)', () => {
+    const output = '{"type":"result","usage":{"input_tokens":100,"output_tokens":200,"cache_read_input_tokens":50}}';
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.inputTokens, 100);
+    assert.strictEqual(result.outputTokens, 200);
+    assert.strictEqual(result.cacheReadTokens, 50);
+  });
+
+  it('falls back to top-level input_tokens for very old result events', () => {
     const output = '{"type":"result","input_tokens":100,"output_tokens":200}';
     const result = parseClaudeOutput(output);
     assert.strictEqual(result.inputTokens, 100);
