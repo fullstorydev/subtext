@@ -7,7 +7,9 @@ mcp_config: |
         "args": [
           "/Users/chip/src/sightmap/sightmap-js/packages/mcp/dist/cli.js",
           "--sightmap-dir", "{{REPO_ROOT}}/bench/apps/.sightmap",
-          "--sightmap-dir", "{{REPO_ROOT}}/bench/apps/apps/medcart/.sightmap"
+          "--sightmap-dir", "{{REPO_ROOT}}/bench/apps/apps/medcart/.sightmap",
+          "--",
+          "-y", "@playwright/mcp@latest", "--isolated"
         ]
       }
     }
