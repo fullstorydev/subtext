@@ -70,24 +70,38 @@ export function formatComparison(comparison: Comparison): string {
   return lines.join('\n');
 }
 
-export function formatSingleRun(
-  scenarioId: string,
-  profileId: string,
-  score: number,
-  turns: number,
-  totalTokens: number,
-  wallTimeMs: number,
-  errorCount: number,
-): string {
+export interface SingleRunSummary {
+  scenarioId: string;
+  profileId: string;
+  score: number;
+  turns: number;
+  totalTokens: number;
+  wallTimeMs: number;
+  errorCount: number;
+  agentCostUsd: number;
+  judgeCostUsd: number;
+  timedOut: boolean;
+}
+
+export function formatSingleRun(s: SingleRunSummary): string {
   const lines: string[] = [];
-  lines.push(`\u2501\u2501\u2501 ${scenarioId} \u00d7 ${profileId} \u2501\u2501\u2501`);
-  lines.push(`Score:      ${score.toFixed(2)}`);
-  lines.push(`Turns:      ${turns}`);
-  lines.push(`Tokens:     ${totalTokens.toLocaleString()}`);
-  lines.push(`Wall time:  ${formatTime(wallTimeMs)}`);
-  lines.push(`Errors:     ${errorCount}`);
+  const tag = s.timedOut ? ' [TIMED OUT]' : '';
+  lines.push(`\u2501\u2501\u2501 ${s.scenarioId} \u00d7 ${s.profileId}${tag} \u2501\u2501\u2501`);
+  lines.push(`Score:      ${s.score.toFixed(2)}`);
+  lines.push(`Turns:      ${s.turns}`);
+  lines.push(`Tokens:     ${s.totalTokens.toLocaleString()}`);
+  lines.push(`Wall time:  ${formatTime(s.wallTimeMs)}`);
+  lines.push(`Errors:     ${s.errorCount}`);
+  const totalCost = s.agentCostUsd + s.judgeCostUsd;
+  lines.push(`Cost:       ${formatCost(totalCost)} (agent ${formatCost(s.agentCostUsd)} + judge ${formatCost(s.judgeCostUsd)})`);
   lines.push('\u2501'.repeat(32));
   return lines.join('\n');
+}
+
+function formatCost(usd: number): string {
+  if (usd === 0) return '$0';
+  if (usd < 0.01) return `<$0.01`;
+  return `$${usd.toFixed(2)}`;
 }
 
 function pad(s: string, width: number): string {

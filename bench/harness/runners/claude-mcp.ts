@@ -63,6 +63,7 @@ export class ClaudeMcpRunner implements Runner {
     const agentLogPath = join(outDir, 'agent.log');
     const startTime = Date.now();
 
+    let timedOut = false;
     const result = await new Promise<string>((resolvePromise, reject) => {
       const proc = spawn('claude', [
         '--print',
@@ -129,13 +130,27 @@ export class ClaudeMcpRunner implements Runner {
         }
       });
 
-      // Timeout
+      // Timeout. On timeout we DON'T reject — we kill the subprocess,
+      // flush the partial output to disk, and resolve with what we
+      // captured. The orchestrator can still call the judge (which will
+      // typically score 0 because the task didn't complete) and we
+      // preserve cost + tool-distribution signal that would otherwise
+      // be lost. The result carries `timed_out: true` for downstream.
       const timeoutMs = parseTimeout(scenario.timeout ?? config.timeout);
       const timer = setTimeout(() => {
         if (!settled) {
           settled = true;
+          timedOut = true;
           proc.kill('SIGTERM');
-          reject(new Error(`Timeout after ${timeoutMs}ms`));
+          // Give the kernel a moment to flush stdout before we read it.
+          setTimeout(() => {
+            writeFileSync(agentLogPath, output);
+            const stderrSummary = stderr
+              ? stderr + `\n\n[bench] Timed out after ${timeoutMs}ms; agent process killed.\n`
+              : `[bench] Timed out after ${timeoutMs}ms; agent process killed.\n`;
+            writeFileSync(join(outDir, 'agent.stderr.log'), stderrSummary);
+            resolvePromise(output);
+          }, 250);
         }
       }, timeoutMs);
     });
@@ -166,6 +181,9 @@ export class ClaudeMcpRunner implements Runner {
       error_count: metrics.errorCount,
       recovery_turns: metrics.recoveryTurns,
       steps: metrics.steps,
+      agent_cost_usd: metrics.costUsd,
+      judge_cost_usd: 0,  // Filled by judge
+      timed_out: timedOut,
       judge_reasoning: '',  // Filled by judge
       agent_log_path: agentLogPath,
     };
@@ -200,6 +218,7 @@ export function parseClaudeOutput(output: string): {
   errorCount: number;
   recoveryTurns: number;
   steps: StepMetrics[];
+  costUsd: number;
 } {
   // Parse stream-json lines
   const lines = output.split('\n').filter(l => l.trim());
@@ -207,6 +226,7 @@ export function parseClaudeOutput(output: string): {
   let inputTokens = 0;
   let outputTokens = 0;
   let errorCount = 0;
+  let costUsd = 0;
   const steps: StepMetrics[] = [];
 
   for (const line of lines) {
@@ -221,6 +241,12 @@ export function parseClaudeOutput(output: string): {
         // top-level `input_tokens`/`output_tokens`; keep those as a fallback.
         inputTokens = event.usage?.input_tokens ?? event.input_tokens ?? 0;
         outputTokens = event.usage?.output_tokens ?? event.output_tokens ?? 0;
+        // total_cost_usd is the agent's cumulative spend across the
+        // session (includes cache reads/writes, model calls). Trust it
+        // verbatim — Claude CLI computes it.
+        if (typeof event.total_cost_usd === 'number') {
+          costUsd = event.total_cost_usd;
+        }
       }
       if (event.type === 'tool_result' && event.is_error) {
         errorCount++;
@@ -239,6 +265,7 @@ export function parseClaudeOutput(output: string): {
     errorCount,
     recoveryTurns: 0, // TODO: detect recovery patterns
     steps,
+    costUsd,
   };
 }
 

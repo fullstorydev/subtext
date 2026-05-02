@@ -16,6 +16,37 @@ export interface JudgeResult {
   score: number;
   reasoning: string;
   criteria?: Array<{ criterion: string; passed: boolean; reason: string }>;
+  costUsd: number;
+}
+
+/**
+ * Anthropic API pricing in USD per million tokens, as of 2026-05.
+ * Used to compute judge call cost from the SDK's usage field.
+ */
+const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
+  // Haiku 4.5
+  'claude-haiku-4-5-20251001': { input: 1.0, output: 5.0, cacheRead: 0.1, cacheWrite: 1.25 },
+  // Sonnet 4.6
+  'claude-sonnet-4-6': { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  // Opus 4.6
+  'claude-opus-4-6': { input: 15.0, output: 75.0, cacheRead: 1.5, cacheWrite: 18.75 },
+};
+
+export function computeJudgeCost(modelId: string, usage: {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+}): number {
+  const p = PRICING_USD_PER_MTOK[modelId];
+  if (!p) return 0;  // Unknown model — don't make up numbers.
+  const inT = usage.input_tokens ?? 0;
+  const outT = usage.output_tokens ?? 0;
+  const crT = usage.cache_read_input_tokens ?? 0;
+  const cwT = usage.cache_creation_input_tokens ?? 0;
+  const cost =
+    (inT * p.input + outT * p.output + crT * p.cacheRead + cwT * p.cacheWrite) / 1_000_000;
+  return cost;
 }
 
 export async function judgeRun(
@@ -77,7 +108,15 @@ Score this run from 0.0 to 1.0. Return JSON:
   });
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '';
-  return parseJudgeResponse(text);
+  const parsed = parseJudgeResponse(text);
+  // Attach the computed cost. The SDK returns usage on every message.
+  parsed.costUsd = computeJudgeCost(modelId, response.usage as unknown as {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  });
+  return parsed;
 }
 
 export function parseJudgeResponse(text: string): JudgeResult {
@@ -91,6 +130,7 @@ export function parseJudgeResponse(text: string): JudgeResult {
       score: typeof parsed.score === 'number' ? Math.max(0, Math.min(1, parsed.score)) : 0,
       reasoning: parsed.reasoning ?? '',
       criteria: parsed.criteria,
+      costUsd: 0,
     };
   } catch {
     // If JSON parse fails, try to extract score from the text
@@ -98,6 +138,7 @@ export function parseJudgeResponse(text: string): JudgeResult {
     return {
       score: scoreMatch ? Math.max(0, Math.min(1, parseFloat(scoreMatch[1]))) : 0,
       reasoning: text,
+      costUsd: 0,
     };
   }
 }

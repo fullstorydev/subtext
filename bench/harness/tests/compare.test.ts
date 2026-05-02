@@ -27,6 +27,9 @@ function makeResult(overrides: Partial<RunResult> = {}): RunResult {
     steps: [],
     judge_reasoning: 'Good',
     agent_log_path: '/tmp/test.log',
+    agent_cost_usd: 0,
+    judge_cost_usd: 0,
+    timed_out: false,
     ...overrides,
   };
 }
@@ -116,14 +119,43 @@ describe('formatComparison', () => {
 });
 
 describe('formatSingleRun', () => {
-  it('formats a single run summary', () => {
-    const output = formatSingleRun('todo-001', 'playwright-mcp', 0.9, 15, 25000, 60000, 1);
+  it('formats a single run summary with costs', () => {
+    const output = formatSingleRun({
+      scenarioId: 'todo-001',
+      profileId: 'playwright-mcp',
+      score: 0.9,
+      turns: 15,
+      totalTokens: 25000,
+      wallTimeMs: 60000,
+      errorCount: 1,
+      agentCostUsd: 0.42,
+      judgeCostUsd: 0.003,
+      timedOut: false,
+    });
     assert.ok(output.includes('todo-001'));
     assert.ok(output.includes('playwright-mcp'));
     assert.ok(output.includes('0.90'));
     assert.ok(output.includes('15'));
     assert.ok(output.includes('1.0m'));
-    assert.ok(output.includes('1'));
+    assert.ok(output.includes('$0.42'));
+    assert.ok(output.includes('Cost:'));
+  });
+
+  it('flags timed-out runs in the summary header', () => {
+    const output = formatSingleRun({
+      scenarioId: 'medcart-002',
+      profileId: 'sightmap-mcp',
+      score: 0,
+      turns: 30,
+      totalTokens: 12000,
+      wallTimeMs: 600000,
+      errorCount: 0,
+      agentCostUsd: 1.5,
+      judgeCostUsd: 0.005,
+      timedOut: true,
+    });
+    assert.ok(output.includes('TIMED OUT'));
+    assert.ok(output.includes('$1.50'));
   });
 });
 

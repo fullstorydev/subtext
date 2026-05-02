@@ -20,26 +20,32 @@ sightmap_files:
   - bench/apps/.sightmap/topwork.yaml
   - bench/apps/apps/medcart/.sightmap/medcart.yaml
 prompt_insert: |
-  Use the `sightmap` MCP tools for all browser interaction. They wrap
-  the standard @playwright/mcp surface and add sightmap awareness:
+  Use the `sightmap` MCP tools for ALL browser interaction. They wrap
+  @playwright/mcp and add sightmap awareness on top:
 
   - `sightmap_match(url)`: planning query — returns the matched view
     name, applicable components (with their selectors and memory), and
     page memory for any URL. Use BEFORE navigating to learn what to
-    expect.
-  - `sightmap_snapshot()`: returns the upstream ARIA snapshot enriched
-    with sightmap component names attached, plus matchCount per
-    component (so you know how many instances exist on the current
-    page) and each component's memory. Prefer this over browser_snapshot.
-  - `sightmap_act(componentName, action, [text], [submit], [instance])`:
-    semantic action — "click on AddToCartButton" instead of "click on
-    ref e7". Resolves the component to a CSS selector, tags the Nth
-    match, and dispatches via the upstream's selector-based action.
-    Use `instance` (zero-based) to disambiguate when matchCount > 1.
+    expect on a page.
+  - `sightmap_snapshot()`: returns the page's ARIA tree enriched with
+    sightmap component names + per-component matchCount + memory. Use
+    this for every "what's on the page now" check — it's strictly more
+    informative than a raw snapshot.
+  - `sightmap_act(componentName | selector, action, ...)`: the canonical
+    way to click, type, or hover. `action` ∈ {click, type, hover}.
+    Pass `componentName` for a sightmap-named element (preferred); pass
+    a raw `selector` only when nothing in the sightmap fits. To
+    disambiguate among multiple matches, pass `containingText: "X"` to
+    pick the one whose visible text contains X (case-insensitive), or
+    `instance: N` for the Nth match (zero-based). Required: `text` for
+    `action='type'`.
   - `sightmap_network_requests([static], [filter])`: returns recent
     network calls annotated with sightmap names + memory where they
-    match a sightmap `requests:` entry.
+    match a `requests:` entry.
 
-  All standard browser_* tools (browser_navigate, browser_click, etc.)
-  are still available as a fallback for things outside the sightmap.
+  Other browser_* tools (browser_navigate, browser_evaluate,
+  browser_press_key, browser_select_option, browser_take_screenshot,
+  browser_wait_for, ...) are available for things sightmap_act doesn't
+  cover. Do NOT reach for browser_run_code_unsafe to dispatch clicks or
+  fills — sightmap_act with a `selector` is always preferable.
 tags: [mcp, sightmap, oss]

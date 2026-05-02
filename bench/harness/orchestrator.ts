@@ -31,20 +31,24 @@ export async function runSingle(
   const judgeResult = await judgeRun(result, scenario, agentOutput, config.judge_model);
   result.score = judgeResult.score;
   result.judge_reasoning = judgeResult.reasoning;
+  result.judge_cost_usd = judgeResult.costUsd;
 
   // Save
   saveResult(result);
 
   // Print summary
-  console.log(formatSingleRun(
+  console.log(formatSingleRun({
     scenarioId,
     profileId,
-    result.score,
-    result.turns,
-    result.total_tokens,
-    result.wall_time_ms,
-    result.error_count,
-  ));
+    score: result.score,
+    turns: result.turns,
+    totalTokens: result.total_tokens,
+    wallTimeMs: result.wall_time_ms,
+    errorCount: result.error_count,
+    agentCostUsd: result.agent_cost_usd,
+    judgeCostUsd: result.judge_cost_usd,
+    timedOut: result.timed_out,
+  }));
 
   return result;
 }

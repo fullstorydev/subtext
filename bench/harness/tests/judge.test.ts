@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseJudgeResponse, digestAgentOutput } from '../judge.js';
+import { parseJudgeResponse, digestAgentOutput, computeJudgeCost } from '../judge.js';
 
 describe('parseJudgeResponse', () => {
   it('parses valid JSON response', () => {
@@ -125,5 +125,38 @@ describe('digestAgentOutput', () => {
     const digest = digestAgentOutput(log, 50_000);
     assert.match(digest, /FINAL_MARKER_TEXT/);
     assert.ok(digest.length <= 50_000, `digest must respect maxLen, got ${digest.length}`);
+  });
+});
+
+describe('computeJudgeCost', () => {
+  it('prices a haiku call from input + output tokens', () => {
+    // Haiku 4.5: $1 / $5 per Mtok
+    const cost = computeJudgeCost('claude-haiku-4-5-20251001', {
+      input_tokens: 1_000,
+      output_tokens: 1_000,
+    });
+    // 1000 * (1 + 5) / 1e6 = 0.006
+    assert.strictEqual(Number(cost.toFixed(4)), 0.006);
+  });
+
+  it('prices cache reads/writes at the discounted rate', () => {
+    // Haiku: cache_read 0.10, cache_write 1.25 per Mtok
+    const cost = computeJudgeCost('claude-haiku-4-5-20251001', {
+      cache_read_input_tokens: 100_000,
+      cache_creation_input_tokens: 100_000,
+    });
+    // 100k * 0.10 / 1e6 + 100k * 1.25 / 1e6 = 0.01 + 0.125 = 0.135
+    assert.strictEqual(Number(cost.toFixed(4)), 0.135);
+  });
+
+  it('returns 0 for an unknown model rather than guessing', () => {
+    const cost = computeJudgeCost('claude-some-future-model', {
+      input_tokens: 999_999_999,
+    });
+    assert.strictEqual(cost, 0);
+  });
+
+  it('handles missing fields gracefully', () => {
+    assert.strictEqual(computeJudgeCost('claude-haiku-4-5-20251001', {}), 0);
   });
 });

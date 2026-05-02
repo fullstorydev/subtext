@@ -69,6 +69,12 @@ export interface RunResult {
   judge_reasoning: string;
   agent_log_path: string;
   screenshot_path?: string;
+  /** Cost the agent run reported via the result event's `total_cost_usd`. */
+  agent_cost_usd: number;
+  /** Cost of the LLM judge call, computed from its usage at current pricing. */
+  judge_cost_usd: number;
+  /** True when the agent process was killed by the runner's timeout. */
+  timed_out: boolean;
 }
 
 export interface ComparisonRow {

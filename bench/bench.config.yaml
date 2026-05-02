@@ -1,6 +1,9 @@
 model: sonnet
 judge_model: haiku
-timeout: 10m
+# 15m: the original 10m default was tripping on the longer scenarios
+# (medcart-002, topwork-002, topwork-003) where the agent reaches step
+# 5+ but doesn't finish. Each scenario can still override.
+timeout: 15m
 max_budget: 3
 app_port: 5173
 app_base_url: http://localhost:5173

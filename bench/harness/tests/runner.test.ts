@@ -95,6 +95,18 @@ describe('parseClaudeOutput', () => {
     assert.strictEqual(result.inputTokens, 100);
     assert.strictEqual(result.outputTokens, 200);
   });
+
+  it('extracts total_cost_usd from the result event', () => {
+    const output = '{"type":"result","total_cost_usd":0.4267,"usage":{"input_tokens":100,"output_tokens":2000}}';
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.costUsd, 0.4267);
+  });
+
+  it('returns 0 cost when result event has no total_cost_usd', () => {
+    const output = '{"type":"result","usage":{"input_tokens":100,"output_tokens":2000}}';
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.costUsd, 0);
+  });
 });
 
 describe('buildPrompt', () => {
