@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseJudgeResponse } from '../judge.js';
+import { parseJudgeResponse, digestAgentOutput } from '../judge.js';
 
 describe('parseJudgeResponse', () => {
   it('parses valid JSON response', () => {
@@ -58,5 +58,72 @@ describe('judgeRun', () => {
   it('module exports judgeRun function', async () => {
     const { judgeRun } = await import('../judge.js');
     assert.ok(typeof judgeRun === 'function');
+  });
+});
+
+describe('digestAgentOutput', () => {
+  it('extracts the final result text and tool counts', () => {
+    const log = [
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'text', text: 'Step 1: navigating' },
+            { type: 'tool_use', name: 'mcp__sightmap__sightmap_match', input: {} },
+          ],
+        },
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [{ type: 'tool_use', name: 'mcp__sightmap__browser_click', input: {} }],
+        },
+      }),
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [{ type: 'tool_use', name: 'mcp__sightmap__browser_click', input: {} }],
+        },
+      }),
+      JSON.stringify({
+        type: 'result',
+        result: 'Final state: 5 active items, no completed items. Done!',
+      }),
+    ].join('\n');
+
+    const digest = digestAgentOutput(log, 50_000);
+    assert.match(digest, /Final state: 5 active items/);
+    assert.match(digest, /sightmap_match: 1/);
+    assert.match(digest, /browser_click: 2/);
+    assert.match(digest, /Tool errors: 0/);
+    assert.match(digest, /Step 1: navigating/);
+  });
+
+  it('counts tool errors from user/tool_result events', () => {
+    const log = [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'X', input: {} }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', is_error: true, content: 'oops' }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', is_error: true, content: 'oops' }] } }),
+      JSON.stringify({ type: 'result', result: 'done' }),
+    ].join('\n');
+    const digest = digestAgentOutput(log, 50_000);
+    assert.match(digest, /Tool errors: 2/);
+  });
+
+  it('returns empty string when no JSON parses (caller falls back)', () => {
+    const log = 'not valid json\nmore garbage\n';
+    assert.strictEqual(digestAgentOutput(log, 50_000), '');
+  });
+
+  it('keeps the final result in full even when narration is huge', () => {
+    const giantText = 'x'.repeat(40_000);
+    const log = [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: giantText }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: giantText }] } }),
+      JSON.stringify({ type: 'result', result: 'FINAL_MARKER_TEXT' }),
+    ].join('\n');
+    const digest = digestAgentOutput(log, 50_000);
+    assert.match(digest, /FINAL_MARKER_TEXT/);
+    assert.ok(digest.length <= 50_000, `digest must respect maxLen, got ${digest.length}`);
   });
 });

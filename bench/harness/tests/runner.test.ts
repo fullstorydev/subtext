@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getRunner } from '../runner.js';
-import { parseClaudeOutput, parseTimeout, buildPrompt } from '../runners/claude-mcp.js';
+import { parseClaudeOutput, parseTimeout, buildPrompt, applyTemplate } from '../runners/claude-mcp.js';
 import type { Scenario, Profile, BenchConfig } from '../types.js';
 
 describe('getRunner', () => {
@@ -76,6 +76,25 @@ describe('parseClaudeOutput', () => {
     const result = parseClaudeOutput(output);
     assert.strictEqual(result.turns, 1);
   });
+
+  it('extracts tokens from result.usage (current claude --print schema)', () => {
+    const output = [
+      '{"type":"assistant","content":"first"}',
+      '{"type":"assistant","content":"second"}',
+      '{"type":"result","usage":{"input_tokens":187,"output_tokens":30781,"cache_read_input_tokens":3135540}}',
+    ].join('\n');
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.turns, 2);
+    assert.strictEqual(result.inputTokens, 187);
+    assert.strictEqual(result.outputTokens, 30781);
+  });
+
+  it('falls back to top-level input_tokens for legacy result events', () => {
+    const output = '{"type":"result","input_tokens":100,"output_tokens":200}';
+    const result = parseClaudeOutput(output);
+    assert.strictEqual(result.inputTokens, 100);
+    assert.strictEqual(result.outputTokens, 200);
+  });
 });
 
 describe('buildPrompt', () => {
@@ -108,6 +127,30 @@ describe('buildPrompt', () => {
     assert.ok(prompt.includes('http://localhost:9999/apps/todo/'), 'First occurrence should be replaced');
     assert.ok(prompt.includes('http://localhost:9999/other'), 'Second occurrence should be replaced');
     assert.ok(!prompt.includes('{{app_base_url}}'), 'No template variables should remain');
+  });
+});
+
+describe('applyTemplate', () => {
+  it('replaces single occurrences of named variables', () => {
+    const out = applyTemplate('hello {{name}}', { name: 'world' });
+    assert.strictEqual(out, 'hello world');
+  });
+
+  it('replaces all occurrences of the same variable', () => {
+    const out = applyTemplate('{{x}}-{{x}}-{{x}}', { x: 'a' });
+    assert.strictEqual(out, 'a-a-a');
+  });
+
+  it('replaces REPO_ROOT in mcp_config-style strings', () => {
+    const tpl = '{"args":["--dir","{{REPO_ROOT}}/bench/apps/.sightmap"]}';
+    const out = applyTemplate(tpl, { REPO_ROOT: '/abs/path/to/repo' });
+    assert.strictEqual(out, '{"args":["--dir","/abs/path/to/repo/bench/apps/.sightmap"]}');
+    assert.ok(!out.includes('{{REPO_ROOT}}'), 'placeholder should be gone');
+  });
+
+  it('leaves unknown placeholders untouched', () => {
+    const out = applyTemplate('{{a}} and {{b}}', { a: '1' });
+    assert.strictEqual(out, '1 and {{b}}');
   });
 });
 

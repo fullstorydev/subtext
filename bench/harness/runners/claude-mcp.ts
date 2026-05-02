@@ -11,6 +11,19 @@ import type { Profile, Scenario, RunResult, BenchConfig, StepMetrics } from '../
 
 const RESULTS_DIR = resolve(import.meta.dirname, '../../../results/runs');
 
+// Repo root = parent of bench/. Profiles can use `{{REPO_ROOT}}` in their
+// mcp_config string to reference paths inside the repo (e.g. for sightmap
+// dirs under bench/apps/) without hard-coding absolute paths.
+const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
+
+export function applyTemplate(text: string, vars: Record<string, string>): string {
+  let out = text;
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.replaceAll(`{{${k}}}`, v);
+  }
+  return out;
+}
+
 export class ClaudeMcpRunner implements Runner {
   async run(scenario: Scenario, profile: Profile, config: BenchConfig): Promise<RunResult> {
     const runId = `${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -18,9 +31,15 @@ export class ClaudeMcpRunner implements Runner {
     const outDir = join(RESULTS_DIR, specId, runId);
     mkdirSync(outDir, { recursive: true });
 
-    // Write MCP config to temp file
+    // Write MCP config to temp file. Profiles may template `{{REPO_ROOT}}`
+    // and `{{app_base_url}}` inside their mcp_config string; expand those
+    // before writing so the spawned MCP server gets real paths/URLs.
     const mcpConfigPath = join(outDir, 'mcp-config.json');
-    writeFileSync(mcpConfigPath, profile.mcp_config ?? '{}');
+    const mcpConfigText = applyTemplate(profile.mcp_config ?? '{}', {
+      REPO_ROOT,
+      app_base_url: config.app_base_url,
+    });
+    writeFileSync(mcpConfigPath, mcpConfigText);
 
     // Build the prompt
     const prompt = buildPrompt(scenario, profile, config);
@@ -50,6 +69,23 @@ export class ClaudeMcpRunner implements Runner {
         '--model', model,
         '--mcp-config', mcpConfigPath,
         '--output-format', 'stream-json',
+        // --output-format stream-json now requires --verbose under --print
+        // (claude CLI ≥ 2.1). The parser ignores non-JSON lines, so this
+        // doesn't affect metric extraction.
+        '--verbose',
+        // Bench isolation: --bare strips the host's hooks, plugins, skills,
+        // CLAUDE.md auto-discovery, and auto-memory so the spawned agent
+        // doesn't inherit the developer's local Claude Code session
+        // (Subtext, Notion, etc.). --strict-mcp-config makes sure ONLY the
+        // profile's MCP servers are available. Without these, scores are
+        // contaminated by whatever's installed on the host.
+        '--bare',
+        '--strict-mcp-config',
+        // Non-interactive permission flow: in --print mode the user can't
+        // approve permission prompts, so the agent gets stuck on the first
+        // MCP tool call. The bench runs in a controlled sandbox against
+        // local apps; skipping permission prompts is appropriate here.
+        '--dangerously-skip-permissions',
         '--system-prompt', systemPrompt,
         '--max-budget-usd', String(scenario.max_budget ?? config.max_budget),
       ], {
@@ -180,8 +216,11 @@ export function parseClaudeOutput(output: string): {
         turns++;
       }
       if (event.type === 'result') {
-        inputTokens = event.input_tokens ?? 0;
-        outputTokens = event.output_tokens ?? 0;
+        // claude --print stream-json puts the rollup token counts under
+        // `usage` on the terminal `result` event. Older versions had
+        // top-level `input_tokens`/`output_tokens`; keep those as a fallback.
+        inputTokens = event.usage?.input_tokens ?? event.input_tokens ?? 0;
+        outputTokens = event.usage?.output_tokens ?? event.output_tokens ?? 0;
       }
       if (event.type === 'tool_result' && event.is_error) {
         errorCount++;
