@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { WebSocket } from './third_party/index.js';
+import { parseOriginPatterns } from './allowlist.js';
 import { RECONNECT_BASE_MS, RECONNECT_MAX_MS, RESUME_SUBPROTOCOL_PREFIX, STALE_CONNECTION_MS, } from './types.js';
 import { LegacyTransport } from './transport_legacy.js';
 import { YamuxTransport } from './transport_yamux.js';
@@ -18,6 +19,8 @@ export class TunnelClient extends EventEmitter {
     #connectionId;
     #upgradeHeaders;
     #log;
+    #allowedOriginsRaw;
+    #allowedOrigins;
     #ws = null;
     #state = 'disconnected';
     #tunnelId;
@@ -37,6 +40,11 @@ export class TunnelClient extends EventEmitter {
         this.#connectionId = opts.connectionId;
         this.#log = opts.log;
         this.#upgradeHeaders = opts.headers ?? {};
+        // Parse the allowlist once at construction. Throws if any entry is
+        // malformed — surfacing the error here is friendlier than waiting for
+        // the relay to reject the hello.
+        this.#allowedOriginsRaw = opts.allowedOrigins;
+        this.#allowedOrigins = parseOriginPatterns(opts.allowedOrigins);
     }
     get state() {
         return this.#state;
@@ -103,6 +111,9 @@ export class TunnelClient extends EventEmitter {
                 protocol: 'yamux',
                 streaming: true,
             };
+            if (this.#allowedOriginsRaw && this.#allowedOriginsRaw.length > 0) {
+                hello.allowedOrigins = this.#allowedOriginsRaw;
+            }
             // On resume path the server already knows the connectionId; don't echo
             // the stale initial value.
             if (this.#initialConnectionId && !this.#resumeToken) {
@@ -158,6 +169,7 @@ export class TunnelClient extends EventEmitter {
                     target: this.#target,
                     log: this.#log,
                     streaming: msg.streaming === true,
+                    allowedOrigins: this.#allowedOrigins,
                 });
             }
             else {
@@ -166,6 +178,7 @@ export class TunnelClient extends EventEmitter {
                     target: this.#target,
                     log: this.#log,
                     onActivity: () => this.#resetStaleTimer(),
+                    allowedOrigins: this.#allowedOrigins,
                 });
             }
             // Transport.serve() resolves when the WebSocket closes or the session

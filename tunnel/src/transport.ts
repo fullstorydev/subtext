@@ -1,4 +1,5 @@
 import type {WebSocket} from './third_party/index.js';
+import type {OriginPattern} from './allowlist.js';
 import type {WireHeaders} from './types.js';
 
 /**
@@ -29,6 +30,10 @@ export interface TransportOptions {
   target: string;
   log: (msg: string) => void;
   streaming?: boolean;
+  // Parsed allowlist. Empty means "no opt-in" — the transport falls back to
+  // serving exactly `target` (legacy behavior). When populated, every
+  // per-request origin must match a pattern or the fetch is refused.
+  allowedOrigins?: OriginPattern[];
 }
 
 /** Convert wire headers (Record<string, string[]>) to fetch Headers. */

@@ -56,9 +56,21 @@ server.registerTool(
         .string()
         .optional()
         .describe("Local origin to proxy to (overrides --target flag)"),
+      allowedOrigins: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional per-tunnel origin allowlist. Each entry is " +
+            "`scheme://host:port` (exact) or `scheme://*.suffix:port` (subdomain " +
+            "wildcard). Hosts must be loopback-resolving (localhost, 127.x, ::1, " +
+            "*.test, *.localhost). When set, this tunnel can serve any listed " +
+            "origin from a single connection (e.g. Rails on :3000 + Ember on " +
+            ":4200 + assets across *.intercom.test:3000). Omit for legacy " +
+            "single-target behavior.",
+        ),
     }),
   },
-  async ({ relayUrl, connectionId, target }) => {
+  async ({ relayUrl, connectionId, target, allowedOrigins }) => {
     const t = target ?? defaultTarget;
     if (!t) {
       return {
@@ -79,12 +91,31 @@ server.registerTool(
       };
     }
 
-    const client = new TunnelClient({
-      relayUrl,
-      target: t,
-      connectionId,
-      log,
-    });
+    let client: TunnelClient;
+    try {
+      client = new TunnelClient({
+        relayUrl,
+        target: t,
+        connectionId,
+        log,
+        allowedOrigins,
+      });
+    } catch (err) {
+      // Bad allowlist entry — surfaced before any connect attempt.
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {error: err instanceof Error ? err.message : String(err)},
+              null,
+              2,
+            ),
+          },
+        ],
+        isError: true,
+      };
+    }
 
     // Surface a clear error if the initial handshake fails with a rejection.
     let needsLiveTunnel = false;

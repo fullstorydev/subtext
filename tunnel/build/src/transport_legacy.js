@@ -4,6 +4,8 @@ import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 const gzipAsync = promisify(gzip);
 import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES } from './types.js';
+import { matchesAny } from './allowlist.js';
+import { resolveLoopbackOrigin } from './loopback.js';
 import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort } from './transport.js';
 /**
  * LegacyTransport handles the JSON-over-WebSocket protocol with base64-encoded
@@ -14,6 +16,7 @@ export class LegacyTransport {
     #target;
     #log;
     #onActivity;
+    #allowedOrigins;
     #inflight = new Map();
     #streams = new Map();
     constructor(opts) {
@@ -21,6 +24,7 @@ export class LegacyTransport {
         this.#target = opts.target;
         this.#log = opts.log;
         this.#onActivity = opts.onActivity;
+        this.#allowedOrigins = opts.allowedOrigins ?? [];
     }
     serve() {
         return new Promise((resolve) => {
@@ -84,8 +88,14 @@ export class LegacyTransport {
         const ac = new AbortController();
         this.#inflight.set(msg.requestId, ac);
         try {
-            const url = this.#target + msg.url;
+            const origin = msg.origin ?? this.#target;
+            if (this.#allowedOrigins.length > 0 && !matchesAny(this.#allowedOrigins, origin)) {
+                throw new Error(`origin not in allowlist: ${origin}`);
+            }
+            const resolved = await resolveLoopbackOrigin(origin);
+            const url = resolved.ipUrl + msg.url;
             const headers = wireHeadersToHeaders(msg.headers);
+            headers.set('Host', `${resolved.hostname}:${resolved.port}`);
             const body = msg.body !== null ? Buffer.from(msg.body, 'base64') : undefined;
             const resp = await fetch(url, {
                 method: msg.method,

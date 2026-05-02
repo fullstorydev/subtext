@@ -1,6 +1,8 @@
 import {EventEmitter} from 'node:events';
 import type {IncomingMessage} from 'node:http';
 import {WebSocket, type RawData} from './third_party/index.js';
+import type {OriginPattern} from './allowlist.js';
+import {parseOriginPatterns} from './allowlist.js';
 import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
   RECONNECT_BASE_MS,
@@ -18,6 +20,11 @@ export interface TunnelClientOptions {
   connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
+  // Per-tunnel origin allowlist. Strings here must conform to the grammar
+  // in allowlist.ts and are validated at construction. When non-empty, the
+  // tunnel routes by allowlist match (no fallback to target). When empty,
+  // legacy single-target behavior applies.
+  allowedOrigins?: string[];
 }
 
 type TunnelClientEvents = {
@@ -39,6 +46,8 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
   readonly #log: (msg: string) => void;
+  readonly #allowedOriginsRaw: string[] | undefined;
+  readonly #allowedOrigins: OriginPattern[];
 
   #ws: InstanceType<typeof WebSocket> | null = null;
   #state: TunnelState = 'disconnected';
@@ -60,6 +69,11 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
     this.#upgradeHeaders = opts.headers ?? {};
+    // Parse the allowlist once at construction. Throws if any entry is
+    // malformed — surfacing the error here is friendlier than waiting for
+    // the relay to reject the hello.
+    this.#allowedOriginsRaw = opts.allowedOrigins;
+    this.#allowedOrigins = parseOriginPatterns(opts.allowedOrigins);
   }
 
   get state(): TunnelState {
@@ -139,6 +153,9 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
         protocol: 'yamux',
         streaming: true,
       };
+      if (this.#allowedOriginsRaw && this.#allowedOriginsRaw.length > 0) {
+        hello.allowedOrigins = this.#allowedOriginsRaw;
+      }
       // On resume path the server already knows the connectionId; don't echo
       // the stale initial value.
       if (this.#initialConnectionId && !this.#resumeToken) {
@@ -196,6 +213,7 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
           target: this.#target,
           log: this.#log,
           streaming: msg.streaming === true,
+          allowedOrigins: this.#allowedOrigins,
         });
       } else {
         this.#transport = new LegacyTransport({
@@ -203,6 +221,7 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
           target: this.#target,
           log: this.#log,
           onActivity: () => this.#resetStaleTimer(),
+          allowedOrigins: this.#allowedOrigins,
         });
       }
 
