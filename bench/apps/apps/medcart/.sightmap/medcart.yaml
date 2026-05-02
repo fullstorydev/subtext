@@ -68,29 +68,22 @@ components:
 
 views:
   - name: Dashboard
-    path: /
-    components: [Sidebar, Dashboard, PatientSummary]
+    route: /
 
   - name: Profile
-    path: /profile/
-    components: [Sidebar, ProfileForm]
+    route: /profile/
 
   - name: Orders
-    path: /orders/
-    components: [Sidebar, OrderCard, ShippingInfo]
+    route: /orders/
 
   - name: Addresses
-    path: /addresses/
-    components: [Sidebar, AddressCard, AddressForm]
+    route: /addresses/
 
   - name: Payments
-    path: /payments/
-    components: [Sidebar, PaymentCard]
+    route: /payments/
 
   - name: MedicalRecords
-    path: /records/
-    components: [Sidebar, MedicalRecord, ClinicalNotes]
+    route: /records/
 
   - name: SupportChat
-    path: /chat/
-    components: [Sidebar, ChatLayout, ChatMessage]
+    route: /chat/
