@@ -40,4 +40,4 @@ acceptance_criteria: |
   5. Reviewed and reported order details accurately
   6. Final report contains both chat and order information
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

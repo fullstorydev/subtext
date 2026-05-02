@@ -30,4 +30,4 @@ acceptance_criteria: |
   4. Patient information is displayed and reported accurately
   5. Snapshots confirm successful navigation at each step
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

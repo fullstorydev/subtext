@@ -48,4 +48,4 @@ acceptance_criteria: |
   7. Navigated to Sarah's conversation via URL navigation
   8. Final report contains accurate contract terms and FAQ content
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

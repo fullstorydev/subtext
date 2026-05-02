@@ -49,4 +49,4 @@ acceptance_criteria: |
   5. Identified the contract notification in Charles D.'s conversation
   6. Final report contains structured, accurate data
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

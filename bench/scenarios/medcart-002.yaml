@@ -34,4 +34,4 @@ acceptance_criteria: |
   5. Verified the address change is reflected on the dashboard
   6. Final report accurately describes the change
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

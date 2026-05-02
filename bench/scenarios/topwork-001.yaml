@@ -39,4 +39,4 @@ acceptance_criteria: |
   4. Offer was submitted (Continue button clicked)
   5. Ended up on Messages page with contract confirmation visible
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

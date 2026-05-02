@@ -60,4 +60,4 @@ acceptance_criteria: |
   7. Set hourly rate range (From and To values)
   8. Submitted offer and ended on Messages page with contract notification
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

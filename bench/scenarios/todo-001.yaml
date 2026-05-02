@@ -37,4 +37,4 @@ acceptance_criteria: |
   4. Clear completed removed all done items
   5. Final state shows exactly 5 active todos
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]

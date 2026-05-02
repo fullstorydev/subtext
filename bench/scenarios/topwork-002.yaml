@@ -63,4 +63,4 @@ acceptance_criteria: |
   6. Description was filled in
   7. Job was submitted and appeared on the dashboard
 
-profiles: [subtext-local, subtext-bare, playwright-mcp, stagehand, agent-browser]
+profiles: [subtext-local, subtext-bare, playwright-mcp, sightmap-mcp, stagehand, agent-browser]
