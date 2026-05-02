@@ -32,7 +32,9 @@ function isAllowedWildcardSuffix(suffix) {
     const lc = suffix.toLowerCase();
     if (PUBLIC_TLD_WILDCARD_DENY.has(lc))
         return false;
-    if (lc === 'localhost')
+    // Bare suffixes for the two reserved test TLDs (RFC 6761): `*.test` and
+    // `*.localhost` are perfectly valid allowlist entries on their own.
+    if (lc === 'localhost' || lc === 'test')
         return true;
     if (lc.endsWith('.test') || lc.endsWith('.localhost'))
         return true;

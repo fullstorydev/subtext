@@ -23,6 +23,8 @@ describe('parseOriginPattern: accepts', () => {
     ['http://*.intercom.test:3000', 'http://*.intercom.test:3000', true],
     ['http://*.embercom.test:4200', 'http://*.embercom.test:4200', true],
     ['http://*.localhost:3000', 'http://*.localhost:3000', true],
+    // Bare reserved TLDs: `*.test` and `*.localhost` are valid on their own.
+    ['http://*.test:3000', 'http://*.test:3000', true],
     ['http://LOCALHOST:3000', 'http://localhost:3000', false],
     ['http://*.Foo.Test:3000', 'http://*.foo.test:3000', true],
   ];
