@@ -21,7 +21,18 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 const defaultTarget = argv.target as string | undefined;
-const log = (msg: string) => console.error(`[subtext-tunnel] ${msg}`);
+
+// Wrap console.error so a broken stderr (e.g. parent process died and closed
+// the read side of the pipe) cannot recurse into our error handlers below.
+// Without this guard the sequence stderr.write -> EPIPE -> uncaughtException
+// -> log() -> stderr.write spins at 100% CPU forever. See orphan_spin.test.ts.
+const log = (msg: string) => {
+  try {
+    console.error(`[subtext-tunnel] ${msg}`);
+  } catch {
+    // Logger itself failed; nothing we can do. Don't recurse.
+  }
+};
 
 // Multiple tunnels can be active simultaneously, keyed by tunnelId.
 const clients = new Map<string, TunnelClient>();
@@ -251,10 +262,38 @@ process.on("SIGTERM", shutdown);
 
 // Last-resort handlers to keep the MCP server alive if something slips
 // through. There is no process manager to restart us, so a crash means
-// Claude Code loses the tunnel tools entirely.
+// Claude Code loses the tunnel tools entirely. log() above is internally
+// guarded so it cannot itself throw and re-enter these handlers.
 process.on("unhandledRejection", (reason: unknown) => {
   log(`Unhandled rejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
 });
 process.on("uncaughtException", (err: Error) => {
   log(`Uncaught exception: ${err.stack ?? err.message}`);
 });
+
+// Orphan-spin protection: if our parent process (the MCP host) exits, our
+// stdio pipes break and any further write triggers EPIPE. Detect that and
+// exit cleanly instead of pegging the CPU. Two complementary detectors:
+//
+//   1. EPIPE on stderr/stdout — fires the moment a write fails. Catches the
+//      common case where the parent exits while we're mid-log.
+//   2. Periodic PPID check — catches the case where the parent exits cleanly
+//      and we don't write anything until the next tunnel-tool call. On Linux
+//      orphaned processes are reparented to PID 1; on macOS to launchd (also
+//      typically PID 1). If we see PPID === 1, we have no MCP host.
+//
+// Both paths exit(0) — this is not a crash, it's "our reason to live ended."
+process.stderr.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EPIPE") process.exit(0);
+});
+process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EPIPE") process.exit(0);
+});
+
+// Default 30s; overridable for tests. unref() so the timer alone doesn't
+// keep the event loop alive.
+const orphanCheckMs = Number(process.env.SUBTEXT_TUNNEL_ORPHAN_CHECK_MS) || 30_000;
+const orphanTimer = setInterval(() => {
+  if (process.ppid === 1) process.exit(0);
+}, orphanCheckMs);
+orphanTimer.unref();
