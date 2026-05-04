@@ -146,17 +146,12 @@ export class TunnelClient extends EventEmitter {
             ws.removeListener('message', handshakeHandler);
             this.#tunnelId = msg.tunnelId;
             this.#connectionId = msg.connectionId;
-            // Resume tokens are intentionally ignored. The relay's tryResume mints a
-            // brand-new connection_id on resume and rebinds the trace to it — but the
-            // server-side ForwardProxy is locked to the original connection_id at
-            // chromium-context construction time, so post-resume CONNECT lookups miss
-            // the registry and chromium gets ERR_TUNNEL_CONNECTION_FAILED on the next
-            // navigation. Until lidar's tryResume preserves the connection_id from
-            // the trace row, force every reconnect through the fresh-connect path:
-            // 401 on the spent nonce → emit need_live_tunnel → caller re-issues a
-            // fresh relay URL via live-tunnel, which routes back to the same conn_id
-            // (preserved by mcp_affinity) and the same trace (re-attached via
-            // GetByConnectionID).
+            // Capture rotating resume token and stable trace ID from the server.
+            // The server preserves the connection_id across resume (lidar
+            // tryResume reads it from the trace row), so the chromium browser
+            // context's forward proxy continues to find tunnels after reconnect.
+            if (msg.resumeToken !== undefined)
+                this.#resumeToken = msg.resumeToken;
             if (msg.traceId !== undefined)
                 this.#traceId = msg.traceId;
             this.#state = 'ready';
