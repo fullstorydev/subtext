@@ -7,6 +7,7 @@ import {
   RECONNECT_MAX_MS,
   RESUME_SUBPROTOCOL_PREFIX,
   STALE_CONNECTION_MS,
+  YAMUX_PING_INTERVAL_MS,
 } from './types.js';
 import type {TunnelTransport} from './transport.js';
 import {LegacyTransport} from './transport_legacy.js';
@@ -18,6 +19,17 @@ export interface TunnelClientOptions {
   connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
+  /**
+   * Override the inactivity threshold (ms) before the WS is treated as silently
+   * dropped and reconnected. Defaults to STALE_CONNECTION_MS. Tests use a small
+   * value to exercise the reconnect path quickly.
+   */
+  staleTimeoutMs?: number;
+  /**
+   * Override the yamux client-initiated PING cadence (ms). 0 disables.
+   * Defaults to YAMUX_PING_INTERVAL_MS.
+   */
+  yamuxPingIntervalMs?: number;
 }
 
 type TunnelClientEvents = {
@@ -39,6 +51,8 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
   readonly #log: (msg: string) => void;
+  readonly #staleTimeoutMs: number;
+  readonly #yamuxPingIntervalMs: number;
 
   #ws: InstanceType<typeof WebSocket> | null = null;
   #state: TunnelState = 'disconnected';
@@ -60,6 +74,8 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
     this.#upgradeHeaders = opts.headers ?? {};
+    this.#staleTimeoutMs = opts.staleTimeoutMs ?? STALE_CONNECTION_MS;
+    this.#yamuxPingIntervalMs = opts.yamuxPingIntervalMs ?? YAMUX_PING_INTERVAL_MS;
   }
 
   get state(): TunnelState {
@@ -188,14 +204,20 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       this.#reconnectAttempts = 0;
       this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
 
-      // Create the transport based on negotiated protocol.
+      // Create the transport based on negotiated protocol. Both transports
+      // wire onActivity to the stale-timer reset: yamux server-initiated
+      // pings alone are not sufficient for liveness, since a silently dropped
+      // WS leaves us with no way to learn the peer is gone. The yamux session
+      // also sends its own client-initiated PINGs to keep stateful
+      // intermediaries (linkerd, NATs, LBs) from idling us out.
       if (msg.protocol === 'yamux') {
-        this.#clearStaleTimer(); // yamux keepalive handles liveness
         this.#transport = new YamuxTransport({
           ws,
           target: this.#target,
           log: this.#log,
           streaming: msg.streaming === true,
+          onActivity: () => this.#resetStaleTimer(),
+          pingIntervalMs: this.#yamuxPingIntervalMs,
         });
       } else {
         this.#transport = new LegacyTransport({
@@ -279,7 +301,7 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     this.#staleTimer = setTimeout(() => {
       this.#log('Connection stale, reconnecting');
       this.#ws?.close();
-    }, STALE_CONNECTION_MS);
+    }, this.#staleTimeoutMs);
   }
 
   #clearStaleTimer(): void {
