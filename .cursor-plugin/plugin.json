@@ -1,7 +1,7 @@
 {
   "name": "subtext",
   "description": "Tools that let coding agents verify and show their work against your running application",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "license": "MIT",
   "author": {
     "name": "Subtext",
