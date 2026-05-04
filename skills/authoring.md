@@ -66,7 +66,7 @@ A workflow earns its length through decision points. If every section is "call t
 
 ### Onboarding-shaped workflows
 
-Skills like `onboard`, `setup-plugin`, and `first-session` are workflow-shaped but user-facing — guided setup rather than agent-internal orchestration. They follow the same bare-name rule. Treat them as adjacent to the three buckets, not a fourth tier.
+Skills like `onboard`, `verify-setup`, and `first-session` are workflow-shaped but user-facing — guided setup rather than agent-internal orchestration. They follow the same bare-name rule. Treat them as adjacent to the three buckets, not a fourth tier.
 
 ## Conventions
 

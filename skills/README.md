@@ -27,14 +27,14 @@ Before creating or modifying any skill, read [`authoring.md`](authoring.md).
 ## Onboarding — "getting started"
 
 - **subtext:onboard** — Three-step first-run flow: connect to the user's local dev server, prove a small change with before/after evidence, bootstrap a starter `.sightmap/` from what was learned.
-- **subtext:setup-plugin** — Install the Subtext plugin and configure MCP servers (invoked implicitly by `onboard` if MCP isn't reachable).
+- **subtext:verify-setup** — Verify the plugin is connected and diagnose MCP / auth failures (invoked implicitly by `onboard` if MCP isn't reachable). Does not install — see https://subtext.fullstory.com/install/.
 - **subtext:first-session** — Agent-driven exploration of the user's site via the hosted browser.
 
 ## How they compose
 
 ```
 onboard
-  ├─ setup-plugin   (implicit health check; only runs on failure)
+  ├─ verify-setup   (implicit health check; only runs on failure)
   ├─ tunnel + live  (connect to user's local dev server)
   ├─ proof          (small change → before/after evidence)
   └─ sightmap       (write .sightmap/components.yaml from what was learned)
