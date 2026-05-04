@@ -66,7 +66,6 @@ describe('TunnelClient – disconnect and error handling', () => {
   function createClient(): TunnelClient {
     return new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       log: () => {},
     });
   }

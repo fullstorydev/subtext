@@ -81,11 +81,16 @@ describe('TunnelClient', () => {
     }
   });
 
+  // The client no longer carries a target; tests that need to drive a real
+  // backend pass the URL as `origin` on each RequestMessage they construct.
+  // `currentTarget` is just a convenience holder so the per-test setup can
+  // pass it through to the request builder below.
+  let currentTarget = 'http://localhost:9999';
   function createClient(target = 'http://localhost:9999'): TunnelClient {
     logs = [];
+    currentTarget = target;
     return new TunnelClient({
       relayUrl,
-      target,
       connectionId: 'test-connection-id',
       log: msg => logs.push(msg),
     });
@@ -117,7 +122,6 @@ describe('TunnelClient', () => {
     const hello = (await nextMessage(relayWs)) as HelloMessage;
 
     assert.equal(hello.type, 'hello');
-    assert.equal(hello.target, 'http://localhost:9999');
     assert.equal(hello.connectionId, 'test-connection-id');
     assert.equal(client.state, 'connected');
 
@@ -185,6 +189,7 @@ describe('TunnelClient', () => {
       url: '/test?foo=bar',
       headers: {Accept: ['text/plain']},
       body: null,
+      origin: currentTarget,
     };
     relayWs.send(JSON.stringify(req));
 
@@ -224,6 +229,7 @@ describe('TunnelClient', () => {
       url: '/',
       headers: {},
       body: null,
+      origin: currentTarget,
     };
     relayWs.send(JSON.stringify(req));
 
@@ -358,7 +364,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       log: msg => logs.push(msg),
     });
 
@@ -388,7 +393,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       connectionId: 'my-conn-id',
       log: msg => logs.push(msg),
     });
@@ -417,7 +421,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       log: msg => logs.push(msg),
     });
 
@@ -561,7 +564,7 @@ describe('TunnelClient', () => {
     const rawUrl = `ws://127.0.0.1:${rawAddr.port}`;
 
     logs = [];
-    const client = new TunnelClient({relayUrl: rawUrl, target: 'http://localhost:9999', log: msg => logs.push(msg)});
+    const client = new TunnelClient({relayUrl: rawUrl, log: msg => logs.push(msg)});
     const needLiveTunnel = new Promise<void>(resolve => client.once('need_live_tunnel', resolve));
 
     // First connect succeeds via nonce path.
@@ -593,7 +596,6 @@ describe('TunnelClient', () => {
     const nonceUrl = `${relayUrl}/?token=spent-nonce&connection_id=initial-cid`;
     const client = new TunnelClient({
       relayUrl: nonceUrl,
-      target: 'http://localhost:9999',
       connectionId: 'initial-cid',
       log: msg => logs.push(msg),
     });
@@ -657,6 +659,7 @@ describe('TunnelClient', () => {
     const firstReq: RequestMessage = {
       type: 'request', requestId: 'r_before', method: 'GET',
       url: '/before', headers: {}, body: null,
+      origin: currentTarget,
     };
     ws1.send(JSON.stringify(firstReq));
     const resp1 = (await nextMessage(ws1)) as ResponseMessage;
@@ -691,6 +694,7 @@ describe('TunnelClient', () => {
     const secondReq: RequestMessage = {
       type: 'request', requestId: 'r_after', method: 'GET',
       url: '/after', headers: {}, body: null,
+      origin: currentTarget,
     };
     ws2.send(JSON.stringify(secondReq));
     const resp2 = (await nextMessage(ws2)) as ResponseMessage;

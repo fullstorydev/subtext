@@ -1,4 +1,6 @@
 import * as net from 'node:net';
+import { matchesAny } from './allowlist.js';
+import { resolveLoopbackOrigin } from './loopback.js';
 import { MAX_RESPONSE_BODY_BYTES } from './types.js';
 import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort, MAX_YAMUX_HEADER_BYTES, } from './transport.js';
 import { YamuxSession } from './yamux.js';
@@ -15,18 +17,18 @@ export const CONNECT_STATUS_ERR = 0x01;
  *  - STREAM_TYPE_CONNECT (0x02): CONNECT (TCP pipe)
  */
 export class YamuxTransport {
-    #target;
     #log;
     #session;
     #streaming;
+    #allowedOrigins;
     constructor(opts) {
-        this.#target = opts.target;
         this.#log = opts.log;
         this.#session = new YamuxSession(opts.ws, {
             onActivity: opts.onActivity,
             pingIntervalMs: opts.pingIntervalMs,
         });
         this.#streaming = opts.streaming ?? false;
+        this.#allowedOrigins = opts.allowedOrigins ?? [];
     }
     async serve() {
         while (true) {
@@ -74,8 +76,29 @@ export class YamuxTransport {
             if (header.bodyLen > 0) {
                 reqBody = await stream.readExact(header.bodyLen);
             }
-            const url = this.#target + header.url;
+            // The relay is the source of truth for which origin a request belongs
+            // to. A header without `origin` is a protocol violation by the relay.
+            if (!header.origin) {
+                throw new Error('yamux request header missing origin');
+            }
+            const origin = header.origin;
+            // Allowlist gate: defense in depth. The relay also enforces this — but
+            // a compromised or buggy relay must not be able to drive us to fetch an
+            // origin the user didn't opt into.
+            if (this.#allowedOrigins.length > 0 && !matchesAny(this.#allowedOrigins, origin)) {
+                throw new Error(`origin not in allowlist: ${origin}`);
+            }
+            // DNS resolve-and-pin: rebinding defense. resolveLoopbackOrigin does
+            // ONE DNS lookup, asserts loopback, and gives us back a URL with the
+            // resolved IP literal so fetch() doesn't re-resolve. The Host: header
+            // is restored to the original hostname so virtual-host routing
+            // (Rails, etc.) on the upstream still works.
+            const resolved = await resolveLoopbackOrigin(origin);
+            const url = resolved.ipUrl + header.url;
             const fetchHeaders = wireHeadersToHeaders(header.headers);
+            // Set Host explicitly even when it's already in headers — the
+            // resolved IP URL has the wrong authority for Host inference.
+            fetchHeaders.set('Host', `${resolved.hostname}:${resolved.port}`);
             const resp = await fetch(url, {
                 method: header.method,
                 headers: fetchHeaders,

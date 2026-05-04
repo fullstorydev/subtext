@@ -129,7 +129,6 @@ describe('yamux keepalive / liveness', () => {
   it('client sends periodic PING frames to keep the WS warm', async () => {
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://127.0.0.1:1', // unused; we never open a stream
       log: () => {},
       // Tight values for a fast test. STALE_CONNECTION_MS doesn't fire
       // because the server is acking our pings.
@@ -155,7 +154,6 @@ describe('yamux keepalive / liveness', () => {
     let logs: string[] = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://127.0.0.1:1',
       log: m => { logs.push(m); },
       // Stale = 250ms; ping every 50ms. With server going silent (no acks),
       // the stale timer must fire roughly within 250ms of last activity.
@@ -183,7 +181,6 @@ describe('yamux keepalive / liveness', () => {
     let logs: string[] = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://127.0.0.1:1',
       log: m => { logs.push(m); },
       staleTimeoutMs: 200,
       yamuxPingIntervalMs: 50,

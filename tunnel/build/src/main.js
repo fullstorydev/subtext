@@ -9,15 +9,10 @@ import { TunnelClient } from "./client.js";
 // sits two levels up at the package root.
 const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"), "utf8"));
 const VERSION = pkg.version;
-const argv = await yargs(hideBin(process.argv))
-    .option("target", {
-    type: "string",
-    description: "Local origin to proxy to (required via flag or tool param)",
-})
+await yargs(hideBin(process.argv))
     .version(VERSION)
     .help()
     .parse();
-const defaultTarget = argv.target;
 // Wrap console.error so a broken stderr (e.g. parent process died and closed
 // the read side of the pipe) cannot recurse into our error handlers below.
 // Without this guard the sequence stderr.write -> EPIPE -> uncaughtException
@@ -37,8 +32,8 @@ const server = new McpServer({
     version: VERSION,
 }, { capabilities: {} });
 server.registerTool("tunnel-connect", {
-    description: "Connect a tunnel to the relay. Multiple tunnels can be active simultaneously " +
-        "(e.g. one per target). Call live-tunnel on the subtext MCP server first to obtain the relayUrl.",
+    description: "Connect a tunnel to the relay. Multiple tunnels can be active simultaneously. " +
+        "Call live-tunnel on the subtext MCP server first to obtain the relayUrl.",
     inputSchema: z.object({
         relayUrl: z
             .string()
@@ -49,26 +44,17 @@ server.registerTool("tunnel-connect", {
             .describe("Connection ID to bind this tunnel to. Required for connection-first flow " +
             "(pass the connection_id from open_connection). Omit for tunnel-first flow " +
             "(the server mints one and returns it in the response)."),
-        target: z
-            .string()
+        allowedOrigins: z
+            .array(z.string())
             .optional()
-            .describe("Local origin to proxy to (overrides --target flag)"),
+            .describe("Optional per-tunnel origin allowlist. Each entry is " +
+            "`scheme://host:port` (exact) or `scheme://*.suffix:port` (subdomain " +
+            "wildcard). Hosts must be loopback-resolving (localhost, 127.x, ::1, " +
+            "*.test, *.localhost). The relay routes per-request to one of these " +
+            "origins; the client refuses anything not on the list (e.g. Rails on " +
+            ":3000 + Ember on :4200 + assets across *.intercom.test:3000)."),
     }),
-}, async ({ relayUrl, connectionId, target }) => {
-    const t = target ?? defaultTarget;
-    if (!t) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: JSON.stringify({
-                        error: "No target provided. Pass --target or specify target in the tool call.",
-                    }, null, 2),
-                },
-            ],
-            isError: true,
-        };
-    }
+}, async ({ relayUrl, connectionId, allowedOrigins }) => {
     // Optional env-var overrides for the keepalive timing. Production
     // defaults (STALE_CONNECTION_MS=90s, YAMUX_PING_INTERVAL_MS=30s) are
     // appropriate for staging/cloud LBs. For local testing of the silent-
@@ -76,14 +62,29 @@ server.registerTool("tunnel-connect", {
     // SUBTEXT_TUNNEL_PING_MS=200 so freezes resolve in seconds.
     const staleMs = Number(process.env.SUBTEXT_TUNNEL_STALE_MS) || undefined;
     const pingMs = Number(process.env.SUBTEXT_TUNNEL_PING_MS) || undefined;
-    const client = new TunnelClient({
-        relayUrl,
-        target: t,
-        connectionId,
-        log,
-        staleTimeoutMs: staleMs,
-        yamuxPingIntervalMs: pingMs,
-    });
+    let client;
+    try {
+        client = new TunnelClient({
+            relayUrl,
+            connectionId,
+            log,
+            allowedOrigins,
+            staleTimeoutMs: staleMs,
+            yamuxPingIntervalMs: pingMs,
+        });
+    }
+    catch (err) {
+        // Bad allowlist entry — surfaced before any connect attempt.
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2),
+                },
+            ],
+            isError: true,
+        };
+    }
     // Surface a clear error if the initial handshake fails with a rejection.
     let needsLiveTunnel = false;
     client.once('need_live_tunnel', () => {
@@ -124,7 +125,6 @@ server.registerTool("tunnel-connect", {
                     tunnelId: client.tunnelId ?? null,
                     connectionId: client.connectionId ?? null,
                     traceId: client.traceId ?? null,
-                    target: t,
                     relayUrl,
                 }, null, 2),
             },
@@ -186,7 +186,6 @@ server.registerTool("tunnel-status", {
     const tunnels = [...clients.entries()].map(([id, client]) => ({
         tunnelId: id,
         state: client.state,
-        target: client.target,
         traceId: client.traceId ?? null,
     }));
     return {
@@ -200,7 +199,7 @@ server.registerTool("tunnel-status", {
 });
 const transport = new StdioServerTransport();
 await server.connect(transport);
-log(`MCP server started${defaultTarget ? ` (target default: ${defaultTarget})` : ""}`);
+log("MCP server started");
 const shutdown = () => {
     log("Shutting down");
     for (const client of clients.values()) {

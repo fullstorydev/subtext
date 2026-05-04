@@ -16,6 +16,8 @@ import type {
   StreamResumeMessage,
 } from './types.js';
 import {MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES} from './types.js';
+import {matchesAny, type OriginPattern} from './allowlist.js';
+import {resolveLoopbackOrigin} from './loopback.js';
 import type {TunnelTransport, TransportOptions} from './transport.js';
 import {wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort} from './transport.js';
 
@@ -25,18 +27,18 @@ import {wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseH
  */
 export class LegacyTransport implements TunnelTransport {
   readonly #ws: InstanceType<typeof WebSocket>;
-  readonly #target: string;
   readonly #log: (msg: string) => void;
   readonly #onActivity: () => void;
+  readonly #allowedOrigins: OriginPattern[];
 
   #inflight = new Map<string, AbortController>();
   #streams = new Map<string, net.Socket>();
 
   constructor(opts: TransportOptions & {onActivity: () => void}) {
     this.#ws = opts.ws;
-    this.#target = opts.target;
     this.#log = opts.log;
     this.#onActivity = opts.onActivity;
+    this.#allowedOrigins = opts.allowedOrigins ?? [];
   }
 
   serve(): Promise<void> {
@@ -107,8 +109,19 @@ export class LegacyTransport implements TunnelTransport {
     this.#inflight.set(msg.requestId, ac);
 
     try {
-      const url = this.#target + msg.url;
+      // The relay is the source of truth for which origin a request belongs
+      // to. A request without `origin` is a protocol violation by the relay.
+      if (!msg.origin) {
+        throw new Error('legacy request missing origin');
+      }
+      const origin = msg.origin;
+      if (this.#allowedOrigins.length > 0 && !matchesAny(this.#allowedOrigins, origin)) {
+        throw new Error(`origin not in allowlist: ${origin}`);
+      }
+      const resolved = await resolveLoopbackOrigin(origin);
+      const url = resolved.ipUrl + msg.url;
       const headers = wireHeadersToHeaders(msg.headers);
+      headers.set('Host', `${resolved.hostname}:${resolved.port}`);
       const body =
         msg.body !== null ? Buffer.from(msg.body, 'base64') : undefined;
 
