@@ -4,7 +4,7 @@ This extension connects **Gemini CLI** to Subtext — tools that let coding agen
 
 ## Access
 
-- Subtext is part of [Fullstory](https://fullstory.com); your account must be enrolled.
+- Subtext requires an [account](https://subtext.fullstory.com) to be enrolled for MCP tool access. Contact subtext@fullstory.com if you have questions.
 - Authentication is **OAuth** (or API key). On first MCP use, the client should open a browser to authorize with Fullstory.
 - Two regional MCP servers: `subtext` (US) and `subtext-eu1` (EU). Use whichever matches your Fullstory account region.
 
