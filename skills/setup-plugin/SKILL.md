@@ -2,14 +2,13 @@
 name: setup-plugin
 description: Install the Subtext plugin and configure MCP servers. Authenticates via OAuth or API Key.
 metadata:
-  platform: claude-code
   requires:
     skills: ["subtext:shared"]
 ---
 
 # Setup Plugin
 
-Install and verify the Subtext plugin for Claude Code.
+Install and verify the Subtext plugin/extension. Works for Claude Code, Cursor, Codex, and Gemini CLI.
 
 ## Pre-check
 
@@ -42,15 +41,21 @@ These are required by the sightmap upload script. If missing:
 
 ### Plugin not installed
 
-If MCP tools are not available, the plugin needs to be installed.
+If MCP tools are not available, the plugin needs to be installed. The command depends on the platform.
 
 <!-- TODO: Replace install instructions with `Read https://subtext.fullstory.com/install/` once that page exists, so instructions stay up to date automatically. -->
 
-Tell the user to run:
+**Claude Code:**
 
 ```
 /plugin marketplace add https://subtext.fullstory.com/repo.git
 /plugin install subtext@subtext-marketplace
+```
+
+**Gemini CLI:**
+
+```
+gemini extensions install https://github.com/fullstorydev/subtext
 ```
 
 Note: Slash commands can't be executed by the agent — the user must run them directly.
