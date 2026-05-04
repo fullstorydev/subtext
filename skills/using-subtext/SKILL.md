@@ -64,7 +64,7 @@ These thoughts mean STOP — you're rationalizing:
 - **Atomics** (`shared`, `session`, `live`, `sightmap`, `tunnel`, `comments`) — tool catalogs.
 - **Workflows** (`proof`, `review`) — orchestration. `proof` is the inner loop, `review` is the outer loop.
 - **Recipes** (`recipe-sightmap-setup`) — short step lists.
-- **Onboarding** (`onboard`, `setup-plugin`, `first-session`) — first-time user setup.
+- **Onboarding** (`onboard`, `verify-setup`, `first-session`) — first-time user setup.
 
 ```
 proof ──▶ session recorded ──▶ review (optional handoff)

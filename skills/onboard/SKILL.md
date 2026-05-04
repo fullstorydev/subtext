@@ -17,7 +17,7 @@ The goal: walk a new user through one real, useful Subtext run end-to-end. They 
 
 ## Implicit health check
 
-Do **not** announce a "plugin setup" step. Trust that the plugin is installed — the user just ran a slash command from it. If the first MCP call below fails (server unreachable, auth missing), invoke `subtext:setup-plugin`, then retry the call. Otherwise stay silent about plumbing.
+Do **not** announce a "plugin setup" step. Trust that the plugin is installed — the user just ran a slash command from it. If the first MCP call below fails (server unreachable, auth missing), invoke `subtext:verify-setup`, then retry the call. Otherwise stay silent about plumbing.
 
 ## Greeting
 
@@ -57,7 +57,7 @@ Once you have a `http://localhost:…` (or `http://127.0.0.1:…`) URL, follow t
 2. `tunnel-connect({ relayUrl, target: <base of the localhost URL> })` → confirm `state: "ready"`
 3. `live-view-new({ connection_id, url: <full localhost URL> })` → returns `trace_url` (and the initial snapshot)
 
-If any of these calls fails because the MCP server is unreachable, invoke `subtext:setup-plugin`, then retry.
+If any of these calls fails because the MCP server is unreachable, invoke `subtext:verify-setup`, then retry.
 
 **Print the `trace_url` immediately, on its own line, before saying anything else:**
 
