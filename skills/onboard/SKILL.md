@@ -1,306 +1,151 @@
 ---
-name: subtext:onboard
-description: Guided onboarding for new Subtext users. Installs the plugin, adds the Subtext snippet, agent explores the site, reviews the session, bootstraps sightmap, configures privacy rules, then reproduces with metrics — all as an interactive conversation.
+name: onboard
+description: Interactive first-run onboarding for new Subtext users. Connects to the user's local dev server, proves a small change with before/after evidence in a watchable trace, then bootstraps a starter sightmap from what was learned.
 metadata:
   platform: claude-code
   requires:
-    skills: ["subtext:shared", "subtext:live", "subtext:comments"]
+    skills: ["subtext:shared", "subtext:proof", "subtext:sightmap", "subtext:live", "subtext:tunnel"]
 ---
 
-# Subtext Onboarding
+# Onboarding
 
-Welcome new users to Subtext through a guided, conversational setup experience.
+> **PREREQUISITE — Read inline before any other action:** Read skills `subtext:proof`, `subtext:sightmap`, `subtext:live`, `subtext:tunnel`, `subtext:shared`.
 
-## Execution Model
+**Type:** User-facing workflow. Conversational. Three visible steps.
 
-**Complete each step fully before moving to the next.** Do NOT pre-check, parallelize, or look ahead to subsequent steps. Each step has its own pre-check logic — trust the sub-skill to handle detection and skip if already done. Wait for the user's acknowledgment before proceeding.
+The goal: walk a new user through one real, useful Subtext run end-to-end. They watch live in the trace as the agent makes a small visible change to their running app, see before/after screenshots they can point at, and end up with a starter `.sightmap/` file as a natural byproduct of the work. The trace itself stays valid after the run as a replayable recording.
 
-**Steps 3 and 7 run as subagents** so the orchestrator can capture usage metrics (tokens, time, interactions) for the comparison in Step 8.
+## Implicit health check
 
-### Step announcements
+Do **not** announce a "plugin setup" step. Trust that the plugin is installed — the user just ran a slash command from it. If the first MCP call below fails (server unreachable, auth missing), invoke `subtext:setup-plugin`, then retry the call. Otherwise stay silent about plumbing.
 
-Before each step, print a prominent banner so the user can see progress through the tool call noise. Use this exact format:
+## Greeting
 
-```
----
+Open with two short paragraphs — no banner, no checklist:
 
-## Step N of 8: Title
+> "Welcome to Subtext.
+>
+> Subtext helps me learn your product, validate changes against the actual running app, and leave proof of work — recorded sessions, before/after screenshots, comment markers, and a sightmap of your components — that you and downstream reviewers can replay.
+>
+> We're going to make one small visible change to your running app together. You'll watch it happen live in a trace you can replay later, see before/after screenshots, and end up with a starter sightmap your future agents can read. Should take about five minutes."
 
-Brief description of what this step does.
-
----
-```
-
-The horizontal rules and `##` heading create visual separation from tool output above and below.
-
-## Start
-
-Greet the user:
-
-"Welcome to Subtext! I'm going to walk you through getting set up. By the end, you'll have:
-- The Subtext plugin installed and connected
-- The Subtext snippet capturing sessions in your app
-- An agent-driven session exploring your site with comments you can review via viewer URL
-- A sightmap giving your components semantic names
-- Privacy rules auto-configured from PII detection
-- A metrics comparison showing the value of sightmap enrichment
-
-Let's get started."
-
-## Step 1: Plugin Setup
+## Step 1 — Connect to your local dev server
 
 Print:
+
 ```
 ---
 
-## Step 1 of 8: Plugin Setup
-
-Checking that the Subtext plugin and MCP servers are installed and connected.
+## Step 1 of 3: Connect
 
 ---
 ```
 
-**Check:** Is the Subtext plugin installed and MCP servers reachable?
+Ask the user for the URL of their local dev server. Be explicit about **local**:
 
-If not complete → invoke `subtext:setup-plugin`
-If complete → "Plugin's already set up. Moving on."
+> "What URL is your local dev server running at? Something like `http://localhost:3000`, `http://localhost:5173`, or whatever port you've got it on.
+>
+> It needs to be local — we'll be making a real code change in this session, and a hosted staging or production URL won't reflect a change you haven't shipped yet. If your server isn't running, fire it up now and come back."
 
-## Step 2: Snippet Installation
+Wait for the user's answer. Do **not** probe ports yourself. Do **not** read `package.json` and guess. Starting the dev server is the user's responsibility; you just need the URL.
+
+If they paste a non-local URL, push back — explain the change won't be visible there — and ask again.
+
+Once you have a `http://localhost:…` (or `http://127.0.0.1:…`) URL, follow the **tunnel-first** flow from `subtext:tunnel`:
+
+1. `live-tunnel()` → `connectionId`, `relayUrl`
+2. `tunnel-connect({ relayUrl, target: <base of the localhost URL> })` → confirm `state: "ready"`
+3. `live-view-new({ connection_id, url: <full localhost URL> })` → returns `trace_url` (and the initial snapshot)
+
+If any of these calls fails because the MCP server is unreachable, invoke `subtext:setup-plugin`, then retry.
+
+**Print the `trace_url` immediately, on its own line, before saying anything else:**
+
+```
+Watch along here:
+{trace_url}
+```
+
+Tell the user briefly:
+
+> "I'm connected. Open that link in another window — you'll watch live as I work. The same link stays valid as a replayable recording after we finish, so you can come back to it."
+
+## Step 2 — Make a small change
 
 Print:
+
 ```
 ---
 
-## Step 2 of 8: Subtext Snippet
-
-Installing the Subtext capture snippet into your app.
+## Step 2 of 3: Prove a Change
 
 ---
 ```
 
-Invoke `subtext:setup-snippet` immediately. Do NOT search the codebase yourself first — the skill has its own pre-check and will skip installation if the snippet is already present.
+Ask for a small visible change. Give concrete examples so the user doesn't have to guess what counts:
 
-### Dev server gate
+> "What's a small visible change you'd like to make? Things that work well:
+> - **Text** — change a heading or label (e.g., 'Sign Up' → 'Get Started')
+> - **Style** — color, spacing, sizing (e.g., make the primary button green; tighten padding around the hero)
+> - **Visibility** — hide or remove an element (e.g., remove the footer copyright line)
+>
+> Keep it small — anything you can eyeball."
 
-After the snippet is installed (or confirmed present), detect and start the dev server automatically:
+Once the user describes the change, follow the **`subtext:proof`** workflow you already read inline. Important:
 
-1. Read `package.json` scripts to find the dev command (e.g., `dev`, `start`, `serve`)
-2. Check if the server is already running — try `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000` (and common ports: 3000, 3001, 5173, 8080)
-3. If not running, start it in the background using the detected command (e.g., `npm run dev`)
-4. Wait for the server to be reachable before proceeding
-5. If the user has a deployed URL instead, that works too — ask only if auto-detection fails
+- The connection from Step 1 is reusable. Skip proof's Step 1 (connect) and Step 2 (share trace URL — already done). Start at proof's Step 3 (BEFORE capture).
+- Use the existing `connection_id` and `view_id` from Step 1 in `live-view-screenshot` and `comment-add` calls.
 
-Do NOT ask the user if the server is running — figure it out.
+When proof's loop completes, recap to the user in a single message:
 
-## Step 3: First Session (Blind Exploration)
+> "Done.
+>
+> - **Before:** {before_screenshot_url}
+> - **After:** {after_screenshot_url}
+> - **Trace:** {trace_url}
+>
+> Does the result look right?"
+
+If the user says no, ask whether to revert, retry, or stop. If yes, continue to Step 3.
+
+## Step 3 — Bootstrap a sightmap from what we just learned
 
 Print:
+
 ```
 ---
 
-## Step 3 of 8: First Session
-
-The agent will explore your site and capture a session — no sightmap yet.
-
----
-```
-
-Ask the user:
-
-"I'm going to explore your site myself via a headless browser, leaving notes as I go. These notes will show up in the session replay.
-
-**Describe a flow you'd like me to explore** (e.g., 'sign up for an account and browse the dashboard'), or say **'I'm feeling lucky'** and I'll figure it out from the site's content."
-
-**Run as subagent.** Dispatch `subtext:first-session` with:
-- The app URL from Step 2
-- The user's flow description (or "feeling lucky")
-
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
-
-After the subagent completes, tell the user:
-
-"Done! I explored your site in {interaction_count} interactions, leaving comments along the way. You can watch my exploration with my comments in the sidebar:
-
-{viewer_url}
-
-Now let me analyze what I found."
-
-## Step 4: Session Review
-
-Print:
-```
----
-
-## Step 4 of 8: Session Review
-
-Analyzing the session from my exploration.
+## Step 3 of 3: Sightmap
 
 ---
 ```
 
-Invoke `subtext:session-analysis-workflow` with the captured session URL.
+**Frame the why before writing anything.** Say something like:
 
-**Important:** Extract and save the reproduction steps from this review — they'll be used in Step 7.
+> "Now I'll capture what I just learned about your app in a small `.sightmap/` file. This is the artifact that makes the *next* run faster — the next coding agent (Claude, Cursor, Codex, anything that reads repo files) reads this YAML and already knows what these components are without exploring. They get committed to your repo so the head start travels with the code."
 
-After the review, explain: "That's what Subtext sees when it analyzes a session. It maps interactions to your source code, identifies friction, and spots issues — all from a single session. The agent's own difficulty notes are part of the timeline."
+Then create or extend `.sightmap/components.yaml` using the `subtext:sightmap` schema. Include:
 
-## Step 5: Sightmap Bootstrap
+- **Component definitions** for elements you actually touched during the proof run. Use stable selectors — prefer `data-*` attributes when present.
+- **Memory entries** about runtime behavior you observed — state changes, validation, gating, anything not obvious from the rendered DOM. Skip code-structure tips, file paths, JSX/CSS patterns, and external doc references; those don't belong in the sightmap. See `subtext:sightmap` for the full rule.
 
-Print:
-```
----
+Stay honest about scope: only describe what you actually touched. Don't pad the file with components you didn't interact with — those are best added when an agent works with them later, not speculatively now.
 
-## Step 5 of 8: Sightmap
+After writing, show the user the file and a brief commit pointer:
 
-Building semantic component definitions and memories for your app.
+> "Wrote `.sightmap/components.yaml`. Commit it alongside your code change — it travels with the repo, and every future agent that reads it gets a head start."
 
----
-```
+## Wrap-up
 
-**Check:** Does `.sightmap/` already exist with component definitions?
+Recap and point to next steps:
 
-If not complete → invoke `subtext:recipe-sightmap-setup`
-If complete → "Sightmap is already configured. Nice."
-
-After setup, explain: "Your sightmap replaces generic element identifiers with meaningful component names like `NavBar` or `LoginForm`. Every future session analysis will use these names."
-
-### Memories
-
-After creating the initial sightmap, add `memory` entries to key components. Use the **high-difficulty notes from Step 3** as primary input — elements where the agent struggled become memory entries.
-
-Memories are contextual notes that appear in a `[Guide]` section at the top of every session snapshot. They give agents instant understanding of how components work without reading source code.
-
-Good memory candidates:
-- **Auth gates**: password, login credentials, or test accounts needed to access the app
-- **Stateful components**: how toggles, tabs, or modes change the UI (e.g., "audience toggle switches all copy between builder/agent perspectives")
-- **Forms**: required fields, validation rules, expected input formats
-- **Complex interactions**: multi-step flows, drag-and-drop, keyboard shortcuts
-- **Known quirks**: components that behave unexpectedly or have edge cases
-
-Example:
-```yaml
-- name: PasswordGate
-  selector: "[data-component='PasswordGate']"
-  source: src/components/PasswordGate.tsx
-  memory:
-    - "Password is 'argus'. Gates the entire site during pre-launch."
-    - "Submit the password form to access any page."
-
-- name: Hero
-  selector: "[data-component='Hero']"
-  source: src/components/Hero.tsx
-  memory:
-    - "Audience toggle switches ALL copy between 'For Builders' and 'For Agents' perspectives"
-```
-
-## Step 6: Privacy Setup
-
-Print:
-```
----
-
-## Step 6 of 8: Privacy
-
-Auto-detecting PII and creating privacy rules from the seed session.
-
----
-```
-
-Use the session captured in Step 3 as the seed for PII detection. Follow `subtext:recipe-privacy-setup` — the full detect → create → validate → promote flow.
-
-If no PII is detected, explain: "No PII was detected in the seed session. This is common for apps that use test data during development. Privacy rules can be added later as real user data flows through — the self-healing pipeline will automatically detect and propose new rules."
-
-After privacy setup is complete (rules promoted), ask the user if they'd like to proceed to reproduction.
-
-## Step 7: Informed Reproduction (Pass 2)
-
-Print:
-```
----
-
-## Step 7 of 8: Reproduction
-
-Reproducing the same flow — this time with sightmap enrichment.
-
----
-```
-
-**Run as subagent.** Dispatch `subtext:reproduce-workflow` with:
-- The reproduction steps extracted from Step 4
-- The sightmap is uploaded automatically after `review-open`/`live-connect` (see `subtext:shared`)
-- The same app URL
-
-**Capture from subagent result:** interaction count, tokens, duration_ms.
-
-**Capture from subagent result:** session URL, viewer URL, interaction count, tokens, duration_ms.
-
-After the subagent completes: "Done! Reproduced the flow in {interaction_count} interactions. The session was captured with preview privacy rules applied. You can review the replay with agent comments here:
-
-{viewer_url}
-
-Now let's see how the two passes compare."
-
-## Step 8: Results
-
-Print:
-```
----
-
-## Step 8 of 8: Results
-
-Here's the impact your sightmap had on agent performance.
-
----
-```
-
-### Metrics comparison
-
-Present the delta between Pass 1 (Step 3) and Pass 2 (Step 7):
-
-```
-| Metric            | Pass 1 (Blind) | Pass 2 (Sightmap) | Delta    |
-|-------------------|----------------|-------------------|----------|
-| Interactions      | {p1_count}     | {p2_count}        | {delta}% |
-| Tokens            | {p1_tokens}    | {p2_tokens}       | {delta}% |
-| Time              | {p1_time}      | {p2_time}         | {delta}% |
-```
-
-Explain: "With sightmap enrichment, the agent had semantic component names, source file paths, and contextual memories from the start — so it navigated directly instead of guessing."
-
-### Before/After snapshot comparison
-
-Take a snapshot from the same page in both sessions and show them side-by-side (or sequentially) so the user can see the concrete difference. Call out:
-
-1. **`[Guide]` section** — Pass 2 has a block of memories at the top giving agents instant context about the page (auth, interactions, quirks). Pass 1 has nothing.
-2. **Semantic component names** — Pass 2 shows `NavBar`, `Hero`, `CheckoutForm` where Pass 1 showed generic roles like `navigation`, `region`, `generic`.
-3. **`[src: ...]` annotations** — Pass 2 annotates components with source file paths so the agent can jump directly to code. Pass 1 has no source mapping.
-
-### Agent playback links
-
-Present both viewer URLs so the user can review each session with agent comments in the sidebar:
-
-- **Pass 1 (Blind):** {pass1_viewer_url}
-- **Pass 2 (Sightmap):** {pass2_viewer_url}
-
-## Recap
-
-"You're all set! Here's what we accomplished:
-1. **Plugin** — Subtext skills, MCP servers, and hooks are installed
-2. **Snippet** — Subtext is capturing sessions in your app
-3. **Exploration** — Agent explored your site blind, leaving comments as it went
-4. **Session Review** — Analyzed the session and extracted reproduction steps
-5. **Sightmap** — Your components have semantic names and memories
-6. **Privacy** — Auto-detected PII, validated masking, and promoted rules to production
-7. **Reproduction** — Reproduced the same flow with sightmap enrichment and privacy preview
-8. **Results** — Measured the concrete improvement in tokens, time, and interactions
-
-You can review both sessions with agent comments via the viewer URLs above.
-
-## Next Steps
-
-A few things you can explore from here:
-
-- **`/subtext:workflow`** — Paste any session URL and Subtext will analyze it, fix bugs, review UX, or reproduce issues
-- **`/subtext:privacy`** — Manage privacy rules: detect PII, create rules, promote to production
-- **Channels** — Connect session URLs from support tickets, alerts, or dashboards to get automatic analysis
-- **Fullstory** — Subtext works even better with Fullstory's opportunity detection and user segmentation"
+> "You're set up. Recap:
+>
+> 1. **Trace** — the recorded session of the change you just made: {trace_url}
+> 2. **Before / After** — {before_screenshot_url} → {after_screenshot_url}
+> 3. **Sightmap** — `.sightmap/components.yaml` ready to commit
+>
+> From here:
+> - **`/proof`** — use this any time you make a UI change. Same before/after evidence loop, no onboarding wrapper.
+> - **`/review`** — paste any session URL to get a structured summary, with optional reproduction steps on request.
+> - **Learn more about sightmap** — read `skills/sightmap/SKILL.md` to teach agents about more of your app's surface (views, requests, scoped components, memory entries)."

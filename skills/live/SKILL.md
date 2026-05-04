@@ -1,5 +1,5 @@
 ---
-name: subtext:live
+name: live
 description: Live browser MCP tools for driving a hosted browser — connections, views, interactions, console, network, and tunnel. Use when reproducing flows, taking screenshots, or interacting with a running app.
 metadata:
   requires:
@@ -9,6 +9,7 @@ metadata:
 # Live Browser
 
 > **PREREQUISITE:** Read `subtext:shared` for MCP conventions and sightmap upload.
+> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it before connecting — it specifies which MCP server prefix to use for live tools.
 
 API catalog for live browser tools (all prefixed `live-`) on the unified subtext MCP server. These tools let you open browser connections, navigate views, interact with elements, and inspect console/network activity.
 
@@ -18,8 +19,8 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 | Tool | Description |
 |------|-------------|
-| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, and `viewer_url`. |
-| `live-disconnect` | Close a browser connection. Returns `fs_session_url` and `viewer_url`. |
+| `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `trace_id`, `trace_url`, and `capture_status`. |
+| `live-disconnect` | Close a browser connection. Returns `fs_session_url`, `trace_id`, and `trace_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
 ### Views
@@ -32,7 +33,8 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-view-select` | Switch to a different view |
 | `live-view-close` | Close a view |
 | `live-view-snapshot` | Component tree snapshot (no screenshot) |
-| `live-view-screenshot` | Visual screenshot of current view |
+| `live-view-inspect` | Component tree with full CSS selectors — for sightmap authoring only, not general use |
+| `live-view-screenshot` | Visual screenshot of current view. Pass `component_id` to clip to a specific element's bounding box; optional `expand_pct` (0–100) grows the clip rect outward for surrounding context, clamped to the viewport. |
 | `live-view-resize` | Resize the viewport |
 
 ### Interactions
@@ -68,23 +70,42 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 Parameter schemas are visible in the tool definition at call time.
 
-## Session URLs
+## Trace and Session URLs
 
-Both `fs_session_url` and `viewer_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
+`fs_session_url`, `trace_id`, and `trace_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
 
-- **fs_session_url** — the raw FullStory session URL.
-- **viewer_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
+- **fs_session_url** — the raw Fullstory session URL.
+- **trace_id** — the 12-char base62 id for this connection's trace. **Capture and reuse this** as the parent identifier for `comment-*` tools and as input to `review-open` later. The trailing path segment of `trace_url` is the same id.
+- **trace_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
-After every `live-connect`, output the viewer URL on its own line:
+After every connection is established — via `live-connect` or `live-view-new` (tunnel-first flow) — output the URL on its own line:
 
 ```
-Viewer: {viewer_url}
+Viewer: {trace_url}
 ```
+
+## Capture Status
+
+Every live tool response that touches a view includes a `capture_status` field —
+this includes `live-connect`, `live-view-new`, `live-view-navigate`,
+`live-view-snapshot`, and `live-view-screenshot`. Check it after **every** such
+call (not just `live-connect`) and respond as follows:
+
+- `active`: proceed normally.
+- `blocked`: tell the user to check capture quota and verify the target domain is allow listed in Subtext data capture settings.
+- `snippet_not_found` or `api_unavailable`: tell the user something went wrong during setup and they should run onboarding again.
+- any other status: something went wrong, try again
+
+This matters especially in the **tunnel-first flow**, where `live-connect` is
+never called — it's easy to miss the status if you assume the check only applies
+to that one tool.
 
 ## Tips
 
 - Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
 - `live-view-snapshot` is cheaper than `live-view-screenshot`. Prefer snapshots; use screenshots for visual evidence.
+- When the screenshot is evidence about a specific element, clip to it with `component_id` (and small `expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
+- `live-view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `live-view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
 - Close connections when done to free server resources.
 

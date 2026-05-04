@@ -1,23 +1,17 @@
+import {EventEmitter} from 'node:events';
+import type {IncomingMessage} from 'node:http';
 import {WebSocket, type RawData} from './third_party/index.js';
-import * as net from 'node:net';
-import type {
-  ClientMessage,
-  ConnectMessage,
-  RelayMessage,
-  RequestMessage,
-  StreamDataMessage,
-  StreamEndMessage,
-  TunnelState,
-  WireHeaders,
-} from './types.js';
+import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
-  MAX_INFLIGHT,
-  MAX_RESPONSE_BODY_BYTES,
-  REQUEST_TIMEOUT_MS,
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
+  RESUME_SUBPROTOCOL_PREFIX,
   STALE_CONNECTION_MS,
+  YAMUX_PING_INTERVAL_MS,
 } from './types.js';
+import type {TunnelTransport} from './transport.js';
+import {LegacyTransport} from './transport_legacy.js';
+import {YamuxTransport} from './transport_yamux.js';
 
 export interface TunnelClientOptions {
   relayUrl: string;
@@ -25,35 +19,63 @@ export interface TunnelClientOptions {
   connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
+  /**
+   * Override the inactivity threshold (ms) before the WS is treated as silently
+   * dropped and reconnected. Defaults to STALE_CONNECTION_MS. Tests use a small
+   * value to exercise the reconnect path quickly.
+   */
+  staleTimeoutMs?: number;
+  /**
+   * Override the yamux client-initiated PING cadence (ms). 0 disables.
+   * Defaults to YAMUX_PING_INTERVAL_MS.
+   */
+  yamuxPingIntervalMs?: number;
 }
 
-export class TunnelClient {
+type TunnelClientEvents = {
+  need_live_tunnel: [];
+};
+
+/**
+ * TunnelClient manages the WebSocket connection lifecycle: connect, handshake,
+ * reconnect. After the hello/ready exchange it delegates all protocol-specific
+ * work to a TunnelTransport (LegacyTransport or YamuxTransport).
+ *
+ * Emits 'need_live_tunnel' when a resume token is rejected (401), indicating
+ * the caller must obtain a fresh relay URL via live-tunnel before reconnecting.
+ */
+export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   readonly #relayUrl: string;
   readonly #target: string;
   readonly #initialConnectionId: string | undefined;
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
   readonly #log: (msg: string) => void;
+  readonly #staleTimeoutMs: number;
+  readonly #yamuxPingIntervalMs: number;
 
   #ws: InstanceType<typeof WebSocket> | null = null;
   #state: TunnelState = 'disconnected';
   #tunnelId: string | undefined;
-  #inflight = new Map<string, AbortController>();
-  #streams = new Map<string, net.Socket>();
+  #transport: TunnelTransport | null = null;
   #reconnectAttempts = 0;
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #staleTimer: ReturnType<typeof setTimeout> | null = null;
   #connectedSince: number | null = null;
   #intentionalDisconnect = false;
+  #resumeToken: string | undefined;
+  #traceId: string | undefined;
 
   constructor(opts: TunnelClientOptions) {
+    super();
     this.#relayUrl = opts.relayUrl;
     this.#target = opts.target;
     this.#initialConnectionId = opts.connectionId;
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
-
     this.#upgradeHeaders = opts.headers ?? {};
+    this.#staleTimeoutMs = opts.staleTimeoutMs ?? STALE_CONNECTION_MS;
+    this.#yamuxPingIntervalMs = opts.yamuxPingIntervalMs ?? YAMUX_PING_INTERVAL_MS;
   }
 
   get state(): TunnelState {
@@ -72,6 +94,10 @@ export class TunnelClient {
     return this.#connectionId;
   }
 
+  get traceId(): string | undefined {
+    return this.#traceId;
+  }
+
   connect(): void {
     this.#intentionalDisconnect = false;
     this.#doConnect();
@@ -83,36 +109,63 @@ export class TunnelClient {
     this.#state = 'disconnected';
   }
 
+  // ----- Connection lifecycle -----
+
   #doConnect(): void {
     this.#state = 'connecting';
 
-    const wsUrl = new URL(this.#relayUrl);
-    if (this.#initialConnectionId) {
-      wsUrl.searchParams.set('connection_id', this.#initialConnectionId);
+    // Resume path authenticates via subprotocol; strip the (spent) nonce params.
+    // Initial path keeps the relay URL intact and sets connection_id if provided.
+    const u = new URL(this.#relayUrl);
+    let protocols: string[] | undefined;
+    if (this.#resumeToken) {
+      u.searchParams.delete('token');
+      u.searchParams.delete('connection_id');
+      protocols = [`${RESUME_SUBPROTOCOL_PREFIX}${this.#resumeToken}`];
+    } else if (this.#initialConnectionId) {
+      u.searchParams.set('connection_id', this.#initialConnectionId);
     }
+    const wsUrlStr = u.toString();
 
-    this.#log(`Connecting to ${wsUrl}`);
+    this.#log(`Connecting to ${wsUrlStr}`);
 
-    const ws = new WebSocket(wsUrl.toString(), {
-      headers: this.#upgradeHeaders,
+    const ws = protocols
+      ? new WebSocket(wsUrlStr, protocols, {headers: this.#upgradeHeaders})
+      : new WebSocket(wsUrlStr, {headers: this.#upgradeHeaders});
+
+    // Handle non-101 upgrade responses (e.g. 401 on resume token replay).
+    ws.on('unexpected-response', (_req: unknown, res: IncomingMessage) => {
+      this.#log(`Relay rejected upgrade: ${res.statusCode}`);
+      if (res.statusCode === 401) {
+        this.#resumeToken = undefined;
+        this.#traceId = undefined;
+        this.#intentionalDisconnect = true;
+        this.emit('need_live_tunnel');
+      }
+      res.resume(); // drain so socket can be released
     });
 
     ws.on('open', () => {
       this.#state = 'connected';
       this.#connectedSince = Date.now();
       this.#log('WebSocket open, sending hello');
-      const hello: {type: 'hello'; target: string; connectionId?: string} = {
+      const hello: HelloMessage = {
         type: 'hello',
         target: this.#target,
+        protocol: 'yamux',
+        streaming: true,
       };
-      if (this.#initialConnectionId) {
+      // On resume path the server already knows the connectionId; don't echo
+      // the stale initial value.
+      if (this.#initialConnectionId && !this.#resumeToken) {
         hello.connectionId = this.#initialConnectionId;
       }
-      this.#send(hello);
+      ws.send(JSON.stringify(hello));
       this.#resetStaleTimer();
     });
 
-    ws.on('message', (data: RawData) => {
+    // Listen for the ready message (always JSON, regardless of protocol).
+    const handshakeHandler = (data: RawData) => {
       this.#resetStaleTimer();
       let msg: RelayMessage;
       try {
@@ -122,33 +175,78 @@ export class TunnelClient {
         return;
       }
 
-      switch (msg.type) {
-        case 'ready':
-          this.#tunnelId = msg.tunnelId;
-          this.#connectionId = msg.connectionId;
-          this.#state = 'ready';
-          this.#reconnectAttempts = 0;
-          this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
-          break;
-        case 'request':
-          void this.#handleRequest(msg);
-          break;
-        case 'connect':
-          this.#handleConnect(msg);
-          break;
-        case 'data':
-          this.#handleStreamData(msg);
-          break;
-        case 'end':
-          this.#handleStreamEnd(msg);
-          break;
-        case 'ping':
-          this.#send({type: 'pong'});
-          break;
-        default:
-          this.#log(`Unknown message type: ${(msg as {type: string}).type}`);
+      if (msg.type === 'error') {
+        // Server rejected the resume (e.g. RotateConnection DB failure).
+        // Token already revoked server-side; skip reconnect and request a
+        // fresh live-tunnel instead.
+        this.#log(`Relay handshake error: ${msg.message}`);
+        this.#resumeToken = undefined;
+        this.#traceId = undefined;
+        ws.removeListener('message', handshakeHandler);
+        this.#intentionalDisconnect = true;
+        ws.close();
+        this.emit('need_live_tunnel');
+        return;
       }
-    });
+      if (msg.type !== 'ready') {
+        this.#log(`Expected ready, got: ${msg.type}`);
+        return;
+      }
+
+      ws.removeListener('message', handshakeHandler);
+
+      this.#tunnelId = msg.tunnelId;
+      this.#connectionId = msg.connectionId;
+      // Resume tokens are intentionally ignored. The relay's tryResume mints a
+      // brand-new connection_id on resume and rebinds the trace to it — but the
+      // server-side ForwardProxy is locked to the original connection_id at
+      // chromium-context construction time, so post-resume CONNECT lookups miss
+      // the registry and chromium gets ERR_TUNNEL_CONNECTION_FAILED on the next
+      // navigation. Until lidar's tryResume preserves the connection_id from
+      // the trace row, force every reconnect through the fresh-connect path:
+      // 401 on the spent nonce → emit need_live_tunnel → caller re-issues a
+      // fresh relay URL via live-tunnel, which routes back to the same conn_id
+      // (preserved by mcp_affinity) and the same trace (re-attached via
+      // GetByConnectionID).
+      if (msg.traceId !== undefined) this.#traceId = msg.traceId;
+      this.#state = 'ready';
+      this.#reconnectAttempts = 0;
+      this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
+
+      // Create the transport based on negotiated protocol. Both transports
+      // wire onActivity to the stale-timer reset: yamux server-initiated
+      // pings alone are not sufficient for liveness, since a silently dropped
+      // WS leaves us with no way to learn the peer is gone. The yamux session
+      // also sends its own client-initiated PINGs to keep stateful
+      // intermediaries (linkerd, NATs, LBs) from idling us out.
+      if (msg.protocol === 'yamux') {
+        this.#transport = new YamuxTransport({
+          ws,
+          target: this.#target,
+          log: this.#log,
+          streaming: msg.streaming === true,
+          onActivity: () => this.#resetStaleTimer(),
+          pingIntervalMs: this.#yamuxPingIntervalMs,
+        });
+      } else {
+        this.#transport = new LegacyTransport({
+          ws,
+          target: this.#target,
+          log: this.#log,
+          onActivity: () => this.#resetStaleTimer(),
+        });
+      }
+
+      // Transport.serve() resolves when the WebSocket closes or the session
+      // tears down. The close handler below then triggers reconnect.
+      // Catch unexpected rejections so they don't become unhandled and kill
+      // the process -- treat them the same as a connection drop.
+      this.#transport.serve().catch((err: unknown) => {
+        this.#log(`Transport error: ${err instanceof Error ? err.message : String(err)}`);
+        this.#onDisconnect();
+      });
+    };
+    ws.on('message', handshakeHandler);
 
     ws.on('close', (code: number, reason: Buffer) => {
       this.#log(`WebSocket closed: ${code} ${reason.toString()}`);
@@ -163,149 +261,11 @@ export class TunnelClient {
     this.#ws = ws;
   }
 
-  async #handleRequest(msg: RequestMessage): Promise<void> {
-    if (this.#inflight.size >= MAX_INFLIGHT) {
-      this.#send({
-        type: 'error',
-        requestId: msg.requestId,
-        message: `Too many inflight requests (max ${MAX_INFLIGHT})`,
-      });
-      return;
-    }
-
-    const ac = new AbortController();
-    this.#inflight.set(msg.requestId, ac);
-
-    try {
-      const url = this.#target + msg.url;
-      const headers = wireHeadersToHeaders(msg.headers);
-      const body =
-        msg.body !== null ? Buffer.from(msg.body, 'base64') : undefined;
-
-      const resp = await fetch(url, {
-        method: msg.method,
-        headers,
-        body,
-        signal: ac.signal,
-        redirect: 'manual',
-      });
-
-      const respBody = await resp.arrayBuffer();
-      if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
-        this.#send({
-          type: 'error',
-          requestId: msg.requestId,
-          message: `Response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
-        });
-        return;
-      }
-
-      const respHeaders = headersToWireHeaders(resp.headers);
-
-      // Node's fetch() transparently decompresses responses (gzip, br, etc.)
-      // but preserves the original Content-Encoding header. Strip encoding-
-      // related headers so the relay doesn't tell the browser the body is
-      // compressed when it's already been decoded.
-      delete respHeaders['content-encoding'];
-      delete respHeaders['content-length'];
-
-      const encodedBody =
-        respBody.byteLength > 0
-          ? Buffer.from(respBody).toString('base64')
-          : null;
-
-      this.#send({
-        type: 'response',
-        requestId: msg.requestId,
-        status: resp.status,
-        headers: respHeaders,
-        body: encodedBody,
-      });
-    } catch (err) {
-      if (ac.signal.aborted) return;
-      const message = err instanceof Error ? err.message : String(err);
-      this.#send({
-        type: 'error',
-        requestId: msg.requestId,
-        message,
-      });
-    } finally {
-      this.#inflight.delete(msg.requestId);
-    }
-  }
-
-  #handleConnect(msg: ConnectMessage): void {
-    const {streamId, host} = msg;
-    this.#log(`Stream ${streamId}: connecting to ${host}`);
-
-    // Parse host:port. Always use raw TCP — the browser negotiates TLS
-    // end-to-end through the CONNECT tunnel, so adding TLS here would
-    // cause double-encryption and break the handshake.
-    const [hostname, portStr] = host.includes(':')
-      ? [host.slice(0, host.lastIndexOf(':')), host.slice(host.lastIndexOf(':') + 1)]
-      : [host, '80'];
-    const port = parseInt(portStr, 10);
-
-    const socket = net.connect({host: hostname, port});
-
-    socket.once('connect', () => {
-      this.#log(`Stream ${streamId}: connected to ${host}`);
-      this.#streams.set(streamId, socket);
-      this.#send({type: 'connected', streamId});
-
-      socket.on('data', (chunk: Buffer) => {
-        this.#send({
-          type: 'data',
-          streamId,
-          data: chunk.toString('base64'),
-        });
-      });
-
-      socket.on('end', () => {
-        this.#log(`Stream ${streamId}: remote end closed`);
-        this.#streams.delete(streamId);
-        this.#send({type: 'end', streamId});
-      });
-
-      socket.on('error', (err: Error) => {
-        this.#log(`Stream ${streamId}: socket error: ${err.message}`);
-        this.#streams.delete(streamId);
-        this.#send({type: 'end', streamId});
-      });
-    });
-
-    socket.once('error', (err: Error) => {
-      // Connection failed before establishing.
-      if (!this.#streams.has(streamId)) {
-        this.#log(`Stream ${streamId}: connect error: ${err.message}`);
-        this.#send({type: 'stream_error', streamId, message: err.message});
-      }
-    });
-  }
-
-  #handleStreamData(msg: StreamDataMessage): void {
-    const socket = this.#streams.get(msg.streamId);
-    if (socket) {
-      socket.write(Buffer.from(msg.data, 'base64'));
-    }
-  }
-
-  #handleStreamEnd(msg: StreamEndMessage): void {
-    const socket = this.#streams.get(msg.streamId);
-    if (socket) {
-      this.#streams.delete(msg.streamId);
-      socket.end();
-    }
-  }
-
-  #send(msg: ClientMessage): void {
-    if (this.#ws?.readyState === WebSocket.OPEN) {
-      this.#ws.send(JSON.stringify(msg));
-    }
-  }
+  // ----- Disconnect / reconnect -----
 
   #onDisconnect(): void {
-    this.#abortInflight();
+    this.#transport?.close();
+    this.#transport = null;
     this.#clearStaleTimer();
     this.#tunnelId = undefined;
     this.#ws = null;
@@ -335,7 +295,6 @@ export class TunnelClient {
     // Add jitter: 0-25% of delay
     const jitter = Math.random() * delay * 0.25;
     const total = Math.round(delay + jitter);
-
     this.#reconnectAttempts++;
     this.#log(`Reconnecting in ${total}ms (attempt ${this.#reconnectAttempts})`);
     this.#reconnectTimer = setTimeout(() => {
@@ -344,12 +303,14 @@ export class TunnelClient {
     }, total);
   }
 
+  // ----- Stale connection detection -----
+
   #resetStaleTimer(): void {
     this.#clearStaleTimer();
     this.#staleTimer = setTimeout(() => {
       this.#log('Connection stale, reconnecting');
       this.#ws?.close();
-    }, STALE_CONNECTION_MS);
+    }, this.#staleTimeoutMs);
   }
 
   #clearStaleTimer(): void {
@@ -359,23 +320,11 @@ export class TunnelClient {
     }
   }
 
-  #abortInflight(): void {
-    for (const ac of this.#inflight.values()) {
-      ac.abort();
-    }
-    this.#inflight.clear();
-  }
-
-  #closeStreams(): void {
-    for (const socket of this.#streams.values()) {
-      socket.destroy();
-    }
-    this.#streams.clear();
-  }
+  // ----- Cleanup -----
 
   #cleanup(): void {
-    this.#abortInflight();
-    this.#closeStreams();
+    this.#transport?.close();
+    this.#transport = null;
     this.#clearStaleTimer();
     if (this.#reconnectTimer !== null) {
       clearTimeout(this.#reconnectTimer);
@@ -383,35 +332,12 @@ export class TunnelClient {
     }
     if (this.#ws) {
       this.#ws.removeAllListeners();
+      // Re-attach a no-op error handler: close() on a CONNECTING socket emits
+      // 'error' synchronously; without a listener Node throws.
+      this.#ws.on('error', () => {});
       this.#ws.close();
       this.#ws = null;
     }
     this.#tunnelId = undefined;
   }
-}
-
-/** Convert wire headers (Record<string, string[]>) to fetch Headers. */
-function wireHeadersToHeaders(wire: WireHeaders): Headers {
-  const h = new Headers();
-  for (const [name, values] of Object.entries(wire)) {
-    for (const v of values) {
-      h.append(name, v);
-    }
-  }
-  return h;
-}
-
-/** Convert fetch Headers to wire headers (Record<string, string[]>). */
-function headersToWireHeaders(headers: Headers): WireHeaders {
-  const wire: WireHeaders = {};
-  // Use getSetCookie() for Set-Cookie since Headers.entries() merges them
-  const setCookies = headers.getSetCookie();
-  if (setCookies.length > 0) {
-    wire['set-cookie'] = setCookies;
-  }
-  headers.forEach((value, name) => {
-    if (name.toLowerCase() === 'set-cookie') return; // handled above
-    wire[name] = [value];
-  });
-  return wire;
 }

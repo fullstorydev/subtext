@@ -38,7 +38,7 @@ A numbered list of tool calls. What you'd paste into a runbook. 3-15 steps.
 
 **Goes in:** Prerequisites, numbered steps with literal tool calls.
 **Stays out:** Decision logic, goals, explanations of *why*.
-**Named:** `recipe-<verb>-<noun>` — `recipe-reproduce-from-session`.
+**Named:** `recipe-<verb>-<noun>` — `recipe-sightmap-setup`.
 
 This is a recipe:
 > "1. Open session. 2. Extract steps from events. 3. Set up tunnel. 4. Navigate. 5. Interact. 6. Report."
@@ -54,7 +54,7 @@ Goal-oriented orchestration with decision logic. Defines what "done" looks like,
 
 **Goes in:** Goal + done-when criteria, decision points with exit conditions, delegation rules, heuristics, composition (who calls this, what it calls).
 **Stays out:** Tool parameter docs (that's an atomic), flat step lists (that's a recipe).
-**Named:** `<name>-workflow` — `bug-fix-workflow`, `reproduce-workflow`. The hub router is just `workflow`.
+**Named:** Stand-alone — pick a name that describes what the workflow accomplishes. `proof`, `review`. No suffix convention.
 
 This is a workflow:
 > "**Understanding** — session analysis exists? Accept it. Otherwise delegate to subagent. Bug description vague? Ask for context. **Exit:** can state expected vs actual behavior. **Checkpoint:** present to user."
@@ -63,6 +63,10 @@ This is not — it's a recipe wearing a workflow's clothes:
 > "Step 1: Open session. Step 2: Call view. Step 3: Call diff. Step 4: Write summary."
 
 A workflow earns its length through decision points. If every section is "call this tool" without branching, it's a recipe.
+
+### Onboarding-shaped workflows
+
+Skills like `onboard`, `setup-plugin`, and `first-session` are workflow-shaped but user-facing — guided setup rather than agent-internal orchestration. They follow the same bare-name rule. Treat them as adjacent to the three buckets, not a fourth tier.
 
 ## Conventions
 
@@ -92,7 +96,7 @@ This achieves composition without skill invocation overhead — the agent reads 
 
 ### File layout
 
-Each skill is a directory with a `SKILL.md`. Scripts go alongside it. No global prefix — the plugin is the namespace. Naming tells you the bucket: bare noun = atomic, `recipe-*` = recipe, `*-workflow` = workflow.
+Each skill is a directory with a `SKILL.md`. Scripts go alongside it. No global prefix — the plugin is the namespace. Recipes use the `recipe-` prefix; atomics and workflows use bare descriptive names.
 
 ### Don't duplicate across buckets
 
