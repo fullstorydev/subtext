@@ -48,7 +48,7 @@ If MCP tools are not available, the plugin needs to be installed. The command de
 **Claude Code:**
 
 ```
-/plugin marketplace add https://subtext.fullstory.com/repo.git
+/plugin marketplace add https://github.com/fullstorydev/subtext
 /plugin install subtext@subtext-marketplace
 ```
 
