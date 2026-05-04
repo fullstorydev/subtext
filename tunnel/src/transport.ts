@@ -29,6 +29,17 @@ export interface TransportOptions {
   target: string;
   log: (msg: string) => void;
   streaming?: boolean;
+  /**
+   * Called whenever a message is received from the relay. Used by the client
+   * to reset its stale-connection timer. Both transports should invoke this
+   * on every inbound frame (including yamux pings/acks).
+   */
+  onActivity?: () => void;
+  /**
+   * yamux-only: how often to send client-initiated PING frames to keep the
+   * WS alive through stateful intermediaries. Defaults to YAMUX_PING_INTERVAL_MS.
+   */
+  pingIntervalMs?: number;
 }
 
 /** Convert wire headers (Record<string, string[]>) to fetch Headers. */

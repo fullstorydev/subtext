@@ -237,20 +237,39 @@ interface WSAdapter {
  *
  * The server opens streams; we accept them. Call `accept()` in a loop.
  */
+export interface YamuxSessionOptions {
+  /** Called on every received WS message; used for stale-timer reset. */
+  onActivity?: () => void;
+  /**
+   * Cadence (ms) for client-initiated PING frames. 0 disables. Defaults
+   * to no pings if not set — callers (TunnelClient) opt in by passing a
+   * concrete value (typically YAMUX_PING_INTERVAL_MS).
+   */
+  pingIntervalMs?: number;
+}
+
 export class YamuxSession {
   readonly #ws: WSAdapter;
   readonly #streams = new Map<number, YamuxStream>();
+  readonly #onActivity: (() => void) | undefined;
 
   #acceptQueue: YamuxStream[] = [];
   #acceptWaiters: Array<(stream: YamuxStream | null) => void> = [];
   #closed = false;
+  #pingTimer: ReturnType<typeof setInterval> | null = null;
+  #pingNonce = 0;
 
   /** Accumulator for incomplete frames across WebSocket messages. */
   #readBuf: Buffer = Buffer.alloc(0);
 
-  constructor(ws: WSAdapter) {
+  constructor(ws: WSAdapter, opts: YamuxSessionOptions = {}) {
     this.#ws = ws;
+    this.#onActivity = opts.onActivity;
     ws.on('message', (data: RawData) => {
+      // Any WS message — yamux frame, ping ack, anything — counts as the
+      // peer being alive. Reset the upstream stale timer before parsing so
+      // that even malformed frames keep liveness honest.
+      this.#onActivity?.();
       const chunk = toBuffer(data);
       this.#readBuf =
         this.#readBuf.length === 0
@@ -261,6 +280,31 @@ export class YamuxSession {
     ws.on('close', () => {
       this.#onClose();
     });
+
+    // Client-initiated keepalive. Server PINGs alone don't help when an
+    // intermediary has silently dropped our outbound path: we'd happily
+    // ack the next PING that arrives, but it never does, and we have no
+    // way to provoke one. Sending our own PINGs makes the WS bidirectional-
+    // active so stateful intermediaries don't idle-time us out, and forces
+    // an ACK back from the server which the activity hook above observes.
+    const pingMs = opts.pingIntervalMs ?? 0;
+    if (pingMs > 0) {
+      this.#pingTimer = setInterval(() => this.#sendPing(), pingMs);
+      // unref so a quiet session doesn't keep the event loop alive on its own.
+      this.#pingTimer.unref?.();
+    }
+  }
+
+  #sendPing(): void {
+    if (this.#closed) return;
+    // PING is identified by the SYN flag with a nonce in the length field;
+    // server echoes back with FLAG_ACK and the same nonce.
+    const nonce = (this.#pingNonce = (this.#pingNonce + 1) >>> 0);
+    try {
+      this.#ws.send(makeHeader(TYPE_PING, FLAG_SYN, 0, nonce));
+    } catch {
+      // WS may have torn down between ticks; close handler will reconcile.
+    }
   }
 
   // ----- Public API -----
@@ -281,6 +325,10 @@ export class YamuxSession {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    if (this.#pingTimer !== null) {
+      clearInterval(this.#pingTimer);
+      this.#pingTimer = null;
+    }
     try {
       this.#ws.send(makeHeader(TYPE_GO_AWAY, 0, 0, 0 /* normal termination */));
     } catch {
@@ -422,6 +470,10 @@ export class YamuxSession {
 
   #onClose(): void {
     this.#closed = true;
+    if (this.#pingTimer !== null) {
+      clearInterval(this.#pingTimer);
+      this.#pingTimer = null;
+    }
     for (const stream of this.#streams.values()) {
       stream._onRst();
     }

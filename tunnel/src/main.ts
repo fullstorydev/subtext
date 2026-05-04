@@ -1,4 +1,7 @@
 import process from "node:process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 import {
   McpServer,
@@ -9,7 +12,16 @@ import {
 } from "./third_party/index.js";
 import { TunnelClient } from "./client.js";
 
-const VERSION = "0.1.0";
+// Single source of truth: read version from package.json at runtime so it
+// can't drift from what npm publishes. From build/src/main.js, package.json
+// sits two levels up at the package root.
+const pkg = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"),
+    "utf8",
+  ),
+) as { version: string };
+const VERSION = pkg.version;
 
 const argv = await yargs(hideBin(process.argv))
   .option("target", {
@@ -90,11 +102,21 @@ server.registerTool(
       };
     }
 
+    // Optional env-var overrides for the keepalive timing. Production
+    // defaults (STALE_CONNECTION_MS=90s, YAMUX_PING_INTERVAL_MS=30s) are
+    // appropriate for staging/cloud LBs. For local testing of the silent-
+    // drop detection, set e.g. SUBTEXT_TUNNEL_STALE_MS=2000 and
+    // SUBTEXT_TUNNEL_PING_MS=200 so freezes resolve in seconds.
+    const staleMs = Number(process.env.SUBTEXT_TUNNEL_STALE_MS) || undefined;
+    const pingMs = Number(process.env.SUBTEXT_TUNNEL_PING_MS) || undefined;
+
     const client = new TunnelClient({
       relayUrl,
       target: t,
       connectionId,
       log,
+      staleTimeoutMs: staleMs,
+      yamuxPingIntervalMs: pingMs,
     });
 
     // Surface a clear error if the initial handshake fails with a rejection.

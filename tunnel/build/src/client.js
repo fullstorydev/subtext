@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { WebSocket } from './third_party/index.js';
-import { RECONNECT_BASE_MS, RECONNECT_MAX_MS, RESUME_SUBPROTOCOL_PREFIX, STALE_CONNECTION_MS, } from './types.js';
+import { RECONNECT_BASE_MS, RECONNECT_MAX_MS, RESUME_SUBPROTOCOL_PREFIX, STALE_CONNECTION_MS, YAMUX_PING_INTERVAL_MS, } from './types.js';
 import { LegacyTransport } from './transport_legacy.js';
 import { YamuxTransport } from './transport_yamux.js';
 /**
@@ -18,6 +18,8 @@ export class TunnelClient extends EventEmitter {
     #connectionId;
     #upgradeHeaders;
     #log;
+    #staleTimeoutMs;
+    #yamuxPingIntervalMs;
     #ws = null;
     #state = 'disconnected';
     #tunnelId;
@@ -37,6 +39,8 @@ export class TunnelClient extends EventEmitter {
         this.#connectionId = opts.connectionId;
         this.#log = opts.log;
         this.#upgradeHeaders = opts.headers ?? {};
+        this.#staleTimeoutMs = opts.staleTimeoutMs ?? STALE_CONNECTION_MS;
+        this.#yamuxPingIntervalMs = opts.yamuxPingIntervalMs ?? YAMUX_PING_INTERVAL_MS;
     }
     get state() {
         return this.#state;
@@ -150,14 +154,20 @@ export class TunnelClient extends EventEmitter {
             this.#state = 'ready';
             this.#reconnectAttempts = 0;
             this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
-            // Create the transport based on negotiated protocol.
+            // Create the transport based on negotiated protocol. Both transports
+            // wire onActivity to the stale-timer reset: yamux server-initiated
+            // pings alone are not sufficient for liveness, since a silently dropped
+            // WS leaves us with no way to learn the peer is gone. The yamux session
+            // also sends its own client-initiated PINGs to keep stateful
+            // intermediaries (linkerd, NATs, LBs) from idling us out.
             if (msg.protocol === 'yamux') {
-                this.#clearStaleTimer(); // yamux keepalive handles liveness
                 this.#transport = new YamuxTransport({
                     ws,
                     target: this.#target,
                     log: this.#log,
                     streaming: msg.streaming === true,
+                    onActivity: () => this.#resetStaleTimer(),
+                    pingIntervalMs: this.#yamuxPingIntervalMs,
                 });
             }
             else {
@@ -225,7 +235,7 @@ export class TunnelClient extends EventEmitter {
         this.#staleTimer = setTimeout(() => {
             this.#log('Connection stale, reconnecting');
             this.#ws?.close();
-        }, STALE_CONNECTION_MS);
+        }, this.#staleTimeoutMs);
     }
     #clearStaleTimer() {
         if (this.#staleTimer !== null) {
