@@ -59,6 +59,7 @@ These thoughts mean STOP — you're rationalizing:
 | "I'll describe what changed" | Screenshots > prose. |
 | "Let me explore the app first" | `proof` tells you HOW to explore. |
 | "I remember how proof works" | Skills evolve. Read current version. |
+| "I got `Control transferred to human viewer`, let me retry" | Operator state is enforced server-side. Don't retry — poll `live-signal` until `operator=agent`. |
 
 ## Composition
 

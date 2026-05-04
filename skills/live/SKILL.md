@@ -60,6 +60,12 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-net-list` | List network requests |
 | `live-net-get` | Get details of a specific network request |
 
+### Signals
+
+| Tool | Description |
+|------|-------------|
+| `live-signal` | Poll the trace for operator state and new comment signals. Returns `{operator, operator_email?, signals[], cursor, server_time}`. Cursor-based — pass `since` back on the next call. |
+
 ### Tunnel
 
 | Tool | Description |
@@ -99,6 +105,40 @@ call (not just `live-connect`) and respond as follows:
 This matters especially in the **tunnel-first flow**, where `live-connect` is
 never called — it's easy to miss the status if you assume the check only applies
 to that one tool.
+
+## Operator and Signals
+
+`live-signal` is the trace's read channel for human-side activity. Call it
+between action loops to learn about new comments and the operator state.
+
+**Response shape:**
+
+```json
+{
+  "operator": "agent" | "human",
+  "operator_email": "...",     // present when operator=human
+  "signals": [
+    {
+      "type": "comment", "id": "...", "ts": "...",
+      "text": "...", "author_type": "user|agent",
+      "intent": "...", "resolved": false, "parent_id": "..."
+    }
+  ],
+  "cursor": "...",             // round-trip back as `since` next call
+  "server_time": "..."
+}
+```
+
+**Polling pattern.**
+
+1. First call after `live-connect`: omit `since` to baseline the cursor.
+2. Subsequent calls: pass the previous response's `cursor` as `since`. Only signals newer than the cursor come back.
+3. Comment signals carry full text and metadata inline — no follow-up `comment-list` is needed for the new ones.
+4. Save the new `cursor` after every call.
+
+**Operator gate.** When `operator=human`, the user has taken browser control. The `live-act-*` input tools (click, fill, hover, keypress, drag, dialog, upload) return a structured error and **must not be retried**. Read-only tools (`live-view-snapshot`, `live-view-screenshot`, `live-log-*`, `live-net-*`, `live-signal`) keep working. Stay read-only and keep polling — when `operator` flips back to `agent`, resume normal work.
+
+`live-act-wait-for` is excluded from the gate (observation-only).
 
 ## Tips
 

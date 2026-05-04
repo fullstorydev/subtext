@@ -98,6 +98,9 @@ Pass one of these as `content` on `doc-create` to shape the document up front. A
 ## Before
 <!-- Observed state before verification -->
 
+## Changes
+<!-- Diffs, commits, or other artifacts representing what was modified -->
+
 ## After
 <!-- Observed state after -->
 
