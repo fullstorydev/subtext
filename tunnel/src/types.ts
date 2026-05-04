@@ -6,13 +6,11 @@ export type WireHeaders = Record<string, string[]>;
 // Client → Relay
 export interface HelloMessage {
   type: 'hello';
-  target: string;
   connectionId?: string;
   protocol?: 'yamux';
   streaming?: boolean;
   // Per-tunnel allowlist of origin patterns the client agrees to service.
-  // When set, the relay routes by allowlist match and refuses any origin
-  // not listed (no fallback). Omit to keep legacy single-target behavior.
+  // The relay routes by allowlist match and refuses any origin not listed.
   // See allowlist.ts for the grammar.
   allowedOrigins?: string[];
 }
@@ -37,9 +35,9 @@ export interface RequestMessage {
   headers: WireHeaders;
   body: string | null; // base64-encoded
   // Canonical "scheme://host:port" the relay routed this request to.
-  // Optional for back-compat: when absent, fall back to the tunnel's
-  // single Target. Required to route multi-origin allowlist tunnels.
-  origin?: string;
+  // The relay is the source of truth for which origin a request belongs
+  // to; the client no longer carries a single Target of its own.
+  origin: string;
 }
 
 // Client → Relay

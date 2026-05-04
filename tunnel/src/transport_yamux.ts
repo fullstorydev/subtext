@@ -28,14 +28,12 @@ export const CONNECT_STATUS_ERR  = 0x01;
  *  - STREAM_TYPE_CONNECT (0x02): CONNECT (TCP pipe)
  */
 export class YamuxTransport implements TunnelTransport {
-  readonly #target: string;
   readonly #log: (msg: string) => void;
   readonly #session: YamuxSession;
   readonly #streaming: boolean;
   readonly #allowedOrigins: OriginPattern[];
 
   constructor(opts: TransportOptions) {
-    this.#target = opts.target;
     this.#log = opts.log;
     this.#session = new YamuxSession(opts.ws, {
       onActivity: opts.onActivity,
@@ -95,7 +93,7 @@ export class YamuxTransport implements TunnelTransport {
         url: string;
         headers: WireHeaders;
         bodyLen: number;
-        origin?: string;
+        origin: string;
       }>(stream);
 
       let reqBody: Buffer | undefined;
@@ -103,9 +101,12 @@ export class YamuxTransport implements TunnelTransport {
         reqBody = await stream.readExact(header.bodyLen);
       }
 
-      // Pick the origin to fetch. New relays send `origin` per request; old
-      // ones don't, in which case we fall back to the tunnel's single Target.
-      const origin = header.origin ?? this.#target;
+      // The relay is the source of truth for which origin a request belongs
+      // to. A header without `origin` is a protocol violation by the relay.
+      if (!header.origin) {
+        throw new Error('yamux request header missing origin');
+      }
+      const origin = header.origin;
 
       // Allowlist gate: defense in depth. The relay also enforces this — but
       // a compromised or buggy relay must not be able to drive us to fetch an

@@ -14,7 +14,6 @@ import { YamuxTransport } from './transport_yamux.js';
  */
 export class TunnelClient extends EventEmitter {
     #relayUrl;
-    #target;
     #initialConnectionId;
     #connectionId;
     #upgradeHeaders;
@@ -37,7 +36,6 @@ export class TunnelClient extends EventEmitter {
     constructor(opts) {
         super();
         this.#relayUrl = opts.relayUrl;
-        this.#target = opts.target;
         this.#initialConnectionId = opts.connectionId;
         this.#connectionId = opts.connectionId;
         this.#log = opts.log;
@@ -55,9 +53,6 @@ export class TunnelClient extends EventEmitter {
     }
     get tunnelId() {
         return this.#tunnelId;
-    }
-    get target() {
-        return this.#target;
     }
     get connectionId() {
         return this.#connectionId;
@@ -111,7 +106,6 @@ export class TunnelClient extends EventEmitter {
             this.#log('WebSocket open, sending hello');
             const hello = {
                 type: 'hello',
-                target: this.#target,
                 protocol: 'yamux',
                 streaming: true,
             };
@@ -174,7 +168,6 @@ export class TunnelClient extends EventEmitter {
             if (msg.protocol === 'yamux') {
                 this.#transport = new YamuxTransport({
                     ws,
-                    target: this.#target,
                     log: this.#log,
                     streaming: msg.streaming === true,
                     allowedOrigins: this.#allowedOrigins,
@@ -185,7 +178,6 @@ export class TunnelClient extends EventEmitter {
             else {
                 this.#transport = new LegacyTransport({
                     ws,
-                    target: this.#target,
                     log: this.#log,
                     onActivity: () => this.#resetStaleTimer(),
                     allowedOrigins: this.#allowedOrigins,

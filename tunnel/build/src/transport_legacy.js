@@ -13,7 +13,6 @@ import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parse
  */
 export class LegacyTransport {
     #ws;
-    #target;
     #log;
     #onActivity;
     #allowedOrigins;
@@ -21,7 +20,6 @@ export class LegacyTransport {
     #streams = new Map();
     constructor(opts) {
         this.#ws = opts.ws;
-        this.#target = opts.target;
         this.#log = opts.log;
         this.#onActivity = opts.onActivity;
         this.#allowedOrigins = opts.allowedOrigins ?? [];
@@ -88,7 +86,12 @@ export class LegacyTransport {
         const ac = new AbortController();
         this.#inflight.set(msg.requestId, ac);
         try {
-            const origin = msg.origin ?? this.#target;
+            // The relay is the source of truth for which origin a request belongs
+            // to. A request without `origin` is a protocol violation by the relay.
+            if (!msg.origin) {
+                throw new Error('legacy request missing origin');
+            }
+            const origin = msg.origin;
             if (this.#allowedOrigins.length > 0 && !matchesAny(this.#allowedOrigins, origin)) {
                 throw new Error(`origin not in allowlist: ${origin}`);
             }

@@ -17,14 +17,13 @@ import {YamuxTransport} from './transport_yamux.js';
 
 export interface TunnelClientOptions {
   relayUrl: string;
-  target: string;
   connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
   // Per-tunnel origin allowlist. Strings here must conform to the grammar
-  // in allowlist.ts and are validated at construction. When non-empty, the
-  // tunnel routes by allowlist match (no fallback to target). When empty,
-  // legacy single-target behavior applies.
+  // in allowlist.ts and are validated at construction. The relay routes
+  // each request to one of these origins; the client refuses anything not
+  // on the list.
   allowedOrigins?: string[];
   /**
    * Override the inactivity threshold (ms) before the WS is treated as silently
@@ -53,7 +52,6 @@ type TunnelClientEvents = {
  */
 export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   readonly #relayUrl: string;
-  readonly #target: string;
   readonly #initialConnectionId: string | undefined;
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
@@ -78,7 +76,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   constructor(opts: TunnelClientOptions) {
     super();
     this.#relayUrl = opts.relayUrl;
-    this.#target = opts.target;
     this.#initialConnectionId = opts.connectionId;
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
@@ -98,10 +95,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
   get tunnelId(): string | undefined {
     return this.#tunnelId;
-  }
-
-  get target(): string {
-    return this.#target;
   }
 
   get connectionId(): string | undefined {
@@ -165,7 +158,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       this.#log('WebSocket open, sending hello');
       const hello: HelloMessage = {
         type: 'hello',
-        target: this.#target,
         protocol: 'yamux',
         streaming: true,
       };
@@ -230,7 +222,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       if (msg.protocol === 'yamux') {
         this.#transport = new YamuxTransport({
           ws,
-          target: this.#target,
           log: this.#log,
           streaming: msg.streaming === true,
           allowedOrigins: this.#allowedOrigins,
@@ -240,7 +231,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       } else {
         this.#transport = new LegacyTransport({
           ws,
-          target: this.#target,
           log: this.#log,
           onActivity: () => this.#resetStaleTimer(),
           allowedOrigins: this.#allowedOrigins,

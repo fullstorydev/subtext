@@ -27,7 +27,6 @@ import {wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseH
  */
 export class LegacyTransport implements TunnelTransport {
   readonly #ws: InstanceType<typeof WebSocket>;
-  readonly #target: string;
   readonly #log: (msg: string) => void;
   readonly #onActivity: () => void;
   readonly #allowedOrigins: OriginPattern[];
@@ -37,7 +36,6 @@ export class LegacyTransport implements TunnelTransport {
 
   constructor(opts: TransportOptions & {onActivity: () => void}) {
     this.#ws = opts.ws;
-    this.#target = opts.target;
     this.#log = opts.log;
     this.#onActivity = opts.onActivity;
     this.#allowedOrigins = opts.allowedOrigins ?? [];
@@ -111,7 +109,12 @@ export class LegacyTransport implements TunnelTransport {
     this.#inflight.set(msg.requestId, ac);
 
     try {
-      const origin = msg.origin ?? this.#target;
+      // The relay is the source of truth for which origin a request belongs
+      // to. A request without `origin` is a protocol violation by the relay.
+      if (!msg.origin) {
+        throw new Error('legacy request missing origin');
+      }
+      const origin = msg.origin;
       if (this.#allowedOrigins.length > 0 && !matchesAny(this.#allowedOrigins, origin)) {
         throw new Error(`origin not in allowlist: ${origin}`);
       }
