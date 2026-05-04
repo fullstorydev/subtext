@@ -204,23 +204,25 @@ export class YamuxStream {
         }
     }
 }
-/**
- * Yamux session (client role). Wraps a WebSocket that has already completed
- * the hello/ready handshake and is now in binary yamux mode.
- *
- * The server opens streams; we accept them. Call `accept()` in a loop.
- */
 export class YamuxSession {
     #ws;
     #streams = new Map();
+    #onActivity;
     #acceptQueue = [];
     #acceptWaiters = [];
     #closed = false;
+    #pingTimer = null;
+    #pingNonce = 0;
     /** Accumulator for incomplete frames across WebSocket messages. */
     #readBuf = Buffer.alloc(0);
-    constructor(ws) {
+    constructor(ws, opts = {}) {
         this.#ws = ws;
+        this.#onActivity = opts.onActivity;
         ws.on('message', (data) => {
+            // Any WS message — yamux frame, ping ack, anything — counts as the
+            // peer being alive. Reset the upstream stale timer before parsing so
+            // that even malformed frames keep liveness honest.
+            this.#onActivity?.();
             const chunk = toBuffer(data);
             this.#readBuf =
                 this.#readBuf.length === 0
@@ -231,6 +233,31 @@ export class YamuxSession {
         ws.on('close', () => {
             this.#onClose();
         });
+        // Client-initiated keepalive. Server PINGs alone don't help when an
+        // intermediary has silently dropped our outbound path: we'd happily
+        // ack the next PING that arrives, but it never does, and we have no
+        // way to provoke one. Sending our own PINGs makes the WS bidirectional-
+        // active so stateful intermediaries don't idle-time us out, and forces
+        // an ACK back from the server which the activity hook above observes.
+        const pingMs = opts.pingIntervalMs ?? 0;
+        if (pingMs > 0) {
+            this.#pingTimer = setInterval(() => this.#sendPing(), pingMs);
+            // unref so a quiet session doesn't keep the event loop alive on its own.
+            this.#pingTimer.unref?.();
+        }
+    }
+    #sendPing() {
+        if (this.#closed)
+            return;
+        // PING is identified by the SYN flag with a nonce in the length field;
+        // server echoes back with FLAG_ACK and the same nonce.
+        const nonce = (this.#pingNonce = (this.#pingNonce + 1) >>> 0);
+        try {
+            this.#ws.send(makeHeader(TYPE_PING, FLAG_SYN, 0, nonce));
+        }
+        catch {
+            // WS may have torn down between ticks; close handler will reconcile.
+        }
     }
     // ----- Public API -----
     /**
@@ -251,6 +278,10 @@ export class YamuxSession {
         if (this.#closed)
             return;
         this.#closed = true;
+        if (this.#pingTimer !== null) {
+            clearInterval(this.#pingTimer);
+            this.#pingTimer = null;
+        }
         try {
             this.#ws.send(makeHeader(TYPE_GO_AWAY, 0, 0, 0 /* normal termination */));
         }
@@ -381,6 +412,10 @@ export class YamuxSession {
     }
     #onClose() {
         this.#closed = true;
+        if (this.#pingTimer !== null) {
+            clearInterval(this.#pingTimer);
+            this.#pingTimer = null;
+        }
         for (const stream of this.#streams.values()) {
             stream._onRst();
         }

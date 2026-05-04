@@ -25,7 +25,10 @@ export class YamuxTransport {
     constructor(opts) {
         this.#target = opts.target;
         this.#log = opts.log;
-        this.#session = new YamuxSession(opts.ws);
+        this.#session = new YamuxSession(opts.ws, {
+            onActivity: opts.onActivity,
+            pingIntervalMs: opts.pingIntervalMs,
+        });
         this.#streaming = opts.streaming ?? false;
         this.#allowedOrigins = opts.allowedOrigins ?? [];
     }
