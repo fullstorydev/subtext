@@ -1,0 +1,17 @@
+{
+  "name": "subtext",
+  "version": "0.1.43",
+  "description": "Subtext extension for Gemini",
+  "mcpServers": {
+    "subtext": {
+      "httpUrl": "https://api.fullstory.com/mcp/subtext"
+    },
+    "subtext-eu1": {
+      "httpUrl": "https://api.eu1.fullstory.com/mcp/subtext"
+    },
+    "subtext-tunnel": {
+      "command": "npx",
+      "args": ["-y", "@fullstory/subtext-tunnel"]
+    }
+  }
+}
