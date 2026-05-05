@@ -17,13 +17,27 @@ When the hosted browser needs to load a page from the user's local dev server (e
 | Tool | Server | Description |
 |------|--------|-------------|
 | `live-tunnel` | subtext | Allocate a connection and get a relay URL for tunneling |
-| `tunnel-connect` | subtext-tunnel | Connect local server to relay |
+| `tunnel-connect` | subtext-tunnel | Connect local server(s) to relay |
 | `tunnel-status` | subtext-tunnel | Check tunnel connection state |
 
 ## When to Use
 
 - `live-connect` is called with a `localhost`, `127.0.0.1`, or other local URL
 - The user asks to screenshot, test, or interact with their local dev server using hosted browser tools
+
+## The allowlist model
+
+`tunnel-connect` registers the tunnel with an **`allowedOrigins`** list. Every request that flows through the proxy is matched against the list; anything off-list is refused with a 502 (`ERR_TUNNEL_CONNECTION_FAILED` from chromium's perspective). This is the security boundary — without it, a buggy or hostile relay could probe arbitrary localhost services on the user's machine.
+
+Pattern grammar:
+
+- **Exact origin**: `scheme://host:port` — e.g. `http://localhost:3000`, `https://app.fullstory.test:8043`.
+- **Subdomain wildcard**: `scheme://*.suffix:port` — matches `foo.suffix`, `foo.bar.suffix`, etc., on the exact scheme and port.
+- No bare `*`. No port ranges. No paths.
+- Hosts must be loopback-resolving (`localhost`, `127.x`, `::1`, `*.test`, `*.localhost`).
+- Schemes can mix freely — one tunnel can serve `http://...` and `https://...` entries.
+
+Default deny: omit something and chromium can't reach it through this tunnel.
 
 ## Two Flows
 
@@ -32,14 +46,17 @@ When the hosted browser needs to load a page from the user's local dev server (e
 Set up the tunnel before opening a view. `live-tunnel` allocates the browser connection and returns a `connectionId` — use it with `live-view-new` to navigate.
 
 1. Call `live-tunnel` on the **subtext** MCP server → returns `relayUrl` and `connectionId`
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target` (the local URL base, e.g. `http://localhost:3000`)
+2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
 3. Verify `state` is `"ready"` in the response
 4. Call `live-view-new` on **subtext** with the `connection_id` from step 1 and the full localhost URL
 
 ```
 live-tunnel() → { relayUrl, connectionId: "abc-123" }
-tunnel-connect({ relayUrl, target: "http://localhost:3000" }) → { state: "ready", tunnelId: "..." }
-live-view-new({ connection_id: "abc-123", url: "http://localhost:3000/dashboard" }) → screenshot + component tree
+tunnel-connect({
+  relayUrl,
+  allowedOrigins: ["http://localhost:3000"],
+}) → { state: "ready", tunnelId: "..." }
+live-view-new({ connection_id: "abc-123", url: "http://localhost:3000/dashboard" })
 ```
 
 ### Connection-first (attach tunnel to existing connection)
@@ -47,15 +64,57 @@ live-view-new({ connection_id: "abc-123", url: "http://localhost:3000/dashboard"
 If `live-connect` was already called and you need to attach a tunnel afterward, pass the existing `connectionId` to `live-tunnel`.
 
 1. Call `live-tunnel` on the **subtext** MCP server with `connection_id` from the existing connection → returns `relayUrl`
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `target`
+2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
 3. Verify `state` is `"ready"` in the response
 4. Navigate to the localhost URL with `live-view-navigate`
 
 ```
 live-tunnel({ connection_id: "existing-conn-id" }) → { relayUrl, connectionId: "existing-conn-id" }
-tunnel-connect({ relayUrl, target: "http://localhost:3000" }) → { state: "ready", tunnelId: "..." }
-live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3000" }) → screenshot + component tree
+tunnel-connect({
+  relayUrl,
+  allowedOrigins: ["http://localhost:3000"],
+}) → { state: "ready", tunnelId: "..." }
+live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3000" })
 ```
+
+## Picking an allowlist
+
+- **Single-page local app, one origin** — exact entry is fine:
+  ```
+  allowedOrigins: ["http://localhost:3000"]
+  ```
+
+- **Multi-port local stack** (web app on `:3000` + API on `:4200`, frontend + asset server, etc.) — list each origin:
+  ```
+  allowedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:4200",
+  ]
+  ```
+
+- **App that redirects across subdomains during normal use** (the most common gotcha — **OAuth/SSO logins almost always do this**). Use a wildcard so the redirect chain stays inside the allowlist:
+  ```
+  allowedOrigins: ["https://*.fullstory.test:8043"]
+  ```
+  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.fullstory.test`, `auth.fullstory.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
+
+- **Mixed schemes / hosts** — combine freely in one tunnel:
+  ```
+  allowedOrigins: [
+    "https://*.fullstory.test:8043",
+    "http://127.0.0.1:8766",
+  ]
+  ```
+
+When in doubt for a development stack, prefer a wildcard over enumerating subdomains. It's tighter than no allowlist and survives redirect chains the user didn't think to mention.
+
+## Diagnosing a chrome-error page
+
+Symptom: chromium navigates and lands on `chrome-error://chromewebdata/`. Most common cause is an allowlist miss on a redirect.
+
+1. Note the host the failing navigation was trying to reach (the URL bar in the trace viewer or the `current_view` URL after the failed `live-view-navigate`).
+2. Grep the lidar log on the connection's owner pod for `no tunnel for CONNECT`. The hostname in the warning is the one your allowlist doesn't cover.
+3. `tunnel-disconnect` the broken tunnel, get a fresh `live-tunnel` (it preserves the same `connection_id`, so chromium continuity is fine), then `tunnel-connect` again with a widened allowlist (usually a wildcard).
 
 ## Notes
 
@@ -65,3 +124,4 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 - The tunnel stays connected across multiple views — you only need to set it up once per connection.
 - If the tunnel disconnects (e.g. the relay restarts), it reconnects automatically. Call `tunnel-status` to check.
 - The tunnel only needs to be set up for localhost/local URLs. Remote URLs (e.g. `https://example.com`) work directly without a tunnel.
+- A single tunnel can carry many origins — there is no benefit to opening multiple tunnels per connection. Widen the allowlist instead.
