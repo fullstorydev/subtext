@@ -79,10 +79,13 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 
 ## Picking an allowlist
 
-- **Single-page local app, one origin** — exact entry is fine:
+> **Default: if the app has any kind of auth/SSO, use a wildcard.** The OAuth bounce will exit your initial host within seconds of login. An exact-host allowlist will pass the first navigation and then immediately fail with `chrome-error://chromewebdata/` on the redirect. When in doubt, wildcard.
+
+- **App that redirects across subdomains during normal use** (the common case for any app with login — **OAuth/SSO logins almost always do this**). Use a wildcard so the redirect chain stays inside the allowlist:
   ```
-  allowedOrigins: ["http://localhost:3000"]
+  allowedOrigins: ["https://*.example.test:8043"]
   ```
+  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.example.test`, `auth.example.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
 
 - **Multi-port local stack** (web app on `:3000` + API on `:4200`, frontend + asset server, etc.) — list each origin:
   ```
@@ -92,11 +95,10 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
   ]
   ```
 
-- **App that redirects across subdomains during normal use** (the most common gotcha — **OAuth/SSO logins almost always do this**). Use a wildcard so the redirect chain stays inside the allowlist:
+- **Single-page local app, one origin, no auth** — exact entry is fine:
   ```
-  allowedOrigins: ["https://*.example.test:8043"]
+  allowedOrigins: ["http://localhost:3000"]
   ```
-  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.example.test`, `auth.example.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
 
 - **Mixed schemes / hosts** — combine freely in one tunnel:
   ```
@@ -106,15 +108,33 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
   ]
   ```
 
-When in doubt for a development stack, prefer a wildcard over enumerating subdomains. It's tighter than no allowlist and survives redirect chains the user didn't think to mention.
+A wildcard is tighter than no allowlist and survives redirect chains the user didn't think to mention. Prefer it over enumerating subdomains for any non-trivial app.
 
+## Diagnosing a chrome-error page
+
+Symptom: chromium lands on `chrome-error://chromewebdata/` (visible in `live-view-screenshot` or as a blank page after a navigation/click).
+
+Likely cause: an allowlist miss on a redirect — the navigation went somewhere not on `allowedOrigins` and the tunnel refused it. OAuth and SSO logins are the dominant trigger.
+
+Recovery (do this; don't keep navigating):
+
+1. `tunnel-disconnect` the current tunnel.
+2. `live-tunnel` again — the `connection_id` is preserved across reconnect, so chromium continuity is fine.
+3. `tunnel-connect` with a wildcard that covers the redirect target (e.g. `https://*.example.test:8043` instead of `https://app.example.test:8043`).
+4. Retry the navigation that failed.
+
+If the wildcard reconnect still fails the same way, the navigation is going somewhere outside the suffix entirely (different domain, different port). Widen further or ask a human.
+
+## Common mistakes
+
+- **Don't use `live-connect` for localhost / local URLs.** It mints its own connection ID and can't bind to a tunnel — use the tunnel-first flow (`live-tunnel` → `tunnel-connect` → `live-view-new`) instead.
+- **Don't narrow the allowlist to "the URL I'm navigating to".** Login flows redirect; the navigation target is rarely the only origin you'll need. Default to a wildcard.
+- **Don't open multiple tunnels per connection.** A single tunnel carries many origins — widen the allowlist instead.
 
 ## Notes
 
 - **Never fabricate a `connectionId`** — only use IDs returned from `live-connect`, `live-tunnel`, or `tunnel-connect` calls.
 - `live-tunnel` allocates a browser connection on the same pod as the tunnel relay. In tunnel-first flow, this replaces `live-connect` — use `live-view-new` to open views instead.
-- `live-connect` always mints its own connection ID and cannot accept one. For localhost URLs, use the tunnel-first flow instead.
 - The tunnel stays connected across multiple views — you only need to set it up once per connection.
 - If the tunnel disconnects (e.g. the relay restarts), it reconnects automatically. Call `tunnel-status` to check.
 - The tunnel only needs to be set up for localhost/local URLs. Remote URLs (e.g. `https://example.com`) work directly without a tunnel.
-- A single tunnel can carry many origins — there is no benefit to opening multiple tunnels per connection. Widen the allowlist instead.
