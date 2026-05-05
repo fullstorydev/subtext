@@ -1,5 +1,5 @@
 import process from "node:process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -13,14 +13,24 @@ import {
 import { TunnelClient } from "./client.js";
 
 // Single source of truth: read version from package.json at runtime so it
-// can't drift from what npm publishes. From build/src/main.js, package.json
-// sits two levels up at the package root.
-const pkg = JSON.parse(
-  readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"),
-    "utf8",
-  ),
-) as { version: string };
+// can't drift from what npm publishes. The relative depth depends on where
+// this file ends up: build/src/main.js (tsc, dev) is two levels deep;
+// dist/index.js (rollup, published) is one level deep. Walk up until a
+// package.json is found.
+function findPackageJson(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, "package.json");
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error("package.json not found near tunnel binary");
+}
+const pkg = JSON.parse(readFileSync(findPackageJson(), "utf8")) as {
+  version: string;
+};
 const VERSION = pkg.version;
 
 await yargs(hideBin(process.argv))
