@@ -108,13 +108,6 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 
 When in doubt for a development stack, prefer a wildcard over enumerating subdomains. It's tighter than no allowlist and survives redirect chains the user didn't think to mention.
 
-## Diagnosing a chrome-error page
-
-Symptom: chromium navigates and lands on `chrome-error://chromewebdata/`. Most common cause is an allowlist miss on a redirect.
-
-1. Note the host the failing navigation was trying to reach (the URL bar in the trace viewer or the `current_view` URL after the failed `live-view-navigate`).
-2. Grep the lidar log on the connection's owner pod for `no tunnel for CONNECT`. The hostname in the warning is the one your allowlist doesn't cover.
-3. `tunnel-disconnect` the broken tunnel, get a fresh `live-tunnel` (it preserves the same `connection_id`, so chromium continuity is fine), then `tunnel-connect` again with a widened allowlist (usually a wildcard).
 
 ## Notes
 
