@@ -65,11 +65,11 @@ describe('resolveLoopbackOrigin', () => {
 
   it('resolves loopback hostnames and rewrites URL to IP', async () => {
     stub = async (hostname: string) => {
-      assert.equal(hostname, 'foo.intercom.test');
+      assert.equal(hostname, 'foo.myapp.test');
       return {address: '127.0.0.1', family: 4};
     };
-    const r = await resolveLoopbackOrigin('http://foo.intercom.test:3000');
-    assert.equal(r.hostname, 'foo.intercom.test');
+    const r = await resolveLoopbackOrigin('http://foo.myapp.test:3000');
+    assert.equal(r.hostname, 'foo.myapp.test');
     assert.equal(r.resolvedIp, '127.0.0.1');
     assert.equal(r.ipUrl, 'http://127.0.0.1:3000');
     assert.equal(r.port, '3000');

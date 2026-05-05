@@ -91,8 +91,8 @@ export class YamuxTransport {
             // DNS resolve-and-pin: rebinding defense. resolveLoopbackOrigin does
             // ONE DNS lookup, asserts loopback, and gives us back a URL with the
             // resolved IP literal so fetch() doesn't re-resolve. The Host: header
-            // is restored to the original hostname so virtual-host routing
-            // (Rails, etc.) on the upstream still works.
+            // is restored to the original hostname so virtual-host routing on the
+            // upstream still works.
             const resolved = await resolveLoopbackOrigin(origin);
             const url = resolved.ipUrl + header.url;
             const fetchHeaders = wireHeadersToHeaders(header.headers);

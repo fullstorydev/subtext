@@ -17,7 +17,7 @@ export interface OriginPattern {
   host: string; // exact host (Wildcard=false); empty for wildcards
   port: string; // numeric port, always present
   wildcard: boolean;
-  suffix: string; // wildcard suffix (e.g. 'intercom.test')
+  suffix: string; // wildcard suffix (e.g. 'myapp.test')
 }
 
 // Public TLDs we explicitly refuse to wildcard. Belt-and-braces on top of the
