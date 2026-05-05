@@ -20,7 +20,9 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | Tool | Description |
 |------|-------------|
 | `live-connect` | Open a browser connection to a URL. Returns screenshot, component tree, `fs_session_url`, `trace_id`, `trace_url`, and `capture_status`. |
-| `live-disconnect` | Close a browser connection. Returns `fs_session_url`, `trace_id`, and `trace_url`. |
+| `live-disconnect` | Close a browser connection. The trace enters **dormant** state and can be reconnected within 24 hours. Returns `fs_session_url`, `trace_id`, and `trace_url`. |
+| `live-reconnect` | Reconnect to a **dormant** trace with a fresh browser context. Preserves session stitching (same FS user identity). Takes `trace_id` (required) and `url` (optional, defaults to `about:blank`). Returns the same fields as `live-connect`. |
+| `live-trace-status` | Query the current status of a trace. Returns `trace_id`, `status` (`pending`/`live`/`dormant`/`review`), `is_reconnectable`, `has_live_connection`, `connection_id`, `session_id`, `last_url`, `ended_at`, and `viewer_url`. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
 ### Views
@@ -76,15 +78,32 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 
 Parameter schemas are visible in the tool definition at call time.
 
+## Trace Lifecycle
+
+Traces move through four states:
+
+| State | Meaning |
+|-------|---------|
+| **pending** | Connection allocated, no FS session captured yet |
+| **live** | Active recording in progress |
+| **dormant** | Connection closed but trace preserved — reconnectable for 24 hours |
+| **review** | Dormant TTL expired or never reconnected — archived for replay |
+
+When a connection disconnects (`live-disconnect` or unexpected drop), the trace enters **dormant** state instead of immediately archiving. Within 24 hours, call `live-reconnect` with the `trace_id` to resume with a fresh browser context. Session stitching is preserved — the new browser receives the same FS user identity, so FullStory treats it as a continuation of the original session.
+
+Use `live-trace-status` to check whether a trace is reconnectable before deciding between `live-connect` (new trace) and `live-reconnect` (resume dormant).
+
+After the 24-hour window, dormant traces automatically transition to **review** and can only be accessed via session replay tools (`review-open`).
+
 ## Trace and Session URLs
 
-`fs_session_url`, `trace_id`, and `trace_url` are returned by `live-connect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
+`fs_session_url`, `trace_id`, and `trace_url` are returned by `live-connect`, `live-reconnect`, `live-disconnect`, `live-view-navigate`, `live-view-new`, and `live-view-snapshot`.
 
 - **fs_session_url** — the raw Fullstory session URL.
-- **trace_id** — the 12-char base62 id for this connection's trace. **Capture and reuse this** as the parent identifier for `comment-*` tools and as input to `review-open` later. The trailing path segment of `trace_url` is the same id.
+- **trace_id** — the 12-char base62 id for this connection's trace. **Capture and reuse this** as the parent identifier for `comment-*` tools, as input to `review-open` later, and as the key for `live-reconnect` if you need to resume a disconnected session. The trailing path segment of `trace_url` is the same id.
 - **trace_url** — a shareable link that opens the live viewer in a browser. **Always print this to the user** so they can watch the agent's browser in real time.
 
-After every connection is established — via `live-connect` or `live-view-new` (tunnel-first flow) — output the URL on its own line:
+After every connection is established — via `live-connect`, `live-reconnect`, or `live-view-new` (tunnel-first flow) — output the URL on its own line:
 
 ```
 Viewer: {trace_url}
@@ -147,7 +166,8 @@ between action loops to learn about new comments and the operator state.
 - When the screenshot is evidence about a specific element, clip to it with `component_id` (and small `expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
 - `live-view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `live-view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
-- Close connections when done to free server resources.
+- Close connections when done to free server resources. The trace stays dormant for 24 hours — you can `live-reconnect` if you need the same trace back.
+- Prefer `live-reconnect` over `live-connect` when resuming work on a previously disconnected trace — it preserves session stitching and avoids burning a new trace.
 
 ## Tunnel Setup
 

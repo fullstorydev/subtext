@@ -108,7 +108,9 @@ If a `live-act-*` tool returns `Control transferred to human viewer`, the review
 
 ### Step 5: Verify the change with live tools
 
-Return to the browser. Refresh, hot reload, or reconnect if the dev server restarted.
+Return to the browser. Refresh, hot reload, or reconnect if the connection dropped.
+
+If the connection was lost (dev server restart, timeout, network blip), check the trace state with `live-trace-status`. If the trace is **dormant**, use `live-reconnect` with the saved `trace_id` to resume — this preserves session stitching and keeps your evidence on a single trace. Only fall back to `live-connect` (new trace) if the dormant window has expired (trace is in **review** state).
 
 1. Navigate back to the same page/state from Step 3
 2. Call `live-view-screenshot` with `upload: true` — this is the AFTER evidence. Save the returned `screenshot_url`.

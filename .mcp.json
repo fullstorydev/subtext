@@ -2,7 +2,7 @@
   "mcpServers": {
     "subtext": {
       "type": "http",
-      "url": "https://api.fullstory.com/mcp/subtext"
+      "url": "https://api.fullstory.test:8043/mcp/subtext"
     },
     "subtext-eu1": {
       "type": "http",

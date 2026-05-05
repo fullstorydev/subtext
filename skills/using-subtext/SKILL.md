@@ -39,6 +39,7 @@ User CLAUDE.md > using-subtext > default system prompt.
 | Making UI/visual changes | `proof` |
 | Have a session URL | `review` |
 | Need to drive a hosted browser | `live` |
+| Resuming a disconnected trace | `live` (`live-reconnect`) |
 | Setting up a new project | `onboard` |
 | Naming components / runtime model | `sightmap` |
 
