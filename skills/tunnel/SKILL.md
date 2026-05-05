@@ -94,14 +94,14 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 
 - **App that redirects across subdomains during normal use** (the most common gotcha — **OAuth/SSO logins almost always do this**). Use a wildcard so the redirect chain stays inside the allowlist:
   ```
-  allowedOrigins: ["https://*.fullstory.test:8043"]
+  allowedOrigins: ["https://*.example.test:8043"]
   ```
-  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.fullstory.test`, `auth.fullstory.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
+  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.example.test`, `auth.example.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
 
 - **Mixed schemes / hosts** — combine freely in one tunnel:
   ```
   allowedOrigins: [
-    "https://*.fullstory.test:8043",
+    "https://*.example.test:8043",
     "http://127.0.0.1:8766",
   ]
   ```
