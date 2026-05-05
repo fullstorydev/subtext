@@ -31,7 +31,7 @@ When the hosted browser needs to load a page from the user's local dev server (e
 
 Pattern grammar:
 
-- **Exact origin**: `scheme://host:port` — e.g. `http://localhost:3000`, `https://app.fullstory.test:8043`.
+- **Exact origin**: `scheme://host:port` — e.g. `http://localhost:3000`, `https://app.example.test:8043`.
 - **Subdomain wildcard**: `scheme://*.suffix:port` — matches `foo.suffix`, `foo.bar.suffix`, etc., on the exact scheme and port.
 - No bare `*`. No port ranges. No paths.
 - Hosts must be loopback-resolving (`localhost`, `127.x`, `::1`, `*.test`, `*.localhost`).
