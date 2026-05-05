@@ -225,7 +225,7 @@ If the change affects more than one page or state:
 - **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
 - **Triggers from:** any file edit to UI code, or when the user asks for a visual change
 
-## Async heartbeat (Claude Code only, optional)
+## Async heartbeat (Claude Code only, MANDATORY)
 
 The polling discipline above keeps you in sync as long as you're actively
 calling `live-*` tools. Long idle gaps inside a proof run — multi-minute
