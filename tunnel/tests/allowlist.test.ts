@@ -20,8 +20,8 @@ describe('parseOriginPattern: accepts', () => {
     ['https://localhost:443', 'https://localhost:443', false],
     ['http://foo.test:3000', 'http://foo.test:3000', false],
     ['http://foo.localhost:3000', 'http://foo.localhost:3000', false],
-    ['http://*.intercom.test:3000', 'http://*.intercom.test:3000', true],
-    ['http://*.embercom.test:4200', 'http://*.embercom.test:4200', true],
+    ['http://*.myapp.test:3000', 'http://*.myapp.test:3000', true],
+    ['http://*.otherapp.test:4200', 'http://*.otherapp.test:4200', true],
     ['http://*.localhost:3000', 'http://*.localhost:3000', true],
     // Bare reserved TLDs: `*.test` and `*.localhost` are valid on their own.
     ['http://*.test:3000', 'http://*.test:3000', true],
@@ -78,12 +78,12 @@ describe('patternMatches', () => {
     ['http://localhost:3000', 'http://LOCALHOST:3000', true],
     ['http://localhost:3000', 'http://localhost:3000/path', false],
     // Wildcard form
-    ['http://*.intercom.test:3000', 'http://foo.intercom.test:3000', true],
-    ['http://*.intercom.test:3000', 'http://a.b.intercom.test:3000', true],
-    ['http://*.intercom.test:3000', 'http://intercom.test:3000', false],
-    ['http://*.intercom.test:3000', 'http://foo.intercom.test:4200', false],
-    ['http://*.intercom.test:3000', 'https://foo.intercom.test:3000', false],
-    ['http://*.intercom.test:3000', 'http://foo.embercom.test:3000', false],
+    ['http://*.myapp.test:3000', 'http://foo.myapp.test:3000', true],
+    ['http://*.myapp.test:3000', 'http://a.b.myapp.test:3000', true],
+    ['http://*.myapp.test:3000', 'http://myapp.test:3000', false],
+    ['http://*.myapp.test:3000', 'http://foo.myapp.test:4200', false],
+    ['http://*.myapp.test:3000', 'https://foo.myapp.test:3000', false],
+    ['http://*.myapp.test:3000', 'http://foo.otherapp.test:3000', false],
     ['http://*.localhost:3000', 'http://app.localhost:3000', true],
     ['http://*.localhost:3000', 'http://localhost:3000', false],
   ];
@@ -99,18 +99,18 @@ describe('matchesAny', () => {
   const patterns = parseOriginPatterns([
     'http://localhost:3000',
     'http://localhost:4200',
-    'http://*.intercom.test:3000',
+    'http://*.myapp.test:3000',
   ]);
   it('hits exact', () => {
     assert.ok(matchesAny(patterns, 'http://localhost:3000'));
     assert.ok(matchesAny(patterns, 'http://localhost:4200'));
   });
   it('hits wildcard', () => {
-    assert.ok(matchesAny(patterns, 'http://foo.intercom.test:3000'));
+    assert.ok(matchesAny(patterns, 'http://foo.myapp.test:3000'));
   });
   it('misses unmatched port/scheme', () => {
     assert.ok(!matchesAny(patterns, 'http://localhost:5000'));
-    assert.ok(!matchesAny(patterns, 'http://foo.intercom.test:4200'));
+    assert.ok(!matchesAny(patterns, 'http://foo.myapp.test:4200'));
   });
   it('empty patterns matches nothing', () => {
     assert.ok(!matchesAny([], 'http://localhost:3000'));

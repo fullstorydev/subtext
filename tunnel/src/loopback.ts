@@ -12,7 +12,7 @@ import * as net from 'node:net';
  * "check" and "fetch."
  *
  * The Host: header should be reset to the original hostname:port by the
- * caller so virtual-host routing (Rails, etc.) on the upstream still works.
+ * caller so virtual-host routing on the upstream still works.
  *
  * Throws if:
  *   - DNS lookup fails entirely

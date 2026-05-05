@@ -77,8 +77,8 @@ server.registerTool(
             "`scheme://host:port` (exact) or `scheme://*.suffix:port` (subdomain " +
             "wildcard). Hosts must be loopback-resolving (localhost, 127.x, ::1, " +
             "*.test, *.localhost). The relay routes per-request to one of these " +
-            "origins; the client refuses anything not on the list (e.g. Rails on " +
-            ":3000 + Ember on :4200 + assets across *.intercom.test:3000).",
+            "origins; the client refuses anything not on the list (e.g. an API " +
+            "on :3000 + a frontend on :4200 + assets across *.myapp.test:3000).",
         ),
     }),
   },
