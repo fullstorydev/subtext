@@ -38,6 +38,7 @@ export class YamuxTransport implements TunnelTransport {
     this.#session = new YamuxSession(opts.ws, {
       onActivity: opts.onActivity,
       pingIntervalMs: opts.pingIntervalMs,
+      onPingSent: opts.onPingSent,
     });
     this.#streaming = opts.streaming ?? false;
     this.#allowedOrigins = opts.allowedOrigins ?? [];
