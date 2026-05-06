@@ -208,6 +208,7 @@ export class YamuxSession {
     #ws;
     #streams = new Map();
     #onActivity;
+    #onPingSent;
     #acceptQueue = [];
     #acceptWaiters = [];
     #closed = false;
@@ -218,6 +219,7 @@ export class YamuxSession {
     constructor(ws, opts = {}) {
         this.#ws = ws;
         this.#onActivity = opts.onActivity;
+        this.#onPingSent = opts.onPingSent;
         ws.on('message', (data) => {
             // Any WS message — yamux frame, ping ack, anything — counts as the
             // peer being alive. Reset the upstream stale timer before parsing so
@@ -254,6 +256,10 @@ export class YamuxSession {
         const nonce = (this.#pingNonce = (this.#pingNonce + 1) >>> 0);
         try {
             this.#ws.send(makeHeader(TYPE_PING, FLAG_SYN, 0, nonce));
+            // Notify the diagnostic hook only on successful enqueue so the absence
+            // of a 'ping-sent' event in the history reliably means "the timer
+            // fired but the send threw" rather than "the timer didn't fire."
+            this.#onPingSent?.();
         }
         catch {
             // WS may have torn down between ticks; close handler will reconcile.

@@ -246,12 +246,20 @@ export interface YamuxSessionOptions {
    * concrete value (typically YAMUX_PING_INTERVAL_MS).
    */
   pingIntervalMs?: number;
+  /**
+   * Called every time a client-initiated PING frame is enqueued on the WS.
+   * Diagnostic hook — TunnelClient records these in its event ring so callers
+   * can verify the keepalive timer is actually firing during quiet periods.
+   * The callback is fire-and-forget; failures are swallowed.
+   */
+  onPingSent?: () => void;
 }
 
 export class YamuxSession {
   readonly #ws: WSAdapter;
   readonly #streams = new Map<number, YamuxStream>();
   readonly #onActivity: (() => void) | undefined;
+  readonly #onPingSent: (() => void) | undefined;
 
   #acceptQueue: YamuxStream[] = [];
   #acceptWaiters: Array<(stream: YamuxStream | null) => void> = [];
@@ -265,6 +273,7 @@ export class YamuxSession {
   constructor(ws: WSAdapter, opts: YamuxSessionOptions = {}) {
     this.#ws = ws;
     this.#onActivity = opts.onActivity;
+    this.#onPingSent = opts.onPingSent;
     ws.on('message', (data: RawData) => {
       // Any WS message — yamux frame, ping ack, anything — counts as the
       // peer being alive. Reset the upstream stale timer before parsing so
@@ -302,6 +311,10 @@ export class YamuxSession {
     const nonce = (this.#pingNonce = (this.#pingNonce + 1) >>> 0);
     try {
       this.#ws.send(makeHeader(TYPE_PING, FLAG_SYN, 0, nonce));
+      // Notify the diagnostic hook only on successful enqueue so the absence
+      // of a 'ping-sent' event in the history reliably means "the timer
+      // fired but the send threw" rather than "the timer didn't fire."
+      this.#onPingSent?.();
     } catch {
       // WS may have torn down between ticks; close handler will reconcile.
     }

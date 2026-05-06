@@ -45,6 +45,12 @@ export interface TransportOptions {
    * WS alive through stateful intermediaries. Defaults to YAMUX_PING_INTERVAL_MS.
    */
   pingIntervalMs?: number;
+  /**
+   * yamux-only: diagnostic hook called whenever a client-initiated PING is
+   * successfully enqueued on the WS. Used by the client to record an event
+   * in its history ring so callers can verify the keepalive timer is firing.
+   */
+  onPingSent?: () => void;
 }
 
 /** Convert wire headers (Record<string, string[]>) to fetch Headers. */
