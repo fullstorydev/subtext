@@ -6,3 +6,8 @@ __pycache__/
 # Local design docs, plans, and skill-eval writeups. Authored alongside
 # implementation work but not part of the shipped plugin surface.
 docs/
+
+# Tunnel package build artifacts. tsc emits to build/, rollup emits to dist/.
+# Both are reproducible from sources; npm publish regenerates them via prepack.
+tunnel/build/
+tunnel/dist/

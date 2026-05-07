@@ -4,17 +4,18 @@
   "description": "MCP server for reverse tunneling to localhost — connects hosted Subtext browser tools to local dev servers.",
   "type": "module",
   "bin": {
-    "subtext-tunnel": "./build/src/index.js"
+    "subtext-tunnel": "./dist/index.js"
   },
   "files": [
-    "build/src/"
+    "dist/"
   ],
   "scripts": {
-    "clean": "node -e \"require('fs').rmSync('build', {recursive: true, force: true})\"",
-    "build": "tsc",
-    "bundle": "npm run clean && npm run build && rollup -c rollup.config.mjs",
-    "test": "node --test build/tests/**/*.js",
-    "prepublishOnly": "npm run bundle"
+    "clean": "node -e \"require('fs').rmSync('build', {recursive: true, force: true}); require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "build": "npm run clean && tsc",
+    "bundle": "npm run build && rollup -c rollup.config.mjs",
+    "test": "npm run build && node --test build/tests/**/*.js",
+    "verify": "npm pack --dry-run",
+    "prepack": "npm run bundle"
   },
   "keywords": [
     "mcp",
