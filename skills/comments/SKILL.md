@@ -44,6 +44,17 @@ Comment tools do **not** auto-capture screenshots. To attach a screenshot, pass 
 
 When the comment is about a specific element, capture a focused clip by passing `component_id` (and a small `expand_pct` for context) to the screenshot tool. A focused clip is far more useful in a comment than a full viewport — the reader sees exactly what you're pointing at.
 
+## Markdown
+
+Comment text is rendered as **Markdown** in the comment thread UI. Use standard formatting freely:
+
+- **Bold** / *italic* for emphasis
+- Bulleted and numbered lists for structured observations
+- `code spans` and fenced code blocks for selectors, error messages, or snippets
+- [Links](url) to reference external evidence or docs
+
+Keep formatting proportional to the comment — a one-line observation doesn't need a bulleted list.
+
 ## Intents
 
 When adding a comment, classify it:
