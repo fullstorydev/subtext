@@ -45,13 +45,15 @@ Default deny: omit something and chromium can't reach it through this tunnel.
 
 Set up the tunnel before opening a view. `live-tunnel` allocates the browser connection and returns a `connectionId` — use it with `live-view-new` to navigate.
 
-1. Call `live-tunnel` on the **subtext** MCP server → returns `relayUrl` and `connectionId`
-2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
-3. Verify `state` is `"ready"` in the response
-4. Call `live-view-new` on **subtext** with the `connection_id` from step 1 and the full localhost URL
+1. Call `live-tunnel` on the **subtext** MCP server → returns `relayUrl`, `connectionId`, and `sightmapUploadUrl`
+2. If the project has `.sightmap/` definitions, upload them now (see `subtext:shared`). Upload before `live-view-new` so the sightmap is active for the first snapshot.
+3. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
+4. Verify `state` is `"ready"` in the response
+5. Call `live-view-new` on **subtext** with the `connection_id` from step 1 and the full localhost URL
 
 ```
-live-tunnel() → { relayUrl, connectionId: "abc-123" }
+live-tunnel() → { relayUrl, connectionId: "abc-123", sightmapUploadUrl: "..." }
+# upload .sightmap/ here if project has definitions (see subtext:shared)
 tunnel-connect({
   relayUrl,
   allowedOrigins: ["http://localhost:3000"],
