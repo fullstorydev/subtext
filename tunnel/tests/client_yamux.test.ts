@@ -281,10 +281,11 @@ describe('TunnelClient yamux mode', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target,
       connectionId: 'test-yamux-conn',
       log: (msg) => logs.push(msg),
     });
+    // Note: `target` parameter is no longer passed to TunnelClient; callers
+    // must include `origin: target` in each request header they construct.
 
     const wsPromise = new Promise<WsClient>((resolve) => {
       wss.once('connection', resolve);
@@ -354,6 +355,7 @@ describe('TunnelClient yamux mode', () => {
       url: '/echo',
       headers: {'Content-Type': ['text/plain']},
       bodyLen: reqBody.length,
+      origin: targetUrl,
     });
     const headerBuf = Buffer.from(header);
     const prefix = Buffer.allocUnsafe(1 + 4);
@@ -471,6 +473,7 @@ describe('TunnelClient yamux mode', () => {
           url: `/path-${i}`,
           headers: {},
           bodyLen: body.length,
+          origin: targetUrl,
         });
         const headerBuf = Buffer.from(header);
         const prefix = Buffer.allocUnsafe(1 + 4);
@@ -566,6 +569,7 @@ describe('TunnelClient yamux mode', () => {
       url: '/big',
       headers: {},
       bodyLen: 0,
+      origin: targetUrl,
     });
     const headerBuf = Buffer.from(header);
     const prefix = Buffer.allocUnsafe(1 + 4);

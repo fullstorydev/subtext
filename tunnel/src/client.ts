@@ -1,6 +1,8 @@
 import {EventEmitter} from 'node:events';
 import type {IncomingMessage} from 'node:http';
 import {WebSocket, type RawData} from './third_party/index.js';
+import type {OriginPattern} from './allowlist.js';
+import {parseOriginPatterns} from './allowlist.js';
 import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
   RECONNECT_BASE_MS,
@@ -15,10 +17,14 @@ import {YamuxTransport} from './transport_yamux.js';
 
 export interface TunnelClientOptions {
   relayUrl: string;
-  target: string;
   connectionId?: string;
   headers?: Record<string, string>;
   log: (msg: string) => void;
+  // Per-tunnel origin allowlist. Strings here must conform to the grammar
+  // in allowlist.ts and are validated at construction. The relay routes
+  // each request to one of these origins; the client refuses anything not
+  // on the list.
+  allowedOrigins?: string[];
   /**
    * Override the inactivity threshold (ms) before the WS is treated as silently
    * dropped and reconnected. Defaults to STALE_CONNECTION_MS. Tests use a small
@@ -46,11 +52,12 @@ type TunnelClientEvents = {
  */
 export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   readonly #relayUrl: string;
-  readonly #target: string;
   readonly #initialConnectionId: string | undefined;
   #connectionId: string | undefined;
   readonly #upgradeHeaders: Record<string, string>;
   readonly #log: (msg: string) => void;
+  readonly #allowedOriginsRaw: string[] | undefined;
+  readonly #allowedOrigins: OriginPattern[];
   readonly #staleTimeoutMs: number;
   readonly #yamuxPingIntervalMs: number;
 
@@ -69,11 +76,15 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   constructor(opts: TunnelClientOptions) {
     super();
     this.#relayUrl = opts.relayUrl;
-    this.#target = opts.target;
     this.#initialConnectionId = opts.connectionId;
     this.#connectionId = opts.connectionId;
     this.#log = opts.log;
     this.#upgradeHeaders = opts.headers ?? {};
+    // Parse the allowlist once at construction. Throws if any entry is
+    // malformed — surfacing the error here is friendlier than waiting for
+    // the relay to reject the hello.
+    this.#allowedOriginsRaw = opts.allowedOrigins;
+    this.#allowedOrigins = parseOriginPatterns(opts.allowedOrigins);
     this.#staleTimeoutMs = opts.staleTimeoutMs ?? STALE_CONNECTION_MS;
     this.#yamuxPingIntervalMs = opts.yamuxPingIntervalMs ?? YAMUX_PING_INTERVAL_MS;
   }
@@ -84,10 +95,6 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
   get tunnelId(): string | undefined {
     return this.#tunnelId;
-  }
-
-  get target(): string {
-    return this.#target;
   }
 
   get connectionId(): string | undefined {
@@ -114,13 +121,21 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   #doConnect(): void {
     this.#state = 'connecting';
 
-    // Resume path authenticates via subprotocol; strip the (spent) nonce params.
+    // Resume path authenticates via subprotocol; strip the (spent) nonce token.
+    // Keep connection_id in the URL — the relay's affinity router hashes on it
+    // to send the WS to the pod that owns the chromium browser context. Without
+    // it, the affinity router mints a fresh UUID and the reconnect lands on a
+    // random pod; the new tunnel registers there with the (correct, preserved)
+    // connection_id, but the chromium-side forward proxy on the original pod
+    // still can't see it and the next navigation gets ERR_TUNNEL_CONNECTION_FAILED.
     // Initial path keeps the relay URL intact and sets connection_id if provided.
     const u = new URL(this.#relayUrl);
     let protocols: string[] | undefined;
     if (this.#resumeToken) {
       u.searchParams.delete('token');
-      u.searchParams.delete('connection_id');
+      if (this.#connectionId) {
+        u.searchParams.set('connection_id', this.#connectionId);
+      }
       protocols = [`${RESUME_SUBPROTOCOL_PREFIX}${this.#resumeToken}`];
     } else if (this.#initialConnectionId) {
       u.searchParams.set('connection_id', this.#initialConnectionId);
@@ -151,10 +166,12 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       this.#log('WebSocket open, sending hello');
       const hello: HelloMessage = {
         type: 'hello',
-        target: this.#target,
         protocol: 'yamux',
         streaming: true,
       };
+      if (this.#allowedOriginsRaw && this.#allowedOriginsRaw.length > 0) {
+        hello.allowedOrigins = this.#allowedOriginsRaw;
+      }
       // On resume path the server already knows the connectionId; don't echo
       // the stale initial value.
       if (this.#initialConnectionId && !this.#resumeToken) {
@@ -197,17 +214,11 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
       this.#tunnelId = msg.tunnelId;
       this.#connectionId = msg.connectionId;
-      // Resume tokens are intentionally ignored. The relay's tryResume mints a
-      // brand-new connection_id on resume and rebinds the trace to it — but the
-      // server-side ForwardProxy is locked to the original connection_id at
-      // chromium-context construction time, so post-resume CONNECT lookups miss
-      // the registry and chromium gets ERR_TUNNEL_CONNECTION_FAILED on the next
-      // navigation. Until lidar's tryResume preserves the connection_id from
-      // the trace row, force every reconnect through the fresh-connect path:
-      // 401 on the spent nonce → emit need_live_tunnel → caller re-issues a
-      // fresh relay URL via live-tunnel, which routes back to the same conn_id
-      // (preserved by mcp_affinity) and the same trace (re-attached via
-      // GetByConnectionID).
+      // Capture rotating resume token and stable trace ID from the server.
+      // The server preserves the connection_id across resume (lidar
+      // tryResume reads it from the trace row), so the chromium browser
+      // context's forward proxy continues to find tunnels after reconnect.
+      if (msg.resumeToken !== undefined) this.#resumeToken = msg.resumeToken;
       if (msg.traceId !== undefined) this.#traceId = msg.traceId;
       this.#state = 'ready';
       this.#reconnectAttempts = 0;
@@ -222,18 +233,18 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       if (msg.protocol === 'yamux') {
         this.#transport = new YamuxTransport({
           ws,
-          target: this.#target,
           log: this.#log,
           streaming: msg.streaming === true,
+          allowedOrigins: this.#allowedOrigins,
           onActivity: () => this.#resetStaleTimer(),
           pingIntervalMs: this.#yamuxPingIntervalMs,
         });
       } else {
         this.#transport = new LegacyTransport({
           ws,
-          target: this.#target,
           log: this.#log,
           onActivity: () => this.#resetStaleTimer(),
+          allowedOrigins: this.#allowedOrigins,
         });
       }
 

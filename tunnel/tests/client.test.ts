@@ -81,11 +81,16 @@ describe('TunnelClient', () => {
     }
   });
 
+  // The client no longer carries a target; tests that need to drive a real
+  // backend pass the URL as `origin` on each RequestMessage they construct.
+  // `currentTarget` is just a convenience holder so the per-test setup can
+  // pass it through to the request builder below.
+  let currentTarget = 'http://localhost:9999';
   function createClient(target = 'http://localhost:9999'): TunnelClient {
     logs = [];
+    currentTarget = target;
     return new TunnelClient({
       relayUrl,
-      target,
       connectionId: 'test-connection-id',
       log: msg => logs.push(msg),
     });
@@ -117,7 +122,6 @@ describe('TunnelClient', () => {
     const hello = (await nextMessage(relayWs)) as HelloMessage;
 
     assert.equal(hello.type, 'hello');
-    assert.equal(hello.target, 'http://localhost:9999');
     assert.equal(hello.connectionId, 'test-connection-id');
     assert.equal(client.state, 'connected');
 
@@ -185,6 +189,7 @@ describe('TunnelClient', () => {
       url: '/test?foo=bar',
       headers: {Accept: ['text/plain']},
       body: null,
+      origin: currentTarget,
     };
     relayWs.send(JSON.stringify(req));
 
@@ -224,6 +229,7 @@ describe('TunnelClient', () => {
       url: '/',
       headers: {},
       body: null,
+      origin: currentTarget,
     };
     relayWs.send(JSON.stringify(req));
 
@@ -358,7 +364,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       log: msg => logs.push(msg),
     });
 
@@ -388,7 +393,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       connectionId: 'my-conn-id',
       log: msg => logs.push(msg),
     });
@@ -417,7 +421,6 @@ describe('TunnelClient', () => {
     logs = [];
     const client = new TunnelClient({
       relayUrl,
-      target: 'http://localhost:9999',
       log: msg => logs.push(msg),
     });
 
@@ -561,7 +564,7 @@ describe('TunnelClient', () => {
     const rawUrl = `ws://127.0.0.1:${rawAddr.port}`;
 
     logs = [];
-    const client = new TunnelClient({relayUrl: rawUrl, target: 'http://localhost:9999', log: msg => logs.push(msg)});
+    const client = new TunnelClient({relayUrl: rawUrl, log: msg => logs.push(msg)});
     const needLiveTunnel = new Promise<void>(resolve => client.once('need_live_tunnel', resolve));
 
     // First connect succeeds via nonce path.
@@ -584,16 +587,18 @@ describe('TunnelClient', () => {
     await new Promise<void>(resolve => rawHttpServer.close(() => resolve()));
   });
 
-  it('resume reconnect strips spent nonce params from URL', async () => {
-    // If the client reused the original URL (with ?token=<spent>&connection_id=...)
-    // on reconnect, lidar would log warnings and 401 every reconnect attempt.
-    // Build a client with a nonce-style URL and verify the resume reconnect URL
-    // has no token/connection_id and uses the subprotocol header.
+  it('resume reconnect strips spent token but preserves connection_id', async () => {
+    // The token is single-use — replaying it would trip the resume-replay
+    // detector and 401 the reconnect. The connection_id, on the other hand,
+    // MUST be preserved: the relay's affinity router hashes on it to route
+    // the WS to the pod that owns the chromium browser context. Drop it, and
+    // the reconnect lands on a random pod; the new tunnel registers there
+    // but the chromium-side forward proxy on the original pod can't see it,
+    // and the next navigation gets ERR_TUNNEL_CONNECTION_FAILED.
     logs = [];
     const nonceUrl = `${relayUrl}/?token=spent-nonce&connection_id=initial-cid`;
     const client = new TunnelClient({
       relayUrl: nonceUrl,
-      target: 'http://localhost:9999',
       connectionId: 'initial-cid',
       log: msg => logs.push(msg),
     });
@@ -615,7 +620,14 @@ describe('TunnelClient', () => {
 
     const upgradeUrl = new URL(req2.url!, `http://${req2.headers.host}`);
     assert.equal(upgradeUrl.searchParams.get('token'), null, 'spent token must not appear on reconnect');
-    assert.equal(upgradeUrl.searchParams.get('connection_id'), null, 'connection_id must not appear on reconnect');
+    // The server's tryResume preserves the connection_id from the trace row, so
+    // the post-ready value (`server-cid` here) is what the affinity router needs
+    // to see, not the initial value the client started with.
+    assert.equal(
+      upgradeUrl.searchParams.get('connection_id'),
+      'server-cid',
+      'connection_id must remain on resume URL so affinity routing reaches the chromium-owning pod',
+    );
     assert.ok(
       req2.headers['sec-websocket-protocol']?.includes('subtext-resume.v1.T1'),
       `Expected resume subprotocol, got: ${req2.headers['sec-websocket-protocol']}`,
@@ -657,6 +669,7 @@ describe('TunnelClient', () => {
     const firstReq: RequestMessage = {
       type: 'request', requestId: 'r_before', method: 'GET',
       url: '/before', headers: {}, body: null,
+      origin: currentTarget,
     };
     ws1.send(JSON.stringify(firstReq));
     const resp1 = (await nextMessage(ws1)) as ResponseMessage;
@@ -691,6 +704,7 @@ describe('TunnelClient', () => {
     const secondReq: RequestMessage = {
       type: 'request', requestId: 'r_after', method: 'GET',
       url: '/after', headers: {}, body: null,
+      origin: currentTarget,
     };
     ws2.send(JSON.stringify(secondReq));
     const resp2 = (await nextMessage(ws2)) as ResponseMessage;

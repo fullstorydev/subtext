@@ -1,4 +1,5 @@
 import type {WebSocket} from './third_party/index.js';
+import type {OriginPattern} from './allowlist.js';
 import type {WireHeaders} from './types.js';
 
 /**
@@ -26,9 +27,13 @@ export interface TunnelTransport {
 /** Options shared by both transport implementations. */
 export interface TransportOptions {
   ws: InstanceType<typeof WebSocket>;
-  target: string;
   log: (msg: string) => void;
   streaming?: boolean;
+  // Parsed allowlist. Every per-request origin from the relay must match a
+  // pattern or the fetch is refused — defense in depth on top of the relay's
+  // own gate. Empty means the transport accepts whatever origin the relay
+  // sends (the tunnel hasn't opted into client-side allowlist enforcement).
+  allowedOrigins?: OriginPattern[];
   /**
    * Called whenever a message is received from the relay. Used by the client
    * to reset its stale-connection timer. Both transports should invoke this

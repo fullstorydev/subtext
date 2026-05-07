@@ -13,13 +13,21 @@ All tools are served from the **subtext** MCP server. A **subtext-eu1** variant 
 
 ## Sightmap Upload
 
-After calling `review-open` or `live-connect`, the response includes a `sightmap_upload_url`. If the project has `.sightmap/` definitions, upload them via the side-band script **before** calling `review-view` or `review-diff`:
+Three tools return a sightmap upload URL:
+
+| Tool | Field | Format |
+|------|-------|--------|
+| `review-open` | `sightmap_upload_url:` | text line in response |
+| `live-connect` | `sightmap_upload_url:` | text line in response |
+| `live-tunnel` | `sightmapUploadUrl` | JSON field in response |
+
+If the project has `.sightmap/` definitions, upload them via the side-band script after getting the URL and **before** proceeding (before `review-view`/`review-diff` for review flows; before `live-view-new` for the tunnel-first flow):
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/shared/collect_and_upload_sightmap.py --url <sightmap_upload_url>
 ```
 
-Extract the URL from the `sightmap_upload_url:` line in the tool response. The upload uses a single-use token embedded in the URL — no additional auth is needed. Do NOT pass the `sightmap` parameter directly to `review-open`/`live-connect`.
+The upload uses a single-use token embedded in the URL — no additional auth is needed. Do NOT pass the `sightmap` parameter directly to `review-open`/`live-connect`.
 
 ## Tool Name Prefixes
 

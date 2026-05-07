@@ -54,8 +54,10 @@ If they paste a non-local URL, push back — explain the change won't be visible
 Once you have a `http://localhost:…` (or `http://127.0.0.1:…`) URL, follow the **tunnel-first** flow from `subtext:tunnel`:
 
 1. `live-tunnel()` → `connectionId`, `relayUrl`
-2. `tunnel-connect({ relayUrl, target: <base of the localhost URL> })` → confirm `state: "ready"`
+2. `tunnel-connect({ relayUrl, allowedOrigins: [<base of the localhost URL>] })` → confirm `state: "ready"`
 3. `live-view-new({ connection_id, url: <full localhost URL> })` → returns `trace_url` (and the initial snapshot)
+
+For onboarding the user only navigates to the URL they gave us, so a single-entry allowlist is correct. If their app turns out to redirect across subdomains (OAuth, multi-host dev), `subtext:tunnel` covers the wildcard pattern.
 
 If any of these calls fails because the MCP server is unreachable, invoke `subtext:setup-plugin`, then retry.
 

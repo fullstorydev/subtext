@@ -6,10 +6,13 @@ export type WireHeaders = Record<string, string[]>;
 // Client → Relay
 export interface HelloMessage {
   type: 'hello';
-  target: string;
   connectionId?: string;
   protocol?: 'yamux';
   streaming?: boolean;
+  // Per-tunnel allowlist of origin patterns the client agrees to service.
+  // The relay routes by allowlist match and refuses any origin not listed.
+  // See allowlist.ts for the grammar.
+  allowedOrigins?: string[];
 }
 
 // Relay → Client
@@ -31,6 +34,10 @@ export interface RequestMessage {
   url: string;
   headers: WireHeaders;
   body: string | null; // base64-encoded
+  // Canonical "scheme://host:port" the relay routed this request to.
+  // The relay is the source of truth for which origin a request belongs
+  // to; the client no longer carries a single Target of its own.
+  origin: string;
 }
 
 // Client → Relay

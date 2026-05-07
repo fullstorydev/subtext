@@ -30,6 +30,7 @@ User CLAUDE.md > using-subtext > default system prompt.
 
 - **Claude Code & Cursor:** use the `Skill` tool.
 - **Codex:** Skills load natively from `~/.agents/skills/subtext/`. Read the relevant SKILL.md directly when its description matches your task.
+- **Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
 
 ## When to Reach for Subtext
 
