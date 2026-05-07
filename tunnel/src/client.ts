@@ -3,6 +3,7 @@ import type {IncomingMessage} from 'node:http';
 import {WebSocket, type RawData} from './third_party/index.js';
 import type {OriginPattern} from './allowlist.js';
 import {parseOriginPatterns} from './allowlist.js';
+import {EventRing} from './history.js';
 import type {HelloMessage, RelayMessage, TunnelState} from './types.js';
 import {
   RECONNECT_BASE_MS,
@@ -73,6 +74,13 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   #resumeToken: string | undefined;
   #traceId: string | undefined;
 
+  /**
+   * Per-client lifecycle event ring. Read-only from the outside; surfaced via
+   * the `tunnel-history` MCP tool so callers (esp. agents) can self-diagnose
+   * why a tunnel went stale or why a resume failed without needing kubectl.
+   */
+  readonly history: EventRing = new EventRing();
+
   constructor(opts: TunnelClientOptions) {
     super();
     this.#relayUrl = opts.relayUrl;
@@ -107,10 +115,12 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
   connect(): void {
     this.#intentionalDisconnect = false;
+    this.history.push('connect-start', {resume: false});
     this.#doConnect();
   }
 
   disconnect(): void {
+    this.history.push('disconnect-requested');
     this.#intentionalDisconnect = true;
     this.#cleanup();
     this.#state = 'disconnected';
@@ -151,10 +161,12 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     // Handle non-101 upgrade responses (e.g. 401 on resume token replay).
     ws.on('unexpected-response', (_req: unknown, res: IncomingMessage) => {
       this.#log(`Relay rejected upgrade: ${res.statusCode}`);
+      this.history.push('unexpected-response', {statusCode: res.statusCode});
       if (res.statusCode === 401) {
         this.#resumeToken = undefined;
         this.#traceId = undefined;
         this.#intentionalDisconnect = true;
+        this.history.push('need-live-tunnel', {reason: '401 on upgrade'});
         this.emit('need_live_tunnel');
       }
       res.resume(); // drain so socket can be released
@@ -164,6 +176,7 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       this.#state = 'connected';
       this.#connectedSince = Date.now();
       this.#log('WebSocket open, sending hello');
+      this.history.push('ws-open');
       const hello: HelloMessage = {
         type: 'hello',
         protocol: 'yamux',
@@ -178,6 +191,10 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
         hello.connectionId = this.#initialConnectionId;
       }
       ws.send(JSON.stringify(hello));
+      this.history.push('hello-sent', {
+        resume: !!this.#resumeToken,
+        hasAllowedOrigins: !!hello.allowedOrigins,
+      });
       this.#resetStaleTimer();
     });
 
@@ -197,11 +214,13 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
         // Token already revoked server-side; skip reconnect and request a
         // fresh live-tunnel instead.
         this.#log(`Relay handshake error: ${msg.message}`);
+        this.history.push('handshake-error', {message: msg.message});
         this.#resumeToken = undefined;
         this.#traceId = undefined;
         ws.removeListener('message', handshakeHandler);
         this.#intentionalDisconnect = true;
         ws.close();
+        this.history.push('need-live-tunnel', {reason: 'handshake error'});
         this.emit('need_live_tunnel');
         return;
       }
@@ -223,6 +242,13 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       this.#state = 'ready';
       this.#reconnectAttempts = 0;
       this.#log(`Tunnel ready: ${msg.tunnelId} (connection ${msg.connectionId})`);
+      this.history.push('ready', {
+        tunnelId: msg.tunnelId,
+        connectionId: msg.connectionId,
+        gotResumeToken: msg.resumeToken !== undefined,
+        gotTraceId: msg.traceId !== undefined,
+        protocol: msg.protocol,
+      });
 
       // Create the transport based on negotiated protocol. Both transports
       // wire onActivity to the stale-timer reset: yamux server-initiated
@@ -238,6 +264,11 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
           allowedOrigins: this.#allowedOrigins,
           onActivity: () => this.#resetStaleTimer(),
           pingIntervalMs: this.#yamuxPingIntervalMs,
+          // Diagnostic: record every successful ping enqueue. Lets callers
+          // verify the keepalive timer is actually firing during quiet idle
+          // windows; an absence of ping-sent events between connect and
+          // stale-fired is a strong signal of event-loop starvation.
+          onPingSent: () => this.history.push('ping-sent'),
         });
       } else {
         this.#transport = new LegacyTransport({
@@ -253,7 +284,9 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
       // Catch unexpected rejections so they don't become unhandled and kill
       // the process -- treat them the same as a connection drop.
       this.#transport.serve().catch((err: unknown) => {
-        this.#log(`Transport error: ${err instanceof Error ? err.message : String(err)}`);
+        const message = err instanceof Error ? err.message : String(err);
+        this.#log(`Transport error: ${message}`);
+        this.history.push('transport-error', {message});
         this.#onDisconnect();
       });
     };
@@ -261,11 +294,13 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
 
     ws.on('close', (code: number, reason: Buffer) => {
       this.#log(`WebSocket closed: ${code} ${reason.toString()}`);
+      this.history.push('ws-close', {code, reason: reason.toString()});
       this.#onDisconnect();
     });
 
     ws.on('error', (err: Error) => {
       this.#log(`WebSocket error: ${err.message}`);
+      this.history.push('ws-error', {message: err.message});
       // 'close' fires after 'error', so reconnect happens there
     });
 
@@ -308,6 +343,11 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     const total = Math.round(delay + jitter);
     this.#reconnectAttempts++;
     this.#log(`Reconnecting in ${total}ms (attempt ${this.#reconnectAttempts})`);
+    this.history.push('reconnect-scheduled', {
+      delayMs: total,
+      attempt: this.#reconnectAttempts,
+      resume: !!this.#resumeToken,
+    });
     this.#reconnectTimer = setTimeout(() => {
       this.#reconnectTimer = null;
       this.#doConnect();
@@ -320,6 +360,7 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
     this.#clearStaleTimer();
     this.#staleTimer = setTimeout(() => {
       this.#log('Connection stale, reconnecting');
+      this.history.push('stale-fired', {timeoutMs: this.#staleTimeoutMs});
       this.#ws?.close();
     }, this.#staleTimeoutMs);
   }

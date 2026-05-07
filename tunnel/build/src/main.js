@@ -27,6 +27,18 @@ const log = (msg) => {
 };
 // Multiple tunnels can be active simultaneously, keyed by tunnelId.
 const clients = new Map();
+const deadHistories = [];
+const MAX_DEAD_HISTORIES = 4;
+function recordDead(id, client, reason) {
+    deadHistories.push({
+        tunnelId: id,
+        closedAt: Date.now(),
+        reason,
+        events: client.history.snapshot(),
+    });
+    while (deadHistories.length > MAX_DEAD_HISTORIES)
+        deadHistories.shift();
+}
 const server = new McpServer({
     name: "subtext_tunnel",
     version: VERSION,
@@ -103,7 +115,12 @@ server.registerTool("tunnel-connect", {
         // Capture id now: tunnelId is cleared by #onDisconnect() before the
         // reconnect that triggers need_live_tunnel, so reading client.tunnelId
         // at event-fire time is always undefined → stale map entry.
-        client.once('need_live_tunnel', () => clients.delete(id));
+        // Record the history before deleting so `tunnel-history` can show
+        // *why* the tunnel went away after the fact (the most useful case).
+        client.once('need_live_tunnel', () => {
+            recordDead(id, client, 'need_live_tunnel');
+            clients.delete(id);
+        });
     }
     if (needsLiveTunnel) {
         return {
@@ -193,6 +210,76 @@ server.registerTool("tunnel-status", {
             {
                 type: "text",
                 text: JSON.stringify({ tunnels, count: tunnels.length }, null, 2),
+            },
+        ],
+    };
+});
+server.registerTool("tunnel-history", {
+    description: "Returns recent lifecycle events for active and recently-closed tunnels. " +
+        "Use this to diagnose why a tunnel went away or stopped working — events " +
+        "include connect/reconnect attempts, ws-open/close, ready, ping-sent, " +
+        "stale-fired, handshake-error, and need-live-tunnel. Each event has a " +
+        "timestamp (ms since epoch) and optional structured detail. Read events " +
+        "chronologically as a story: e.g. ws-open → ready → ping-sent ×N → " +
+        "stale-fired → ws-close → reconnect-scheduled → unexpected-response 401 → " +
+        "need-live-tunnel tells you the WS went idle, the stale timer fired, and " +
+        "the resume reconnect was rejected. The absence of ping-sent events " +
+        "during a long quiet window suggests the keepalive timer wasn't firing " +
+        "(e.g. event-loop starvation in this MCP child process).",
+    inputSchema: z.object({
+        tunnelId: z
+            .string()
+            .optional()
+            .describe("Optional tunnelId to filter to. Omit to receive history for all " +
+            "currently-active tunnels plus the last few recently-dead ones."),
+    }),
+}, async ({ tunnelId }) => {
+    const now = Date.now();
+    const formatLive = (id, client) => ({
+        tunnelId: id,
+        state: client.state,
+        traceId: client.traceId ?? null,
+        events: client.history.snapshot(),
+    });
+    if (tunnelId) {
+        const live = clients.get(tunnelId);
+        if (live) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify({ now, tunnel: formatLive(tunnelId, live) }, null, 2),
+                    },
+                ],
+            };
+        }
+        const dead = deadHistories.find((d) => d.tunnelId === tunnelId);
+        if (dead) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify({ now, dead }, null, 2),
+                    },
+                ],
+            };
+        }
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: JSON.stringify({ error: `No tunnel (alive or recently-dead) with id ${tunnelId}` }, null, 2),
+                },
+            ],
+            isError: true,
+        };
+    }
+    const live = [...clients.entries()].map(([id, c]) => formatLive(id, c));
+    return {
+        content: [
+            {
+                type: "text",
+                text: JSON.stringify({ now, live, dead: deadHistories }, null, 2),
             },
         ],
     };

@@ -747,4 +747,45 @@ describe('TunnelClient', () => {
 
     client.disconnect();
   });
+
+  it('history ring records connect, ws-open, hello-sent, ready, ws-close', async () => {
+    // Smoke test for the diagnostic ring used by the tunnel-history MCP tool.
+    // We verify the kinds appear in the expected chronological order on a
+    // single connect/ready/disconnect cycle. Detail payloads are intentionally
+    // not asserted in detail — they're for human reading and may evolve.
+    const client = createClient();
+    const connPromise = new Promise<WsClient>(resolve =>
+      wss.once('connection', resolve),
+    );
+    client.connect();
+    const ws = await connPromise;
+    await nextMessage(ws);
+    ws.send(JSON.stringify({
+      type: 'ready', tunnelId: 't_hist', connectionId: 'cid', resumeToken: 'r',
+    }));
+    await waitFor(() => client.state === 'ready');
+
+    // Snapshot before disconnect so we don't race the close event.
+    const events = client.history.snapshot();
+    const kinds = events.map(e => e.kind);
+    assert.deepEqual(
+      kinds.slice(0, 4),
+      ['connect-start', 'ws-open', 'hello-sent', 'ready'],
+      `unexpected event order: ${kinds.join(', ')}`,
+    );
+    // Timestamps must be monotonically non-decreasing.
+    for (let i = 1; i < events.length; i++) {
+      assert.ok(events[i].ts >= events[i - 1].ts, 'event timestamps decreased');
+    }
+    // Detail spot-check: the ready event carries the negotiated identifiers.
+    const ready = events.find(e => e.kind === 'ready');
+    assert.ok(ready, 'expected a ready event');
+    assert.equal((ready!.detail as Record<string, unknown>)?.tunnelId, 't_hist');
+    assert.equal(
+      (ready!.detail as Record<string, unknown>)?.gotResumeToken,
+      true,
+    );
+
+    client.disconnect();
+  });
 });
