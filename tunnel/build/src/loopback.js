@@ -30,9 +30,14 @@ export async function resolveLoopbackOrigin(origin) {
         family = net.isIP(host) === 6 ? 6 : 4;
     }
     else {
-        const result = await dns.lookup(host, { family: 0, all: false });
-        ip = result.address;
-        family = result.family;
+        // Resolve all addresses and prefer IPv4. On dual-stack hosts, localhost
+        // maps to both 127.0.0.1 and ::1; the OS may return ::1 first even when
+        // the server only binds IPv4. Sorting family 4 before 6 fixes that while
+        // still falling back to ::1 on IPv6-only setups.
+        const results = await dns.lookup(host, { all: true, family: 0 });
+        const sorted = [...results].sort((a, b) => a.family - b.family);
+        ip = sorted[0].address;
+        family = sorted[0].family;
     }
     if (!isLoopbackIP(ip)) {
         throw new Error(`loopback check failed: ${host} resolved to ${ip}, not loopback`);

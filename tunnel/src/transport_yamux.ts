@@ -176,7 +176,26 @@ export class YamuxTransport implements TunnelTransport {
     this.#log(`yamux stream ${stream.id}: CONNECT ${host}`);
 
     const {hostname, port} = parseHostPort(host);
-    const socket = net.connect({host: hostname, port});
+
+    // Resolve and pin to a loopback IP before connecting. Same IPv4-preference
+    // logic as HTTP: avoids ::1 winning on dual-stack hosts when the server
+    // only binds 127.0.0.1.
+    let resolvedIp: string;
+    try {
+      ({resolvedIp} = await resolveLoopbackOrigin(`http://${hostname}:${port}`));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.#log(`yamux stream ${stream.id}: loopback resolve error: ${msg}`);
+      const errBuf = Buffer.from(msg);
+      const resp = Buffer.allocUnsafe(1 + errBuf.length);
+      resp[0] = CONNECT_STATUS_ERR;
+      errBuf.copy(resp, 1);
+      await stream.write(resp).catch(() => undefined);
+      stream.close();
+      return;
+    }
+
+    const socket = net.connect({host: resolvedIp, port});
     try {
       await new Promise<void>((resolve, reject) => {
         socket.once('connect', resolve);
