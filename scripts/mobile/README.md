@@ -2,6 +2,8 @@
 
 Drives any iOS app on a physical device, then checks whether the FullStory replay of that session looks right. Everything the runner needs to know about your app comes from two places: environment variables and a goal JSON file. Nothing is hardcoded for any particular app.
 
+> iOS only for now. Android is not supported yet and will come in a follow-up.
+
 There are two ways to drive the app:
 
 - **Lidar live tools** (`run-lidar-live-ios.mjs`) -- talks to a Lidar MCP server over HTTP. This is the primary path.
@@ -39,6 +41,12 @@ Put these in `scripts/mobile/.env.local`. That file is gitignored.
 | `MOBILE_DEVICE_NAME` | Device name (e.g. "My iPhone") |
 | `MOBILE_GOAL_EXPECTATIONS` | Path to the goal JSON file |
 | `MOBILE_OUT_DIR` | Where to write output artifacts |
+
+**For non-prod FullStory orgs:**
+
+| Variable | What it is |
+| --- | --- |
+| `MOBILE_FULLSTORY_APP_HOST` | Base URL for replay links. Defaults to `https://app.fullstory.com`. Set to `https://app.staging.fullstory.com` for staging or `https://app.eu1.fullstory.com` for EU. |
 
 **For Lidar runs:**
 

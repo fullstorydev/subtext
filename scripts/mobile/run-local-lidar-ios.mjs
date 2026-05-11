@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_OUT_DIR } from "./appium-layer.mjs";
 import { loadLocalEnv, timestampSlug } from "./device-e2e-common.mjs";
+import { extractSessionUrl } from "./extract-session-url.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const localEnvPath = new URL(".env.local", import.meta.url);
@@ -295,6 +296,57 @@ async function ensureAppium(outDir) {
   return { appiumURL, stop: child.stop };
 }
 
+async function appiumHttp(appiumURL, requestPath, { method = "GET", body } = {}) {
+  const response = await fetch(new URL(requestPath, appiumURL), {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Appium ${method} ${requestPath} failed: HTTP ${response.status}\n${text}`);
+  }
+  return text ? JSON.parse(text).value : undefined;
+}
+
+async function terminateApp(appiumURL) {
+  const bundleId = process.env.MOBILE_BUNDLE_ID;
+  const udid = process.env.MOBILE_UDID;
+  if (!bundleId || !udid) {
+    return;
+  }
+  let sessionId;
+  try {
+    const session = await appiumHttp(appiumURL, "/session", {
+      method: "POST",
+      body: {
+        capabilities: {
+          alwaysMatch: {
+            platformName: "iOS",
+            "appium:automationName": "XCUITest",
+            "appium:udid": udid,
+            "appium:bundleId": bundleId,
+            "appium:autoLaunch": false,
+            "appium:noReset": true,
+          },
+        },
+      },
+    });
+    sessionId = session.sessionId;
+    await appiumHttp(appiumURL, `/session/${sessionId}/execute/sync`, {
+      method: "POST",
+      body: { script: "mobile: terminateApp", args: [{ bundleId }] },
+    });
+    console.log(`terminated ${bundleId}`);
+  } catch (err) {
+    console.warn(`could not terminate ${bundleId}: ${err.message}`);
+  } finally {
+    if (sessionId) {
+      await appiumHttp(appiumURL, `/session/${sessionId}`, { method: "DELETE" }).catch(() => {});
+    }
+  }
+}
+
 async function buildLidar(binaryPath) {
   if (process.env.MOBILE_LIDAR_BUILD === "0") {
     return;
@@ -350,6 +402,7 @@ async function main() {
   }
 
   const appium = await ensureAppium(outDir);
+  await terminateApp(appium.appiumURL);
   const lidar = await startLidar(outDir, appium.appiumURL);
   const caps = await generateCaps();
   const childEnv = {
@@ -366,8 +419,18 @@ async function main() {
     });
   } finally {
     await lidar.stop();
+    try {
+      await extractSessionUrl({ outDir });
+    } catch (err) {
+      console.warn(`could not extract FullStory session URL: ${err.message}`);
+    }
     await appium.stop();
   }
+
+  const lastRunPath = path.join(here, "tmp", ".last-run-dir");
+  await fs.mkdir(path.dirname(lastRunPath), { recursive: true });
+  await fs.writeFile(lastRunPath, outDir);
+  console.log(`wrote ${lastRunPath}`);
 }
 
 main().catch((err) => {
