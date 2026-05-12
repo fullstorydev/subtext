@@ -149,7 +149,8 @@ Once the change is verified:
 3. Attach the trace to the proof document: `doc-attach(doc_id, section: "Evidence", render_as: "link", url: {trace_url}, label: "Session trace")`
 4. Re-read the document (`doc-read(doc_id)`) and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
 5. Close: `doc-close(doc_id, status: "complete", summary: {one sentence outcome})`
-6. If a PR exists or will be created:
+6. Seal the trace: call `mark-review` with the `trace_id`. This archives the trace immediately — no need to `live-disconnect` first, `mark-review` handles closing the connection and preserving the last frame. Skip this only if you expect to reconnect to this trace later.
+7. If a PR exists or will be created:
    - Include before/after screenshot URLs (from Step 3 and Step 5) in the PR description
    - Include the `trace_url` and `doc_url` so reviewers can watch the session and read the evidence record
 

@@ -23,6 +23,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-disconnect` | Close a browser connection. The trace enters **dormant** state and can be reconnected within 24 hours. Returns `fs_session_url`, `trace_id`, and `trace_url`. |
 | `live-reconnect` | Reconnect to a **dormant** trace with a fresh browser context. Preserves session stitching (same FS user identity). Takes `trace_id` (required) and `url` (optional, defaults to `about:blank`). Returns the same fields as `live-connect`. |
 | `live-trace-status` | Query the current status of a trace. Returns `trace_id`, `status` (`pending`/`live`/`dormant`/`review`), `is_reconnectable`, `has_live_connection`, `connection_id`, `session_id`, `last_url`, `ended_at`, and `viewer_url`. |
+| `mark-review` | Transition a trace to **review** status. Works for live, dormant, and pending traces. Closes the active browser connection first (preserving the last frame), then seals the trace so it can no longer be reconnected. Returns an error if the trace is not found or is already in review. |
 | `live-emulate` | Set device emulation (viewport, user agent, etc.) |
 
 ### Views
@@ -93,7 +94,9 @@ When a connection disconnects (`live-disconnect` or unexpected drop), the trace 
 
 Use `live-trace-status` to check whether a trace is reconnectable before deciding between `live-connect` (new trace) and `live-reconnect` (resume dormant).
 
-After the 24-hour window, dormant traces automatically transition to **review** and can only be accessed via session replay tools (`review-open`).
+To explicitly seal a trace when you're done with it, call `mark-review`. This is preferred over waiting for the 24-hour TTL — it archives the trace immediately and frees the reconnection slot. If the trace has an active browser connection, `mark-review` closes it first (preserving the last frame screenshot) before transitioning to review.
+
+After the 24-hour window, dormant traces that were never marked for review automatically transition to **review** and can only be accessed via session replay tools (`review-open`).
 
 ## Trace and Session URLs
 
@@ -166,7 +169,8 @@ between action loops to learn about new comments and the operator state.
 - When the screenshot is evidence about a specific element, clip to it with `component_id` (and small `expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
 - `live-view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `live-view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
-- Close connections when done to free server resources. The trace stays dormant for 24 hours — you can `live-reconnect` if you need the same trace back.
+- When you're done with a trace for good, call `mark-review` to seal it immediately. This is better than `live-disconnect` when you won't reconnect — it skips the 24-hour dormant window and archives the trace right away.
+- Use `live-disconnect` when you might come back — the trace stays dormant for 24 hours and you can `live-reconnect` to resume.
 - Prefer `live-reconnect` over `live-connect` when resuming work on a previously disconnected trace — it preserves session stitching and avoids burning a new trace.
 
 ## Tunnel Setup
