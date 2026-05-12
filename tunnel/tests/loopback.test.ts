@@ -36,10 +36,11 @@ describe('isLoopbackIP', () => {
 });
 
 describe('resolveLoopbackOrigin', () => {
-  let stub: ((hostname: string, opts?: unknown) => Promise<{address: string; family: number}>) | null = null;
+  let stub: ((hostname: string, opts?: unknown) => Promise<{address: string; family: number}[]>) | null = null;
 
   beforeEach(() => {
     // Patch dns.lookup to whatever the test sets via `stub`.
+    // We always call dns.lookup with {all: true}, so stubs return arrays.
     (dns as unknown as {lookup: unknown}).lookup = (hostname: string, opts?: unknown) => {
       if (stub) return stub(hostname, opts);
       return realLookup(hostname, opts as never);
@@ -55,7 +56,7 @@ describe('resolveLoopbackOrigin', () => {
     let called = false;
     stub = async () => {
       called = true;
-      return {address: '8.8.8.8', family: 4};
+      return [{address: '8.8.8.8', family: 4}];
     };
     const r = await resolveLoopbackOrigin('http://127.0.0.1:3000');
     assert.equal(r.resolvedIp, '127.0.0.1');
@@ -66,7 +67,7 @@ describe('resolveLoopbackOrigin', () => {
   it('resolves loopback hostnames and rewrites URL to IP', async () => {
     stub = async (hostname: string) => {
       assert.equal(hostname, 'foo.myapp.test');
-      return {address: '127.0.0.1', family: 4};
+      return [{address: '127.0.0.1', family: 4}];
     };
     const r = await resolveLoopbackOrigin('http://foo.myapp.test:3000');
     assert.equal(r.hostname, 'foo.myapp.test');
@@ -76,7 +77,7 @@ describe('resolveLoopbackOrigin', () => {
   });
 
   it('rejects when DNS resolves to a non-loopback address (rebinding defense)', async () => {
-    stub = async () => ({address: '198.51.100.42', family: 4});
+    stub = async () => ([{address: '198.51.100.42', family: 4}]);
     await assert.rejects(
       () => resolveLoopbackOrigin('http://evil.example.com:3000'),
       /loopback check failed.*198\.51\.100\.42/,
@@ -94,9 +95,21 @@ describe('resolveLoopbackOrigin', () => {
   });
 
   it('handles IPv6 loopback', async () => {
-    stub = async () => ({address: '::1', family: 6});
+    stub = async () => ([{address: '::1', family: 6}]);
     const r = await resolveLoopbackOrigin('http://localhost:3000');
     assert.equal(r.resolvedIp, '::1');
     assert.equal(r.ipUrl, 'http://[::1]:3000');
+  });
+
+  it('prefers IPv4 over IPv6 when both are returned (dual-stack localhost fix)', async () => {
+    // OS may return ::1 before 127.0.0.1 on dual-stack hosts; we must pick
+    // IPv4 so fetch() doesn't connect to ::1 when the server binds IPv4 only.
+    // Reported: Intercom early access used localhost as tunnel target; fetch
+    // consistently failed ("fetch failed") until switching to 127.0.0.1 because
+    // the dev server only bound IPv4 but localhost resolved to ::1 first.
+    stub = async () => ([{address: '::1', family: 6}, {address: '127.0.0.1', family: 4}]);
+    const r = await resolveLoopbackOrigin('http://localhost:3000');
+    assert.equal(r.resolvedIp, '127.0.0.1');
+    assert.equal(r.ipUrl, 'http://127.0.0.1:3000');
   });
 });

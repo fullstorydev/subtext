@@ -41,7 +41,7 @@ export class LegacyTransport {
                         void this.#handleRequest(msg);
                         break;
                     case 'connect':
-                        this.#handleConnect(msg);
+                        void this.#handleConnect(msg);
                         break;
                     case 'data':
                         this.#handleStreamData(msg);
@@ -152,11 +152,23 @@ export class LegacyTransport {
         }
     }
     // ----- CONNECT stream handling -----
-    #handleConnect(msg) {
+    async #handleConnect(msg) {
         const { streamId, host } = msg;
         this.#log(`Stream ${streamId}: connecting to ${host}`);
         const { hostname, port } = parseHostPort(host);
-        const socket = net.connect({ host: hostname, port });
+        // Resolve and pin to a loopback IP before connecting. Same IPv4-preference
+        // logic as HTTP: avoids ::1 winning on dual-stack hosts when the server
+        // only binds 127.0.0.1.
+        let resolvedIp;
+        try {
+            ({ resolvedIp } = await resolveLoopbackOrigin(`http://${hostname}:${port}`));
+        }
+        catch (err) {
+            this.#log(`Stream ${streamId}: loopback resolve failed: ${err.message}`);
+            this.#send({ type: 'stream_error', streamId, message: err.message });
+            return;
+        }
+        const socket = net.connect({ host: resolvedIp, port });
         socket.once('connect', () => {
             this.#log(`Stream ${streamId}: connected to ${host}`);
             this.#streams.set(streamId, socket);

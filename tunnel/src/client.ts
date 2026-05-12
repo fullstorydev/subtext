@@ -121,13 +121,21 @@ export class TunnelClient extends EventEmitter<TunnelClientEvents> {
   #doConnect(): void {
     this.#state = 'connecting';
 
-    // Resume path authenticates via subprotocol; strip the (spent) nonce params.
+    // Resume path authenticates via subprotocol; strip the (spent) nonce token.
+    // Keep connection_id in the URL — the relay's affinity router hashes on it
+    // to send the WS to the pod that owns the chromium browser context. Without
+    // it, the affinity router mints a fresh UUID and the reconnect lands on a
+    // random pod; the new tunnel registers there with the (correct, preserved)
+    // connection_id, but the chromium-side forward proxy on the original pod
+    // still can't see it and the next navigation gets ERR_TUNNEL_CONNECTION_FAILED.
     // Initial path keeps the relay URL intact and sets connection_id if provided.
     const u = new URL(this.#relayUrl);
     let protocols: string[] | undefined;
     if (this.#resumeToken) {
       u.searchParams.delete('token');
-      u.searchParams.delete('connection_id');
+      if (this.#connectionId) {
+        u.searchParams.set('connection_id', this.#connectionId);
+      }
       protocols = [`${RESUME_SUBPROTOCOL_PREFIX}${this.#resumeToken}`];
     } else if (this.#initialConnectionId) {
       u.searchParams.set('connection_id', this.#initialConnectionId);
