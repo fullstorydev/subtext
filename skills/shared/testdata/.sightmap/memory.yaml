@@ -1,0 +1,34 @@
+# Spec-conformance fixture: memory at file, view, component, and request scopes
+# per Sightmap v1 spec §Memory.
+
+version: 1
+
+memory:
+  - Dates throughout the app are ISO-8601 (YYYY-MM-DD)
+  - All currency values are USD minor units (cents)
+
+requests:
+  - name: Health
+    method: GET
+    path: /healthz
+    memory:
+      - Returns 503 during deploys; clients should treat that as not-yet-ready
+
+views:
+  - name: search
+    route: /search
+    memory:
+      - The search form lives inside a modal on mobile; selectors differ
+      - Hitting Enter inside the date input submits without clicking Search
+    components:
+      - name: SearchForm
+        selector: form.search
+        source: src/Search.tsx
+        memory:
+          - Accepts typed YYYY-MM-DD — skips the calendar
+    requests:
+      - name: SearchAPI
+        method: GET
+        path: /api/search
+        memory:
+          - Rate-limited to 10 requests/min per user; returns 429 beyond that

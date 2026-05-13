@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from collect_and_upload_sightmap import (
     collect,
+    collect_memory,
     find_sightmap_files,
     flatten_components,
     parse_file,
@@ -253,3 +254,88 @@ class TestCollect:
     def test_empty_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             assert collect(tmp) == []
+
+
+# --- collect_memory (spec-conformance) ---
+
+
+def _write_yaml(root: str, name: str, body: str) -> None:
+    sdir = os.path.join(root, ".sightmap")
+    os.makedirs(sdir, exist_ok=True)
+    with open(os.path.join(sdir, name), "w") as f:
+        f.write(body)
+
+
+class TestCollectMemory:
+    """Sightmap v1 §Memory: memory can attach to file, view, component, or request.
+
+    collect_memory flattens file/view/request memory into a single list.
+    Component memory stays attached to the component via flatten_components and
+    is uploaded with the component itself, not in the flat memory list.
+    """
+
+    def test_file_level_memory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(tmp, "f.yaml", "version: 1\nmemory:\n  - file-fact-1\n  - file-fact-2\n")
+            assert collect_memory(tmp) == ["file-fact-1", "file-fact-2"]
+
+    def test_view_level_memory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(
+                tmp,
+                "f.yaml",
+                "version: 1\nviews:\n  - name: search\n    route: /search\n    memory:\n      - view-fact-1\n      - view-fact-2\n",
+            )
+            assert collect_memory(tmp) == ["view-fact-1", "view-fact-2"]
+
+    def test_top_level_request_memory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(
+                tmp,
+                "f.yaml",
+                "version: 1\nrequests:\n  - name: Health\n    method: GET\n    path: /healthz\n    memory:\n      - req-fact\n",
+            )
+            assert collect_memory(tmp) == ["req-fact"]
+
+    def test_view_scoped_request_memory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(
+                tmp,
+                "f.yaml",
+                "version: 1\nviews:\n  - name: search\n    route: /search\n    requests:\n      - name: SearchAPI\n        method: GET\n        path: /api/search\n        memory:\n          - view-req-fact\n",
+            )
+            assert collect_memory(tmp) == ["view-req-fact"]
+
+    def test_string_memory_normalized_to_list(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(tmp, "f.yaml", "version: 1\nmemory: lonely-fact\n")
+            assert collect_memory(tmp) == ["lonely-fact"]
+
+    def test_combines_all_scopes_from_fixture(self):
+        result = collect_memory(TESTDATA)
+        # file-level (2) + top-level request (1) + view-level (2) + view-scoped request (1) = 6
+        # Component memory is NOT in this list (attached to component entry instead).
+        assert "Dates throughout the app are ISO-8601 (YYYY-MM-DD)" in result
+        assert "All currency values are USD minor units (cents)" in result
+        assert "Returns 503 during deploys; clients should treat that as not-yet-ready" in result
+        assert "The search form lives inside a modal on mobile; selectors differ" in result
+        assert "Hitting Enter inside the date input submits without clicking Search" in result
+        assert "Rate-limited to 10 requests/min per user; returns 429 beyond that" in result
+        # Component memory must NOT appear in the flat list.
+        assert "Accepts typed YYYY-MM-DD — skips the calendar" not in result
+
+    def test_component_memory_attached_not_flattened(self):
+        components = parse_file(
+            os.path.join(TESTDATA, ".sightmap", "memory.yaml")
+        )
+        search_form = next(c for c in components if c["name"] == "SearchForm")
+        assert "Accepts typed YYYY-MM-DD — skips the calendar" in search_form["memory"]
+
+    def test_no_memory_anywhere_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_yaml(tmp, "f.yaml", "version: 1\nviews:\n  - name: x\n    route: /x\n")
+            assert collect_memory(tmp) == []
+
+    def test_missing_sightmap_dir_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            assert collect_memory(tmp) == []
