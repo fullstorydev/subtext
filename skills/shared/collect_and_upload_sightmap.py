@@ -146,8 +146,22 @@ def collect(root: str) -> list[dict]:
     return result
 
 
+def _normalize_memory(value) -> list[str]:
+    """Coerce a memory field (string, list, or missing) to a list of non-empty strings."""
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [str(m) for m in value if m]
+    return []
+
+
 def collect_memory(root: str) -> list[str]:
-    """Collect top-level memory entries from .sightmap/ YAML files."""
+    """Collect memory entries from .sightmap/ YAML files per Sightmap v1 §Memory.
+
+    Picks up memory attached to file, view, and request scopes. Component memory
+    stays attached to each component entry via flatten_components and is uploaded
+    on the component itself, not flattened into this list.
+    """
     files = find_sightmap_files(root)
     result: list[str] = []
     for path in files:
@@ -155,11 +169,23 @@ def collect_memory(root: str) -> list[str]:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
             continue
-        memory = data.get("memory", [])
-        if isinstance(memory, str):
-            memory = [memory]
-        if isinstance(memory, list):
-            result.extend(str(m) for m in memory if m)
+
+        # File-level memory
+        result.extend(_normalize_memory(data.get("memory")))
+
+        # File-level (global) requests
+        for req in data.get("requests") or []:
+            if isinstance(req, dict):
+                result.extend(_normalize_memory(req.get("memory")))
+
+        # View-scoped memory + view-scoped requests
+        for view in data.get("views") or []:
+            if not isinstance(view, dict):
+                continue
+            result.extend(_normalize_memory(view.get("memory")))
+            for req in view.get("requests") or []:
+                if isinstance(req, dict):
+                    result.extend(_normalize_memory(req.get("memory")))
     return result
 
 
