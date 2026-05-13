@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { McpServer, StdioServerTransport, z, yargs, hideBin, } from "./third_party/index.js";
 import { TunnelClient } from "./client.js";
+import { canonicalizedFrom, originPatternString, parseOriginPatterns, } from "./allowlist.js";
 // Single source of truth: read version from package.json at runtime so it
 // can't drift from what npm publishes. From build/src/main.js, package.json
 // sits two levels up at the package root.
@@ -47,14 +48,45 @@ server.registerTool("tunnel-connect", {
         allowedOrigins: z
             .array(z.string())
             .optional()
-            .describe("Optional per-tunnel origin allowlist. Each entry is " +
-            "`scheme://host:port` (exact) or `scheme://*.suffix:port` (subdomain " +
-            "wildcard). Hosts must be loopback-resolving (localhost, 127.x, ::1, " +
-            "*.test, *.localhost). The relay routes per-request to one of these " +
-            "origins; the client refuses anything not on the list (e.g. an API " +
-            "on :3000 + a frontend on :4200 + assets across *.myapp.test:3000)."),
+            .describe("Optional per-tunnel origin allowlist. Each entry is a bare " +
+            "`host:port` (no scheme). DNS hosts implicitly match their " +
+            "subdomains, so list the trunk you want to allow rather than " +
+            "individual hostnames: `fullstory.test:8043` covers " +
+            "`app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, etc. " +
+            "Hosts are restricted to the loopback class (localhost, 127.x, " +
+            "::1, *.test, *.localhost). IP literals match exactly with no " +
+            "subdomain expansion. The response includes a `canonicalized` " +
+            "field listing any entries that were rewritten (e.g. legacy " +
+            "scheme prefix stripped, or a sub-trunk collapsed to its parent)."),
     }),
 }, async ({ relayUrl, connectionId, allowedOrigins }) => {
+    // Parse + canonicalize up front so the response can carry back any
+    // rewrites and the caller learns what was actually accepted. The
+    // TunnelClient parses these again internally; the duplicate cost is
+    // negligible and keeps the parse-error UX local to this tool.
+    let canonicalized = [];
+    if (allowedOrigins && allowedOrigins.length > 0) {
+        try {
+            const parsed = parseOriginPatterns(allowedOrigins);
+            canonicalized = parsed.flatMap((p) => {
+                const from = canonicalizedFrom(p);
+                return from === undefined
+                    ? []
+                    : [{ input: from, canonical: originPatternString(p) }];
+            });
+        }
+        catch (err) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2),
+                    },
+                ],
+                isError: true,
+            };
+        }
+    }
     // Optional env-var overrides for the keepalive timing. Production
     // defaults (STALE_CONNECTION_MS=90s, YAMUX_PING_INTERVAL_MS=30s) are
     // appropriate for staging/cloud LBs. For local testing of the silent-
@@ -126,6 +158,10 @@ server.registerTool("tunnel-connect", {
                     connectionId: client.connectionId ?? null,
                     traceId: client.traceId ?? null,
                     relayUrl,
+                    // Present only when at least one entry was rewritten; agents
+                    // should treat this as a soft warning ("the relay accepted X
+                    // but registered it as Y") rather than an error.
+                    ...(canonicalized.length > 0 ? { canonicalized } : {}),
                 }, null, 2),
             },
         ],

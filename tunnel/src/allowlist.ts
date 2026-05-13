@@ -3,119 +3,154 @@
  * client-side parse error is consistent with what the relay would reject —
  * if it parses here, the same input will parse there.
  *
- * Two pattern shapes:
- *   - Exact origin: scheme://host:port  (Wildcard=false, Suffix='')
- *   - Subdomain wildcard: scheme://*.suffix:port  (Wildcard=true)
+ * Grammar: `host:port`. No scheme. Subdomains are implicit: a DNS host
+ * pattern matches its own host and any subdomain on the same port. IP
+ * literals match exactly. Hosts are restricted to the loopback class
+ * (`localhost`, `127.x`, `::1`, `*.test`, `*.localhost`); DNS inputs are
+ * canonicalized to their last two labels so `www.fullstory.test:8043` and
+ * `foo.bar.fullstory.test:8043` both collapse to `fullstory.test:8043` and
+ * end up matching siblings.
  *
- * Grammar is intentionally narrow: no bare '*', no port ranges, no path,
- * no public-TLD wildcards. The client uses this for defense in depth: even
- * if a malicious or compromised relay sends an off-allowlist Origin in a
- * request frame, the fetch is refused.
+ * Defense in depth: even if a malicious or compromised relay sends an
+ * off-allowlist Origin in a request frame, the fetch is refused — and the
+ * runtime resolve-and-pin loopback check in loopback.ts is the load-bearing
+ * security boundary.
  */
 export interface OriginPattern {
-  scheme: 'http' | 'https';
-  host: string; // exact host (Wildcard=false); empty for wildcards
-  port: string; // numeric port, always present
-  wildcard: boolean;
-  suffix: string; // wildcard suffix (e.g. 'myapp.test')
+  host: string; // canonical, lowercase. IP literal or DNS host.
+  port: string; // numeric port, always present.
+  isIP: boolean; // true → exact host match only.
+  /** Raw input, kept so callers can detect canonicalization for warnings. */
+  raw: string;
 }
 
-// Public TLDs we explicitly refuse to wildcard. Belt-and-braces on top of the
-// loopback-resolution check at fetch time. Anything that could plausibly
-// resolve outside loopback gets rejected at parse so it never lives in a
-// runtime allowlist.
-const PUBLIC_TLD_WILDCARD_DENY = new Set([
-  'com',
-  'net',
-  'org',
-  'io',
-  'dev',
-  'app',
-  'co',
-  'info',
-  'biz',
-  'me',
-  'local', // mDNS — not loopback
-]);
+const LOOPBACK_V4_RE = /^127\.\d+\.\d+\.\d+$/;
+const IPV4_RE = /^\d+\.\d+\.\d+\.\d+$/;
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
-
-function isLoopbackHost(host: string): boolean {
-  if (LOOPBACK_HOSTS.has(host)) return true;
-  if (host.endsWith('.localhost')) return true;
-  if (host.endsWith('.test')) return true;
-  // 127.0.0.0/8: any 127.x.x.x literal.
-  if (/^127\.\d+\.\d+\.\d+$/.test(host)) return true;
-  return false;
+function isLoopbackIP(host: string): boolean {
+  if (host === '::1' || host === '0:0:0:0:0:0:0:1') return true;
+  return LOOPBACK_V4_RE.test(host);
 }
 
-function isAllowedWildcardSuffix(suffix: string): boolean {
-  const lc = suffix.toLowerCase();
-  if (PUBLIC_TLD_WILDCARD_DENY.has(lc)) return false;
-  // Bare suffixes for the two reserved test TLDs (RFC 6761): `*.test` and
-  // `*.localhost` are perfectly valid allowlist entries on their own.
-  if (lc === 'localhost' || lc === 'test') return true;
-  if (lc.endsWith('.test') || lc.endsWith('.localhost')) return true;
-  return false;
+function isLoopbackClassDNS(host: string): boolean {
+  if (host === 'localhost' || host === 'test') return true;
+  return host.endsWith('.localhost') || host.endsWith('.test');
 }
 
-// Pattern parser: stricter than URL() — no path/query/fragment/userinfo at
-// all. Wildcards (*.suffix) are special and would confuse URL() anyway.
-const PATTERN_RE = /^(http|https):\/\/([^\/?#@]+)$/;
+function isAllDigits(s: string): boolean {
+  return s.length > 0 && /^\d+$/.test(s);
+}
 
-export function parseOriginPattern(s: string): OriginPattern {
-  if (!s) throw new Error('empty origin pattern');
+/**
+ * lastTwoLabels collapses a multi-label DNS host to its last two labels.
+ * Single-label hosts (like `localhost`) are returned unchanged.
+ */
+function lastTwoLabels(host: string): string {
+  const parts = host.split('.');
+  if (parts.length <= 2) return host;
+  return parts.slice(-2).join('.');
+}
 
-  const m = PATTERN_RE.exec(s);
-  if (!m) {
-    // Scheme first — that's the primary classification. Only after the
-    // scheme is acceptable do we report stricter syntax errors.
-    if (!/^https?:\/\//.test(s)) {
-      throw new Error(`invalid origin pattern ${JSON.stringify(s)}: scheme must be http or https`);
-    }
-    // Strip the leading "scheme://" before testing for path/query/userinfo
-    // so the `//` doesn't mistrigger.
-    const afterScheme = s.replace(/^https?:\/\//, '');
-    if (/[\/?#@]/.test(afterScheme)) {
-      throw new Error(`invalid origin pattern ${JSON.stringify(s)}: must not include path, query, fragment, or userinfo`);
-    }
-    throw new Error(`invalid origin pattern ${JSON.stringify(s)}: must be scheme://host:port`);
+/**
+ * canonicalizeHost validates a host and returns its canonical form. DNS
+ * hosts collapse to the last two labels (or stay as-is for bare `test` /
+ * `localhost`). IP literals must be loopback and are returned unchanged.
+ */
+function canonicalizeHost(host: string): {canonical: string; isIP: boolean} {
+  const lc = host.toLowerCase();
+  if (!lc) throw new Error('missing host');
+
+  // IPv6 (contains a colon outside brackets) or IPv4: classify and validate.
+  if (lc === '::1' || lc === '0:0:0:0:0:0:0:1') {
+    return {canonical: '::1', isIP: true};
   }
-  const [, scheme, authority] = m;
-
-  const colonIdx = authority.lastIndexOf(':');
-  if (colonIdx < 0) {
-    throw new Error(`invalid origin pattern ${JSON.stringify(s)}: explicit port required`);
-  }
-  const host = authority.slice(0, colonIdx).toLowerCase();
-  const port = authority.slice(colonIdx + 1);
-  if (!host) throw new Error(`invalid origin pattern ${JSON.stringify(s)}: missing host`);
-  if (!port || !/^\d+$/.test(port)) {
-    throw new Error(`invalid origin pattern ${JSON.stringify(s)}: explicit port required`);
-  }
-
-  if (host.includes('*')) {
-    if (!host.startsWith('*.')) {
-      throw new Error(`invalid origin pattern ${JSON.stringify(s)}: only leading '*.' wildcards are supported`);
+  if (IPV4_RE.test(lc)) {
+    if (!isLoopbackIP(lc)) {
+      throw new Error(`IP ${JSON.stringify(host)} must be loopback (127.x or ::1)`);
     }
-    const suffix = host.slice(2);
-    if (!suffix || suffix.includes('*')) {
-      throw new Error(`invalid origin pattern ${JSON.stringify(s)}: bad wildcard suffix`);
-    }
-    if (!isAllowedWildcardSuffix(suffix)) {
-      throw new Error(
-        `invalid origin pattern ${JSON.stringify(s)}: wildcard suffix ${JSON.stringify(suffix)} not allowed (must be localhost, .test, .localhost, or another non-public suffix)`,
-      );
-    }
-    return {scheme: scheme as 'http' | 'https', host: '', port, wildcard: true, suffix};
+    return {canonical: lc, isIP: true};
   }
 
-  if (!isLoopbackHost(host)) {
+  if (!isLoopbackClassDNS(lc)) {
     throw new Error(
-      `invalid origin pattern ${JSON.stringify(s)}: host must be loopback (localhost, 127.x, ::1, *.localhost, *.test)`,
+      `host ${JSON.stringify(host)} must be loopback-class (localhost, *.localhost, *.test)`,
     );
   }
-  return {scheme: scheme as 'http' | 'https', host, port, wildcard: false, suffix: ''};
+  return {canonical: lastTwoLabels(lc), isIP: false};
+}
+
+/**
+ * parseOriginPattern parses a single allowlist entry. Accepts the canonical
+ * "host:port" grammar. For transitional compatibility it also strips a
+ * leading "scheme://" and a "*." wildcard prefix — both are no-ops under
+ * the new rules (scheme is ignored, subdomains are implicit) and we prefer
+ * to canonicalize quietly rather than reject inputs that mean the same
+ * thing.
+ */
+export function parseOriginPattern(s: string): OriginPattern {
+  if (!s) throw new Error('empty origin pattern');
+  const raw = s;
+
+  // Tolerate legacy "scheme://" prefix.
+  const schemeIdx = s.indexOf('://');
+  if (schemeIdx >= 0) s = s.slice(schemeIdx + 3);
+  // Tolerate legacy "*." wildcard prefix.
+  if (s.startsWith('*.')) s = s.slice(2);
+  if (s.includes('*')) {
+    throw new Error(
+      `invalid origin pattern ${JSON.stringify(raw)}: '*' is no longer supported; subdomains are implicit`,
+    );
+  }
+  if (/[/?#@]/.test(s)) {
+    throw new Error(
+      `invalid origin pattern ${JSON.stringify(raw)}: must be host:port (no path, query, fragment, or userinfo)`,
+    );
+  }
+
+  let host: string;
+  let port: string;
+  if (s.startsWith('[')) {
+    // IPv6 bracketed form: [::1]:443
+    const closeIdx = s.indexOf(']');
+    if (closeIdx < 0) {
+      throw new Error(
+        `invalid origin pattern ${JSON.stringify(raw)}: unmatched '[' in IPv6 host`,
+      );
+    }
+    host = s.slice(1, closeIdx);
+    const rest = s.slice(closeIdx + 1);
+    if (!rest.startsWith(':')) {
+      throw new Error(
+        `invalid origin pattern ${JSON.stringify(raw)}: must be host:port with an explicit numeric port`,
+      );
+    }
+    port = rest.slice(1);
+  } else {
+    const colonIdx = s.lastIndexOf(':');
+    if (colonIdx < 0) {
+      throw new Error(
+        `invalid origin pattern ${JSON.stringify(raw)}: must be host:port with an explicit numeric port`,
+      );
+    }
+    host = s.slice(0, colonIdx);
+    port = s.slice(colonIdx + 1);
+  }
+
+  if (!isAllDigits(port)) {
+    throw new Error(
+      `invalid origin pattern ${JSON.stringify(raw)}: must be host:port with an explicit numeric port`,
+    );
+  }
+
+  let canonical: string;
+  let isIP: boolean;
+  try {
+    ({canonical, isIP} = canonicalizeHost(host));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`invalid origin pattern ${JSON.stringify(raw)}: ${msg}`);
+  }
+  return {host: canonical, port, isIP, raw};
 }
 
 export function parseOriginPatterns(entries: readonly string[] | undefined): OriginPattern[] {
@@ -124,43 +159,55 @@ export function parseOriginPatterns(entries: readonly string[] | undefined): Ori
 }
 
 /**
- * Render a pattern back to its canonical form — used in error messages so
- * the user sees what we actually parsed.
+ * originPatternString renders a pattern back to its canonical "host:port"
+ * form, bracketing IPv6 hosts. Used in error messages and log output so the
+ * user sees what was actually accepted.
  */
 export function originPatternString(p: OriginPattern): string {
-  const host = p.wildcard ? `*.${p.suffix}` : p.host;
-  return `${p.scheme}://${host}:${p.port}`;
+  if (p.isIP && p.host.includes(':')) return `[${p.host}]:${p.port}`;
+  return `${p.host}:${p.port}`;
 }
 
 /**
- * Matches reports whether `pattern` matches the canonical origin string
- * `scheme://host:port`. Origin must be bare — any explicit path, query, or
- * fragment in the input is treated as a non-match. (The relay always sends
- * canonical bare origins; this guard is defense in depth.)
- *
- * We don't use URL() to parse because it normalizes `:3000` and `:3000/path`
- * the same way (pathname='/'), making "bare vs explicit-path" ambiguous.
- * A regex is simpler and unambiguous for this fixed shape.
+ * canonicalizedFrom returns the original input if it differs from the
+ * canonical form. Returns undefined when the input was already canonical.
+ * MCP callers surface this back to agents so they see what was accepted.
  */
-const ORIGIN_RE = /^(http|https):\/\/([^\/?#]+)$/;
+export function canonicalizedFrom(p: OriginPattern): string | undefined {
+  if (!p.raw || p.raw === originPatternString(p)) return undefined;
+  return p.raw;
+}
+
+/**
+ * patternMatches reports whether pattern matches the canonical origin string
+ * `scheme://host:port`. Scheme is ignored; port must match exactly. DNS
+ * patterns match the bare host plus any subdomain; IP patterns match exactly.
+ */
+const ORIGIN_RE = /^(?:http|https):\/\/([^/?#]+)$/;
 
 export function patternMatches(pattern: OriginPattern, origin: string): boolean {
   const m = ORIGIN_RE.exec(origin);
   if (!m) return false;
-  const [, scheme, authority] = m;
-  if (scheme !== pattern.scheme) return false;
-  const colonIdx = authority.lastIndexOf(':');
-  // Require explicit port — patterns always have one and the relay always sends one.
-  if (colonIdx < 0) return false;
-  const host = authority.slice(0, colonIdx).toLowerCase();
-  const port = authority.slice(colonIdx + 1);
-  if (port !== pattern.port) return false;
-  // Strip IPv6 brackets if present.
-  const bareHost = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-  if (pattern.wildcard) {
-    return bareHost.endsWith('.' + pattern.suffix) && bareHost !== pattern.suffix;
+  const authority = m[1];
+
+  let host: string;
+  let port: string;
+  if (authority.startsWith('[')) {
+    const closeIdx = authority.indexOf(']');
+    if (closeIdx < 0) return false;
+    host = authority.slice(1, closeIdx).toLowerCase();
+    const rest = authority.slice(closeIdx + 1);
+    if (!rest.startsWith(':')) return false;
+    port = rest.slice(1);
+  } else {
+    const colonIdx = authority.lastIndexOf(':');
+    if (colonIdx < 0) return false;
+    host = authority.slice(0, colonIdx).toLowerCase();
+    port = authority.slice(colonIdx + 1);
   }
-  return bareHost === pattern.host;
+  if (port !== pattern.port) return false;
+  if (pattern.isIP) return host === pattern.host;
+  return host === pattern.host || host.endsWith('.' + pattern.host);
 }
 
 export function matchesAny(patterns: readonly OriginPattern[], origin: string): boolean {
