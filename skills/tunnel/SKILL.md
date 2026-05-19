@@ -31,8 +31,8 @@ When the hosted browser needs to load a page from the user's local dev server (e
 
 **Grammar: `host:port`. No scheme. Subdomains are implicit.**
 
-- Each entry is a bare `host:port` — for example `fullstory.test:8043` or `localhost:3000`.
-- For DNS hosts, the entry matches the bare host **and any subdomain on the same port**. List the trunk you want to allow, not individual subdomains: `fullstory.test:8043` covers `app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, and so on.
+- Each entry is a bare `host:port` — for example `example.test:8043` or `localhost:3000`.
+- For DNS hosts, the entry matches the bare host **and any subdomain on the same port**. List the trunk you want to allow, not individual subdomains: `example.test:8043` covers `app.example.test:8043`, `oauthtest.example.test:8043`, and so on.
 - Hosts are restricted to the loopback class: `localhost`, `127.x`, `::1`, `*.test`, `*.localhost`.
 - IP literals (`127.0.0.1:3000`, `[::1]:443`) match exactly with no subdomain expansion.
 - Scheme is not part of the grammar; the same entry covers `http://` and `https://` on that `host:port`.
@@ -41,7 +41,7 @@ The response from `tunnel-connect` may include a `canonicalized` field if your i
 
 ```json
 "canonicalized": [
-  {"input": "www.fullstory.test:8043", "canonical": "fullstory.test:8043"}
+  {"input": "www.example.test:8043", "canonical": "example.test:8043"}
 ]
 ```
 
@@ -95,9 +95,9 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 
 - **App with auth/SSO redirects between subdomains** (the common case). List the trunk:
   ```
-  allowedOrigins: ["fullstory.test:8043"]
+  allowedOrigins: ["example.test:8043"]
   ```
-  This covers `app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, every other subdomain. Don't narrow to `app.fullstory.test:8043` — the first OAuth bounce will fail.
+  This covers `app.example.test:8043`, `oauthtest.example.test:8043`, every other subdomain. Don't narrow to `app.example.test:8043` — the first OAuth bounce will fail.
 
 - **Multi-port local stack** (web app on `:3000` + API on `:4200`, frontend + asset server, etc.) — list each origin:
   ```
@@ -116,7 +116,7 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 - **Mixed hosts** — combine freely in one tunnel:
   ```
   allowedOrigins: [
-    "fullstory.test:8043",
+    "example.test:8043",
     "127.0.0.1:8766",
   ]
   ```
@@ -131,7 +131,7 @@ Recovery (do this; don't keep navigating):
 
 1. `tunnel-disconnect` the current tunnel.
 2. `live-tunnel` again — the `connection_id` is preserved across reconnect, so chromium continuity is fine.
-3. `tunnel-connect` with a trunk that covers the redirect target (e.g. `fullstory.test:8043` instead of `app.fullstory.test:8043`).
+3. `tunnel-connect` with a trunk that covers the redirect target (e.g. `example.test:8043` instead of `app.example.test:8043`).
 4. Retry the navigation that failed.
 
 If the trunk reconnect still fails the same way, the navigation is going somewhere outside that trunk entirely (different domain, different port). Widen further or ask a human.

@@ -81,8 +81,8 @@ server.registerTool(
           "Optional per-tunnel origin allowlist. Each entry is a bare " +
             "`host:port` (no scheme). DNS hosts implicitly match their " +
             "subdomains, so list the trunk you want to allow rather than " +
-            "individual hostnames: `fullstory.test:8043` covers " +
-            "`app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, etc. " +
+            "individual hostnames: `example.test:8043` covers " +
+            "`app.example.test:8043`, `oauthtest.example.test:8043`, etc. " +
             "Hosts are restricted to the loopback class (localhost, 127.x, " +
             "::1, *.test, *.localhost). IP literals match exactly with no " +
             "subdomain expansion. The response includes a `canonicalized` " +
