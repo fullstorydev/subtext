@@ -1,5 +1,5 @@
 import process from "node:process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -18,20 +18,27 @@ import {
 } from "./allowlist.js";
 
 // Single source of truth: read version from package.json at runtime so it
-// can't drift from what npm publishes. From build/src/main.js, package.json
-// sits two levels up at the package root.
-const pkg = JSON.parse(
-  readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"),
-    "utf8",
-  ),
-) as { version: string };
+// can't drift from what npm publishes. The relative depth depends on where
+// this file ends up: build/src/main.js (tsc, dev) is two levels deep;
+// dist/index.js (rollup, published) is one level deep. Walk up until a
+// package.json is found.
+function findPackageJson(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, "package.json");
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error("package.json not found near tunnel binary");
+}
+const pkg = JSON.parse(readFileSync(findPackageJson(), "utf8")) as {
+  version: string;
+};
 const VERSION = pkg.version;
 
-await yargs(hideBin(process.argv))
-  .version(VERSION)
-  .help()
-  .parse();
+await yargs(hideBin(process.argv)).version(VERSION).help().parse();
 
 // Wrap console.error so a broken stderr (e.g. parent process died and closed
 // the read side of the pipe) cannot recurse into our error handlers below.
@@ -147,7 +154,7 @@ server.registerTool(
           {
             type: "text" as const,
             text: JSON.stringify(
-              {error: err instanceof Error ? err.message : String(err)},
+              { error: err instanceof Error ? err.message : String(err) },
               null,
               2,
             ),
@@ -159,7 +166,7 @@ server.registerTool(
 
     // Surface a clear error if the initial handshake fails with a rejection.
     let needsLiveTunnel = false;
-    client.once('need_live_tunnel', () => {
+    client.once("need_live_tunnel", () => {
       needsLiveTunnel = true;
       log(`Tunnel needs a fresh live-tunnel call (resume token rejected)`);
     });
@@ -168,7 +175,11 @@ server.registerTool(
 
     // Wait briefly for the handshake to complete
     const deadline = Date.now() + 5000;
-    while (client.state !== "ready" && !needsLiveTunnel && Date.now() < deadline) {
+    while (
+      client.state !== "ready" &&
+      !needsLiveTunnel &&
+      Date.now() < deadline
+    ) {
       await new Promise((r) => setTimeout(r, 100));
     }
 
@@ -178,7 +189,7 @@ server.registerTool(
       // Capture id now: tunnelId is cleared by #onDisconnect() before the
       // reconnect that triggers need_live_tunnel, so reading client.tunnelId
       // at event-fire time is always undefined → stale map entry.
-      client.once('need_live_tunnel', () => clients.delete(id));
+      client.once("need_live_tunnel", () => clients.delete(id));
     }
 
     if (needsLiveTunnel) {
@@ -187,7 +198,10 @@ server.registerTool(
           {
             type: "text" as const,
             text: JSON.stringify(
-              {error: "resume token rejected; call live-tunnel to get a fresh relay URL"},
+              {
+                error:
+                  "resume token rejected; call live-tunnel to get a fresh relay URL",
+              },
               null,
               2,
             ),
@@ -325,7 +339,9 @@ process.on("SIGTERM", shutdown);
 // Claude Code loses the tunnel tools entirely. log() above is internally
 // guarded so it cannot itself throw and re-enter these handlers.
 process.on("unhandledRejection", (reason: unknown) => {
-  log(`Unhandled rejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
+  log(
+    `Unhandled rejection: ${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`,
+  );
 });
 process.on("uncaughtException", (err: Error) => {
   log(`Uncaught exception: ${err.stack ?? err.message}`);
@@ -352,7 +368,8 @@ process.stdout.on("error", (err: NodeJS.ErrnoException) => {
 
 // Default 30s; overridable for tests. unref() so the timer alone doesn't
 // keep the event loop alive.
-const orphanCheckMs = Number(process.env.SUBTEXT_TUNNEL_ORPHAN_CHECK_MS) || 30_000;
+const orphanCheckMs =
+  Number(process.env.SUBTEXT_TUNNEL_ORPHAN_CHECK_MS) || 30_000;
 const orphanTimer = setInterval(() => {
   if (process.ppid === 1) process.exit(0);
 }, orphanCheckMs);
