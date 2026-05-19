@@ -157,7 +157,7 @@ When the hosted browser needs to reach `localhost` or local dev URLs, use the tu
 2. Call `tunnel-connect` on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins` (one or more local origins the tunnel may serve)
 3. Call `live-view-new` with the `connection_id` and localhost URL
 
-Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details, including the wildcard pattern needed when local apps redirect across subdomains (e.g. OAuth flows).
+Do **not** use `live-connect` for localhost URLs — it mints its own connection ID and can't bind to the tunnel. See `subtext:tunnel` for full details, including the trunk pattern (`host:port` covers all subdomains on the same port) needed when local apps redirect across subdomains (e.g. OAuth flows).
 
 ## See Also
 

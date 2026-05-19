@@ -29,13 +29,23 @@ When the hosted browser needs to load a page from the user's local dev server (e
 
 `tunnel-connect` registers the tunnel with an **`allowedOrigins`** list. Every request that flows through the proxy is matched against the list; anything off-list is refused with a 502 (`ERR_TUNNEL_CONNECTION_FAILED` from chromium's perspective). This is the security boundary — without it, a buggy or hostile relay could probe arbitrary localhost services on the user's machine.
 
-Pattern grammar:
+**Grammar: `host:port`. No scheme. Subdomains are implicit.**
 
-- **Exact origin**: `scheme://host:port` — e.g. `http://localhost:3000`, `https://app.example.test:8043`.
-- **Subdomain wildcard**: `scheme://*.suffix:port` — matches `foo.suffix`, `foo.bar.suffix`, etc., on the exact scheme and port.
-- No bare `*`. No port ranges. No paths.
-- Hosts must be loopback-resolving (`localhost`, `127.x`, `::1`, `*.test`, `*.localhost`).
-- Schemes can mix freely — one tunnel can serve `http://...` and `https://...` entries.
+- Each entry is a bare `host:port` — for example `fullstory.test:8043` or `localhost:3000`.
+- For DNS hosts, the entry matches the bare host **and any subdomain on the same port**. List the trunk you want to allow, not individual subdomains: `fullstory.test:8043` covers `app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, and so on.
+- Hosts are restricted to the loopback class: `localhost`, `127.x`, `::1`, `*.test`, `*.localhost`.
+- IP literals (`127.0.0.1:3000`, `[::1]:443`) match exactly with no subdomain expansion.
+- Scheme is not part of the grammar; the same entry covers `http://` and `https://` on that `host:port`.
+
+The response from `tunnel-connect` may include a `canonicalized` field if your inputs were rewritten:
+
+```json
+"canonicalized": [
+  {"input": "www.fullstory.test:8043", "canonical": "fullstory.test:8043"}
+]
+```
+
+Treat this as a soft warning: the relay accepted your entry but registered it as the canonical form. Use the canonical form in future calls. The parser also tolerates legacy `scheme://...` and `*.host:port` inputs for compatibility — both get canonicalized away.
 
 Default deny: omit something and chromium can't reach it through this tunnel.
 
@@ -56,7 +66,7 @@ live-tunnel() → { relayUrl, connectionId: "abc-123", sightmapUploadUrl: "..." 
 # upload .sightmap/ here if project has definitions (see subtext:shared)
 tunnel-connect({
   relayUrl,
-  allowedOrigins: ["http://localhost:3000"],
+  allowedOrigins: ["localhost:3000"],
 }) → { state: "ready", tunnelId: "..." }
 live-view-new({ connection_id: "abc-123", url: "http://localhost:3000/dashboard" })
 ```
@@ -74,43 +84,42 @@ If `live-connect` was already called and you need to attach a tunnel afterward, 
 live-tunnel({ connection_id: "existing-conn-id" }) → { relayUrl, connectionId: "existing-conn-id" }
 tunnel-connect({
   relayUrl,
-  allowedOrigins: ["http://localhost:3000"],
+  allowedOrigins: ["localhost:3000"],
 }) → { state: "ready", tunnelId: "..." }
 live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3000" })
 ```
 
 ## Picking an allowlist
 
-> **Default: if the app has any kind of auth/SSO, use a wildcard.** The OAuth bounce will exit your initial host within seconds of login. An exact-host allowlist will pass the first navigation and then immediately fail with `chrome-error://chromewebdata/` on the redirect. When in doubt, wildcard.
+> **Default: list the trunk, not the subdomain you happen to be navigating to.** OAuth/SSO redirects will bounce out of any narrower entry within seconds of login, and chromium lands on `chrome-error://chromewebdata/` when that happens. The bare trunk implicitly covers every subdomain on the same port.
 
-- **App that redirects across subdomains during normal use** (the common case for any app with login — **OAuth/SSO logins almost always do this**). Use a wildcard so the redirect chain stays inside the allowlist:
+- **App with auth/SSO redirects between subdomains** (the common case). List the trunk:
   ```
-  allowedOrigins: ["https://*.example.test:8043"]
+  allowedOrigins: ["fullstory.test:8043"]
   ```
-  Without the wildcard, the first redirect into the SSO subdomain (`oauthtest.example.test`, `auth.example.test`, etc.) returns a 502 and chromium lands on `chrome-error://chromewebdata/`.
+  This covers `app.fullstory.test:8043`, `oauthtest.fullstory.test:8043`, every other subdomain. Don't narrow to `app.fullstory.test:8043` — the first OAuth bounce will fail.
 
 - **Multi-port local stack** (web app on `:3000` + API on `:4200`, frontend + asset server, etc.) — list each origin:
   ```
   allowedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:4200",
+    "localhost:3000",
+    "localhost:4200",
   ]
   ```
 
-- **Single-page local app, one origin, no auth** — exact entry is fine:
+- **Single-page local app, one origin, no auth** — bare trunk works:
   ```
-  allowedOrigins: ["http://localhost:3000"]
+  allowedOrigins: ["localhost:3000"]
   ```
+  (Subdomains of `localhost` would also match. That's fine — they all resolve to your loopback interface anyway.)
 
-- **Mixed schemes / hosts** — combine freely in one tunnel:
+- **Mixed hosts** — combine freely in one tunnel:
   ```
   allowedOrigins: [
-    "https://*.example.test:8043",
-    "http://127.0.0.1:8766",
+    "fullstory.test:8043",
+    "127.0.0.1:8766",
   ]
   ```
-
-A wildcard is tighter than no allowlist and survives redirect chains the user didn't think to mention. Prefer it over enumerating subdomains for any non-trivial app.
 
 ## Diagnosing a chrome-error page
 
@@ -122,15 +131,16 @@ Recovery (do this; don't keep navigating):
 
 1. `tunnel-disconnect` the current tunnel.
 2. `live-tunnel` again — the `connection_id` is preserved across reconnect, so chromium continuity is fine.
-3. `tunnel-connect` with a wildcard that covers the redirect target (e.g. `https://*.example.test:8043` instead of `https://app.example.test:8043`).
+3. `tunnel-connect` with a trunk that covers the redirect target (e.g. `fullstory.test:8043` instead of `app.fullstory.test:8043`).
 4. Retry the navigation that failed.
 
-If the wildcard reconnect still fails the same way, the navigation is going somewhere outside the suffix entirely (different domain, different port). Widen further or ask a human.
+If the trunk reconnect still fails the same way, the navigation is going somewhere outside that trunk entirely (different domain, different port). Widen further or ask a human.
 
 ## Common mistakes
 
 - **Don't use `live-connect` for localhost / local URLs.** It mints its own connection ID and can't bind to a tunnel — use the tunnel-first flow (`live-tunnel` → `tunnel-connect` → `live-view-new`) instead.
-- **Don't narrow the allowlist to "the URL I'm navigating to".** Login flows redirect; the navigation target is rarely the only origin you'll need. Default to a wildcard.
+- **Don't narrow the allowlist to a specific subdomain.** Login flows redirect; the navigation target is rarely the only origin you'll need. Default to the trunk.
+- **Don't include `https://` or `*.` in entries.** The parser strips them for compatibility, but the canonical form is just `host:port`.
 - **Don't open multiple tunnels per connection.** A single tunnel carries many origins — widen the allowlist instead.
 
 ## Notes
