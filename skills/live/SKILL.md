@@ -46,6 +46,7 @@ API catalog for live browser tools (all prefixed `live-`) on the unified subtext
 | `live-act-fill` | Fill a text input |
 | `live-act-keypress` | Press a key or key combination |
 | `live-act-drag` | Drag from one element to another |
+| `live-act-scroll` | Scroll the view: by component UID (into view), pixel delta, or absolute position |
 | `live-act-wait-for` | Wait for a condition (selector, navigation, timeout) |
 | `live-act-dialog` | Accept or dismiss a browser dialog |
 | `live-act-upload` | Upload a file to a file input |
@@ -142,8 +143,9 @@ between action loops to learn about new comments and the operator state.
 
 ## Tips
 
-- Always `live-view-snapshot` before interacting — you need element UIDs to click/fill.
-- `live-view-snapshot` is cheaper than `live-view-screenshot`. Prefer snapshots; use screenshots for visual evidence.
+- **Default to `live-view-snapshot` for all page observation.** It carries sightmap context (component names, view names, `[src: ...]` annotations) and provides the component UIDs needed by `act-*` tools. Always call it before any interaction sequence.
+- **Use `live-view-screenshot` only for visual evidence** — before/after comparisons, layout debugging, or screenshots to embed in PRs. The tool returns the image inline by default so you can verify framing. Pass `upload:true` only when you need a hosted URL for a PR or comment attachment.
+- **Use `live-act-scroll` to position the viewport** — do not use `live-eval-script` for `scrollIntoView`, `scrollBy`, or `scrollTo`. Prefer `component_id` mode (scroll element into view) before clipping a screenshot to it.
 - When the screenshot is evidence about a specific element, clip to it with `component_id` (and small `expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
 - `live-view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `live-view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
