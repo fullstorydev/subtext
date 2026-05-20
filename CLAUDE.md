@@ -13,4 +13,8 @@ Before creating or modifying any skill, read [`authoring`](skills/authoring.md).
 
 # Plugin Versioning
 
-Make sure to update the [plugin version](.claude-plugin/marketplace.json) in any pull request.
+Version bumps are automated via [Changesets](https://github.com/changesets/changesets) and the `Release` GitHub Actions workflow.
+
+For any user-facing PR, run `npm run changeset`, pick a bump type, and commit the generated `.changeset/*.md` file. On merge to `main`, the workflow opens a "Version Packages" PR that bumps `package.json` and syncs the version into all harness manifests (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, and `marketplace.json`) via `scripts/sync-manifest-versions.mjs`. Merging that PR creates the git tag and GitHub release.
+
+See [`.changeset/README.md`](.changeset/README.md) for the full workflow. Pure-infra / docs PRs can skip the changeset.
