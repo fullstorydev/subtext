@@ -14,6 +14,13 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Don't write the workflow token into .git/config — `changesets/action`
+          # reads GITHUB_TOKEN from the env block below and authenticates its
+          # own pushes, so persisting credentials on the runner FS only widens
+          # the blast radius if a later step turns out to be compromised.
+          # (Arnica "artipacked" finding.)
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
