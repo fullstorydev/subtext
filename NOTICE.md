@@ -12,6 +12,11 @@ with branding swaps and the legacy-skills warning removed. The hook
 configurations in `hooks/hooks.json` and `hooks/hooks-cursor.json` follow
 the upstream structure.
 
+`.opencode/plugins/subtext.js` is adapted from the upstream
+`.opencode/plugins/superpowers.js`, swapping the bootstrap tag, skill
+namespace, and frontmatter parser. `.opencode/INSTALL.md` follows the
+upstream INSTALL document's structure.
+
 The MIT license terms below apply to those portions:
 
 > MIT License
