@@ -4,11 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "changeset": "changeset",
-    "version-packages": "changeset version && node scripts/sync-manifest-versions.mjs",
-    "release": "changeset tag"
-  },
-  "devDependencies": {
-    "@changesets/cli": "^2.27.0"
+    "changeset": "npx --yes @changesets/cli@^2.27.0",
+    "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
+    "release": "npx --yes @changesets/cli@^2.27.0 tag"
   }
 }

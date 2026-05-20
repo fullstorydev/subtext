@@ -15,24 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Don't write the workflow token into .git/config — `changesets/action`
-          # reads GITHUB_TOKEN from the env block below and authenticates its
-          # own pushes, so persisting credentials on the runner FS only widens
-          # the blast radius if a later step turns out to be compromised.
-          # (Arnica "artipacked" finding.)
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
       - uses: changesets/action@v1
         with:
-          # Override the default `changeset version` with our wrapper so the
-          # per-harness manifests + marketplace listing get their version
-          # fields synced from package.json before the Version PR opens.
           version: npm run version-packages
-          # Subtext is not published to npm — `changeset tag` only creates
-          # git tags + GitHub releases for the bumped version.
           publish: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
