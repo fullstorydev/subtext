@@ -1,5 +1,14 @@
 {
   "name": "subtext",
+  "version": "0.2.8",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version && node scripts/sync-manifest-versions.mjs",
+    "release": "changeset tag"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0"
+  }
 }
