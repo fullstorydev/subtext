@@ -43,7 +43,7 @@ for (const rel of PER_HARNESS_MANIFESTS) {
 const marketplacePath = join(REPO_ROOT, '.claude-plugin/marketplace.json');
 if (existsSync(marketplacePath)) {
   const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf8'));
-  if (marketplace.plugins?.[0]?.version !== version) {
+  if (marketplace.plugins[0].version !== version) {
     marketplace.plugins[0].version = version;
     writeFileSync(marketplacePath, JSON.stringify(marketplace, null, 2) + '\n');
     console.log(`sync: .claude-plugin/marketplace.json (plugins[0]) → ${version}`);
