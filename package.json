@@ -1,8 +1,8 @@
 {
   "name": "subtext",
   "version": "0.2.8",
-  "private": true,
   "type": "module",
+  "main": ".opencode/plugins/subtext.js",
   "scripts": {
     "changeset": "npx --yes @changesets/cli@^2.27.0",
     "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
