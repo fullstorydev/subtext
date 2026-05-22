@@ -18,3 +18,16 @@ Version bumps are automated via [Changesets](https://github.com/changesets/chang
 For any user-facing PR, run `npm run changeset`, pick a bump type, and commit the generated `.changeset/*.md` file. On merge to `main`, the workflow opens a "Version Packages" PR that bumps `package.json` and syncs the version into all harness manifests (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`, and `marketplace.json`) via `scripts/sync-manifest-versions.mjs`. Merging that PR creates the git tag and GitHub release.
 
 See [`.changeset/README.md`](.changeset/README.md) for the full workflow. Pure-infra / docs PRs can skip the changeset.
+
+# Tunnel Development
+
+`tunnel/build/` and `tunnel/dist/` are gitignored build artifacts — never commit them.
+
+| Script | What it does |
+|--------|--------------|
+| `npm run build` | `clean` then `tsc` → emits JS to `build/` (used by tests and local dev) |
+| `npm run bundle` | `build` then `rollup` → emits the single-file CLI to `dist/` (what npm ships) |
+| `npm test` | `build` then `node --test` (self-bootstrapping; no stale build surprises) |
+| `npm run verify` | `npm pack --dry-run` — shows exactly what `npm publish` would ship |
+
+`prepack` runs `bundle` automatically, so `npm publish` and `npm pack` are always self-contained even if you forget to run `bundle` first.
