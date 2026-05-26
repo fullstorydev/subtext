@@ -6,7 +6,7 @@ const gzipAsync = promisify(gzip);
 import { MAX_INFLIGHT, MAX_RESPONSE_BODY_BYTES } from './types.js';
 import { matchesAny } from './allowlist.js';
 import { resolveLoopbackOrigin } from './loopback.js';
-import { wireHeadersToHeaders, headersToWireHeaders, stripTransferHeaders, parseHostPort } from './transport.js';
+import { wireHeadersToHeaders, incomingHeadersToWireHeaders, stripTransferHeaders, nodeRequest, parseHostPort, } from './transport.js';
 /**
  * LegacyTransport handles the JSON-over-WebSocket protocol with base64-encoded
  * bodies, channel-based stream management, and pause/resume flow control.
@@ -96,31 +96,34 @@ export class LegacyTransport {
                 throw new Error(`origin not in allowlist: ${origin}`);
             }
             const resolved = await resolveLoopbackOrigin(origin);
-            const url = resolved.ipUrl + msg.url;
             const headers = wireHeadersToHeaders(msg.headers);
             headers.set('Host', `${resolved.hostname}:${resolved.port}`);
             const body = msg.body !== null ? Buffer.from(msg.body, 'base64') : undefined;
-            const resp = await fetch(url, {
-                method: msg.method,
-                headers,
-                body,
-                signal: ac.signal,
-                redirect: 'manual',
-            });
-            const respBody = await resp.arrayBuffer();
-            if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
-                this.#send({
-                    type: 'error',
-                    requestId: msg.requestId,
-                    message: `Response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
-                });
-                return;
+            const resp = await nodeRequest(resolved.scheme, resolved.resolvedIp, resolved.port, msg.method, msg.url, headers, body, ac.signal);
+            const chunks = [];
+            let totalBytes = 0;
+            for await (const chunk of resp) {
+                const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                totalBytes += buf.length;
+                if (totalBytes > MAX_RESPONSE_BODY_BYTES) {
+                    resp.destroy();
+                    this.#send({
+                        type: 'error',
+                        requestId: msg.requestId,
+                        message: `Response body too large: ${totalBytes} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
+                    });
+                    return;
+                }
+                chunks.push(buf);
             }
-            const respHeaders = headersToWireHeaders(resp.headers);
+            const respHeaders = incomingHeadersToWireHeaders(resp.headers);
             stripTransferHeaders(respHeaders);
-            let bodyBuf = Buffer.from(respBody);
+            // Only apply tunnel-level gzip when the HTTP response is not already
+            // compressed. If content-encoding is set, the body is compressed at
+            // the HTTP layer and double-compressing would corrupt it.
+            let bodyBuf = Buffer.concat(chunks);
             let encoding;
-            if (bodyBuf.length > 0) {
+            if (!resp.headers['content-encoding'] && bodyBuf.length > 0) {
                 const compressed = await gzipAsync(bodyBuf);
                 if (compressed.length < bodyBuf.length) {
                     bodyBuf = compressed;
@@ -131,7 +134,7 @@ export class LegacyTransport {
             this.#send({
                 type: 'response',
                 requestId: msg.requestId,
-                status: resp.status,
+                status: resp.statusCode,
                 headers: respHeaders,
                 body: encodedBody,
                 encoding,

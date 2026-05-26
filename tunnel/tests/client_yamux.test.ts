@@ -549,6 +549,58 @@ describe('TunnelClient yamux mode', () => {
     echoServer.close();
   });
 
+  it('preserves Host header for virtual-host routing', async () => {
+    // Reproduces the Intercom/Traefik bug: Traefik routes by Host header, so
+    // the tunnel must forward the original virtual hostname, not the resolved IP.
+    // With Node's fetch() (undici), setting headers.Host is silently ignored and
+    // the URL's IP literal is used instead, causing Traefik to return 502.
+    let targetPort: number;
+    const targetServer = http.createServer((req, res) => {
+      const want = `localhost:${targetPort}`;
+      if (req.headers.host === want) {
+        res.writeHead(200, {'Content-Type': 'text/plain'});
+        res.end('vhost-ok');
+      } else {
+        res.writeHead(502, {'Content-Type': 'text/plain'});
+        res.end(`wrong-host:${req.headers.host ?? '(none)'}`);
+      }
+    });
+    await new Promise<void>((resolve) => targetServer.listen(0, '127.0.0.1', resolve));
+    targetPort = (targetServer.address() as {port: number}).port;
+
+    const origin = `http://localhost:${targetPort}`;
+    const {client, yamux} = await connectYamux(origin);
+
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    const reqHdr = JSON.stringify({method: 'GET', url: '/', headers: {}, bodyLen: 0, origin});
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const prefix = Buffer.allocUnsafe(1 + 4);
+    prefix[0] = 0x01;
+    prefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([prefix, reqHdrBuf]));
+
+    const respLenBuf = await stream.readExact(4);
+    const respHdrLen = respLenBuf.readUInt32BE(0);
+    const respHdrBuf = await stream.readExact(respHdrLen);
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {status: number; bodyLen: number};
+
+    let respBody: Buffer = Buffer.alloc(0);
+    if (respHdr.bodyLen > 0) {
+      respBody = await stream.readExact(respHdr.bodyLen);
+    }
+
+    assert.equal(
+      respHdr.status, 200,
+      `expected vhost routing to succeed but got ${respHdr.status}: ${respBody.toString()}`,
+    );
+    assert.equal(respBody.toString(), 'vhost-ok');
+
+    client.disconnect();
+    targetServer.close();
+  });
+
   it('handles large HTTP response through yamux (exceeds initial window)', async () => {
     const bigBody = Buffer.alloc(512 * 1024, 0x42); // 512KB > 256KB window
     const targetServer = http.createServer((_req, res) => {

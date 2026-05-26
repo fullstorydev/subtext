@@ -1,3 +1,5 @@
+import * as http from 'node:http';
+import * as https from 'node:https';
 /** Convert wire headers (Record<string, string[]>) to fetch Headers. */
 export function wireHeadersToHeaders(wire) {
     const h = new Headers();
@@ -9,34 +11,58 @@ export function wireHeadersToHeaders(wire) {
     return h;
 }
 /**
- * Convert fetch Headers to wire headers (Record<string, string[]>).
- *
- * Note: Headers.forEach provides comma-joined values per the Fetch spec.
- * This is lossy for headers whose values contain commas internally.
- * Set-Cookie is handled correctly via getSetCookie(). For the tunnel proxy
- * use case this is effectively harmless.
+ * Strip hop-by-hop transfer headers that must not be forwarded verbatim.
+ * transfer-encoding is stripped because we buffer or stream the body as raw
+ * bytes — the chunked framing has already been decoded by Node's http module.
+ * content-encoding and content-length are preserved because http.request()
+ * does not auto-decompress, so both headers accurately describe the body.
  */
-export function headersToWireHeaders(headers) {
+export function stripTransferHeaders(wire) {
+    delete wire['transfer-encoding'];
+}
+export function incomingHeadersToWireHeaders(incoming) {
     const wire = {};
-    const setCookies = headers.getSetCookie();
-    if (setCookies.length > 0) {
-        wire['set-cookie'] = setCookies;
+    for (const [name, value] of Object.entries(incoming)) {
+        if (value === undefined)
+            continue;
+        wire[name.toLowerCase()] = Array.isArray(value) ? value : [value];
     }
-    headers.forEach((value, name) => {
-        if (name.toLowerCase() === 'set-cookie')
-            return;
-        wire[name] = [value];
-    });
     return wire;
 }
 /**
- * Strip transfer-encoding headers that are invalid after transparent
- * decompression by Node's fetch. Both transports call this after
- * headersToWireHeaders().
+ * Make an HTTP/HTTPS request using Node's http.request() / https.request()
+ * so that the Host header in `headers` is sent verbatim to the upstream.
+ *
+ * Node's built-in fetch() (undici) silently discards any Host override and
+ * derives Host from the request URL — breaking virtual-host routing (e.g.
+ * Traefik) where the upstream must see the original hostname, not the resolved
+ * IP literal we connect to for DNS-rebinding protection.
+ *
+ * The caller is responsible for:
+ *   - Connecting to the resolved IP (not the hostname) via `ip`
+ *   - Setting the Host header to the original virtual hostname before calling
  */
-export function stripTransferHeaders(wire) {
-    delete wire['content-encoding'];
-    delete wire['content-length'];
+export async function nodeRequest(scheme, ip, port, method, path, headers, body, signal) {
+    const headersObj = Object.fromEntries(headers.entries());
+    const baseOptions = {
+        hostname: ip,
+        port: parseInt(port, 10),
+        path,
+        method,
+        headers: headersObj,
+    };
+    return new Promise((resolve, reject) => {
+        const req = scheme === 'https'
+            ? https.request({ ...baseOptions, rejectUnauthorized: false }, resolve)
+            : http.request(baseOptions, resolve);
+        req.on('error', reject);
+        if (signal) {
+            signal.addEventListener('abort', () => req.destroy(new Error('aborted')), { once: true });
+        }
+        if (body?.length)
+            req.write(body);
+        req.end();
+    });
 }
 /** Parse a host:port string, returning hostname and numeric port. */
 export function parseHostPort(hostport, defaultPort = 80) {

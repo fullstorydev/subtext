@@ -7,8 +7,9 @@ import {MAX_RESPONSE_BODY_BYTES} from './types.js';
 import type {TunnelTransport, TransportOptions} from './transport.js';
 import {
   wireHeadersToHeaders,
-  headersToWireHeaders,
+  incomingHeadersToWireHeaders,
   stripTransferHeaders,
+  nodeRequest,
   parseHostPort,
   MAX_YAMUX_HEADER_BYTES,
 } from './transport.js';
@@ -121,45 +122,46 @@ export class YamuxTransport implements TunnelTransport {
       // is restored to the original hostname so virtual-host routing on the
       // upstream still works.
       const resolved = await resolveLoopbackOrigin(origin);
-      const url = resolved.ipUrl + header.url;
-      const fetchHeaders = wireHeadersToHeaders(header.headers);
+      const reqHeaders = wireHeadersToHeaders(header.headers);
       // Set Host explicitly even when it's already in headers — the
       // resolved IP URL has the wrong authority for Host inference.
-      fetchHeaders.set('Host', `${resolved.hostname}:${resolved.port}`);
+      reqHeaders.set('Host', `${resolved.hostname}:${resolved.port}`);
 
-      const resp = await fetch(url, {
-        method: header.method,
-        headers: fetchHeaders,
-        body: reqBody,
-        redirect: 'manual',
-      });
+      const resp = await nodeRequest(
+        resolved.scheme,
+        resolved.resolvedIp,
+        resolved.port,
+        header.method,
+        header.url,
+        reqHeaders,
+        reqBody,
+      );
 
-      const respHeaders = headersToWireHeaders(resp.headers);
+      const respHeaders = incomingHeadersToWireHeaders(resp.headers);
       stripTransferHeaders(respHeaders);
 
       if (this.#streaming) {
         // Send header immediately, then stream body bytes until FIN.
-        await stream.write(streamingResponseFrame(resp.status, respHeaders));
-        if (resp.body) {
-          const reader = resp.body.getReader();
-          try {
-            while (true) {
-              const {done, value} = await reader.read();
-              if (done) break;
-              await stream.write(Buffer.from(value.buffer, value.byteOffset, value.byteLength));
-            }
-          } finally {
-            reader.releaseLock();
-          }
+        await stream.write(streamingResponseFrame(resp.statusCode!, respHeaders));
+        for await (const chunk of resp) {
+          await stream.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
         }
       } else {
-        const respBody = await resp.arrayBuffer();
-        if (respBody.byteLength > MAX_RESPONSE_BODY_BYTES) {
-          throw new Error(
-            `response body too large: ${respBody.byteLength} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
-          );
+        const chunks: Buffer[] = [];
+        let total = 0;
+        for await (const chunk of resp) {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+          total += buf.length;
+          if (total > MAX_RESPONSE_BODY_BYTES) {
+            throw new Error(
+              `response body too large: ${total} bytes (max ${MAX_RESPONSE_BODY_BYTES})`,
+            );
+          }
+          chunks.push(buf);
         }
-        await stream.write(bufferedResponseFrame(resp.status, respHeaders, Buffer.from(respBody)));
+        await stream.write(
+          bufferedResponseFrame(resp.statusCode!, respHeaders, Buffer.concat(chunks)),
+        );
       }
     } catch (err) {
       await this.#writeHttpError(stream, err);
