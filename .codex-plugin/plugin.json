@@ -1,6 +1,6 @@
 {
   "name": "subtext",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "description": "Tools that let coding agents verify and show their work against your running application",
   "author": {
     "name": "Subtext",
@@ -8,7 +8,15 @@
     "url": "https://subtext.fullstory.com"
   },
   "license": "MIT",
-  "keywords": ["subtext", "automation", "verification", "testing", "session-replay", "debugging", "fullstory"],
+  "keywords": [
+    "subtext",
+    "automation",
+    "verification",
+    "testing",
+    "session-replay",
+    "debugging",
+    "fullstory"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {

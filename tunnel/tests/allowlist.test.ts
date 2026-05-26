@@ -6,6 +6,7 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  canonicalizedFrom,
   matchesAny,
   originPatternString,
   parseOriginPattern,
@@ -14,25 +15,43 @@ import {
 } from '../src/allowlist.js';
 
 describe('parseOriginPattern: accepts', () => {
-  const cases: Array<[string, string, boolean]> = [
-    ['http://localhost:3000', 'http://localhost:3000', false],
-    ['http://127.0.0.1:8080', 'http://127.0.0.1:8080', false],
-    ['https://localhost:443', 'https://localhost:443', false],
-    ['http://foo.test:3000', 'http://foo.test:3000', false],
-    ['http://foo.localhost:3000', 'http://foo.localhost:3000', false],
-    ['http://*.myapp.test:3000', 'http://*.myapp.test:3000', true],
-    ['http://*.otherapp.test:4200', 'http://*.otherapp.test:4200', true],
-    ['http://*.localhost:3000', 'http://*.localhost:3000', true],
-    // Bare reserved TLDs: `*.test` and `*.localhost` are valid on their own.
-    ['http://*.test:3000', 'http://*.test:3000', true],
-    ['http://LOCALHOST:3000', 'http://localhost:3000', false],
-    ['http://*.Foo.Test:3000', 'http://*.foo.test:3000', true],
+  // [input, canonical, isIP, expectedCanonicalizedFrom]
+  // expectedCanonicalizedFrom is undefined when input was already canonical.
+  const cases: Array<[string, string, boolean, string | undefined]> = [
+    // Bare host:port — already canonical.
+    ['localhost:3000', 'localhost:3000', false, undefined],
+    ['127.0.0.1:8080', '127.0.0.1:8080', true, undefined],
+    ['[::1]:443', '[::1]:443', true, undefined],
+    ['fullstory.test:8043', 'fullstory.test:8043', false, undefined],
+    ['app.localhost:3000', 'app.localhost:3000', false, undefined],
+
+    // Bare reserved TLDs.
+    ['test:3000', 'test:3000', false, undefined],
+    ['localhost:80', 'localhost:80', false, undefined],
+
+    // DNS canonicalization: extra labels collapse to last-two.
+    ['www.fullstory.test:8043', 'fullstory.test:8043', false, 'www.fullstory.test:8043'],
+    ['foo.bar.fullstory.test:8043', 'fullstory.test:8043', false, 'foo.bar.fullstory.test:8043'],
+    ['a.b.app.localhost:3000', 'app.localhost:3000', false, 'a.b.app.localhost:3000'],
+
+    // Case-folding.
+    ['WWW.Fullstory.TEST:8043', 'fullstory.test:8043', false, 'WWW.Fullstory.TEST:8043'],
+    ['LOCALHOST:3000', 'localhost:3000', false, 'LOCALHOST:3000'],
+
+    // Legacy scheme prefix is silently stripped.
+    ['http://fullstory.test:8043', 'fullstory.test:8043', false, 'http://fullstory.test:8043'],
+    ['https://localhost:3000', 'localhost:3000', false, 'https://localhost:3000'],
+
+    // Legacy "*." prefix is silently stripped.
+    ['*.fullstory.test:8043', 'fullstory.test:8043', false, '*.fullstory.test:8043'],
+    ['http://*.fullstory.test:8043', 'fullstory.test:8043', false, 'http://*.fullstory.test:8043'],
   ];
-  for (const [input, want, wantWild] of cases) {
+  for (const [input, wantStr, wantIsIP, wantCanonFrom] of cases) {
     it(input, () => {
       const p = parseOriginPattern(input);
-      assert.equal(p.wildcard, wantWild);
-      assert.equal(originPatternString(p), want);
+      assert.equal(p.isIP, wantIsIP);
+      assert.equal(originPatternString(p), wantStr);
+      assert.equal(canonicalizedFrom(p), wantCanonFrom);
     });
   }
 });
@@ -40,22 +59,24 @@ describe('parseOriginPattern: accepts', () => {
 describe('parseOriginPattern: rejects', () => {
   const cases: Array<[string, string]> = [
     ['', 'empty'],
-    ['http://localhost', 'explicit port required'],
-    ['ftp://localhost:3000', 'scheme must be http or https'],
-    ['http://localhost:3000/path', 'must not include path'],
-    ['http://localhost:3000?q=1', 'must not include path'],
-    ['http://localhost:3000#frag', 'must not include path'],
-    ['http://user:pw@localhost:3000', 'must not include path'],
-    ['http://*:3000', 'leading'],
-    ['http://*foo.test:3000', 'leading'],
-    ['http://foo.*.test:3000', 'leading'],
-    ['http://*.com:3000', 'wildcard suffix'],
-    ['http://*.io:443', 'wildcard suffix'],
-    ['http://*.example.com:3000', 'wildcard suffix'],
-    ['http://*.local:3000', 'wildcard suffix'],
-    ['http://example.com:3000', 'host must be loopback'],
-    ['http://10.0.0.1:3000', 'host must be loopback'],
-    ['http://192.168.1.1:3000', 'host must be loopback'],
+    ['localhost', 'explicit numeric port'],
+    ['localhost:', 'explicit numeric port'],
+    ['localhost:abc', 'explicit numeric port'],
+    ['localhost:3000/path', 'must be host:port'],
+    ['localhost:3000?q=1', 'must be host:port'],
+    ['localhost:3000#frag', 'must be host:port'],
+    ['user:pw@localhost:3000', 'must be host:port'],
+    // Mid-string '*' is not a leading legacy wildcard.
+    ['foo.*.test:3000', "'*' is no longer supported"],
+    ['foo*.test:3000', "'*' is no longer supported"],
+    // Non-loopback hosts.
+    ['example.com:443', 'loopback-class'],
+    ['app.example.com:443', 'loopback-class'],
+    ['app.local:80', 'loopback-class'], // .local is mDNS, not loopback
+    // Non-loopback IP literals.
+    ['10.0.0.1:3000', 'loopback'],
+    ['192.168.1.1:3000', 'loopback'],
+    ['8.8.8.8:53', 'loopback'],
   ];
   for (const [input, wantSubstr] of cases) {
     it(input, () => {
@@ -70,22 +91,36 @@ describe('parseOriginPattern: rejects', () => {
 
 describe('patternMatches', () => {
   const cases: Array<[string, string, boolean]> = [
-    // Exact form
-    ['http://localhost:3000', 'http://localhost:3000', true],
-    ['http://localhost:3000', 'http://localhost:4200', false],
-    ['http://localhost:3000', 'https://localhost:3000', false],
-    ['http://localhost:3000', 'http://127.0.0.1:3000', false],
-    ['http://localhost:3000', 'http://LOCALHOST:3000', true],
-    ['http://localhost:3000', 'http://localhost:3000/path', false],
-    // Wildcard form
-    ['http://*.myapp.test:3000', 'http://foo.myapp.test:3000', true],
-    ['http://*.myapp.test:3000', 'http://a.b.myapp.test:3000', true],
-    ['http://*.myapp.test:3000', 'http://myapp.test:3000', false],
-    ['http://*.myapp.test:3000', 'http://foo.myapp.test:4200', false],
-    ['http://*.myapp.test:3000', 'https://foo.myapp.test:3000', false],
-    ['http://*.myapp.test:3000', 'http://foo.otherapp.test:3000', false],
-    ['http://*.localhost:3000', 'http://app.localhost:3000', true],
-    ['http://*.localhost:3000', 'http://localhost:3000', false],
+    // DNS host: exact and subdomain matches; scheme ignored.
+    ['fullstory.test:8043', 'http://fullstory.test:8043', true],
+    ['fullstory.test:8043', 'https://fullstory.test:8043', true],
+    ['fullstory.test:8043', 'http://www.fullstory.test:8043', true],
+    ['fullstory.test:8043', 'http://foo.bar.fullstory.test:8043', true],
+    ['fullstory.test:8043', 'http://fullstory.test:9000', false],
+    ['fullstory.test:8043', 'http://other.test:8043', false],
+    ['fullstory.test:8043', 'http://fullstory.test:8043/path', false],
+
+    // Canonicalization: subdomain input collapses and still matches siblings.
+    ['www.fullstory.test:8043', 'http://foo.fullstory.test:8043', true],
+
+    // Localhost trunk.
+    ['localhost:3000', 'http://localhost:3000', true],
+    ['localhost:3000', 'http://app.localhost:3000', true],
+    ['localhost:3000', 'http://localhost:4200', false],
+
+    // app.localhost trunk: own host + its subdomains, not siblings.
+    ['app.localhost:3000', 'http://app.localhost:3000', true],
+    ['app.localhost:3000', 'http://x.app.localhost:3000', true],
+    ['app.localhost:3000', 'http://other.localhost:3000', false],
+
+    // IP literal: exact only.
+    ['127.0.0.1:3000', 'http://127.0.0.1:3000', true],
+    ['127.0.0.1:3000', 'https://127.0.0.1:3000', true],
+    ['127.0.0.1:3000', 'http://127.0.0.2:3000', false],
+
+    // IPv6 literal — origin must use brackets.
+    ['[::1]:443', 'https://[::1]:443', true],
+    ['[::1]:443', 'https://[::1]:444', false],
   ];
   for (const [pattern, origin, want] of cases) {
     it(`${pattern} vs ${origin}`, () => {
@@ -97,20 +132,21 @@ describe('patternMatches', () => {
 
 describe('matchesAny', () => {
   const patterns = parseOriginPatterns([
-    'http://localhost:3000',
-    'http://localhost:4200',
-    'http://*.myapp.test:3000',
+    'localhost:3000',
+    'localhost:4200',
+    'fullstory.test:8043',
   ]);
   it('hits exact', () => {
     assert.ok(matchesAny(patterns, 'http://localhost:3000'));
     assert.ok(matchesAny(patterns, 'http://localhost:4200'));
   });
-  it('hits wildcard', () => {
-    assert.ok(matchesAny(patterns, 'http://foo.myapp.test:3000'));
+  it('hits implicit subdomain', () => {
+    assert.ok(matchesAny(patterns, 'http://app.localhost:3000'));
+    assert.ok(matchesAny(patterns, 'http://foo.fullstory.test:8043'));
   });
-  it('misses unmatched port/scheme', () => {
+  it('misses unmatched port and trunk', () => {
     assert.ok(!matchesAny(patterns, 'http://localhost:5000'));
-    assert.ok(!matchesAny(patterns, 'http://foo.myapp.test:4200'));
+    assert.ok(!matchesAny(patterns, 'http://other.test:8043'));
   });
   it('empty patterns matches nothing', () => {
     assert.ok(!matchesAny([], 'http://localhost:3000'));
@@ -123,6 +159,6 @@ describe('parseOriginPatterns', () => {
     assert.deepEqual(parseOriginPatterns([]), []);
   });
   it('throws on first bad entry', () => {
-    assert.throws(() => parseOriginPatterns(['http://localhost:3000', 'bad']));
+    assert.throws(() => parseOriginPatterns(['localhost:3000', 'bad']));
   });
 });

@@ -1,5 +1,11 @@
 {
   "name": "subtext",
-  "private": true,
-  "type": "module"
+  "version": "0.3.0",
+  "type": "module",
+  "main": ".opencode/plugins/subtext.js",
+  "scripts": {
+    "changeset": "npx --yes @changesets/cli@^2.27.0",
+    "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
+    "release": "npx --yes @changesets/cli@^2.27.0 tag"
+  }
 }
