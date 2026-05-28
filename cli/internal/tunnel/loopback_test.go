@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/fullstory/subtext/cli/internal/fstesting"
+	"github.com/fullstorydev/subtext/cli/internal/fstesting"
 )
 
 func stubLookup(addrs []net.IPAddr) lookupFunc {

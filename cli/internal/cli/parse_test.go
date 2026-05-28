@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/fullstory/subtext/cli/internal/mcpclient"
+	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
 var testSchema = mcpclient.InputSchema{

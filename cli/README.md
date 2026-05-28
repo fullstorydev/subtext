@@ -15,10 +15,10 @@ npm install -g @fullstory/subtext-cli
 brew install fullstory/tap/subtext
 
 # go install
-go install github.com/fullstory/subtext/cli/cmd/subtext@latest
+go install github.com/fullstorydev/subtext/cli/cmd/subtext@latest
 
 # Download a binary directly
-# https://github.com/fullstory/subtext/releases
+# https://github.com/fullstorydev/subtext/releases
 ```
 
 ## Quickstart

@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fullstory/subtext/cli/internal/auth"
-	"github.com/fullstory/subtext/cli/internal/mcpclient"
+	"github.com/fullstorydev/subtext/cli/internal/auth"
+	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
 // callCmd is an internal delegation target for namespace commands.

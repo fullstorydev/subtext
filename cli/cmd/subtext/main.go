@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/fullstory/subtext/cli/internal/cli"
+	"github.com/fullstorydev/subtext/cli/internal/cli"
 )
 
 func main() {

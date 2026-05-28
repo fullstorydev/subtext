@@ -1,3 +1,5 @@
+//go:build !windows
+
 package cli
 
 import (
@@ -20,8 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fullstory/subtext/cli/internal/auth"
-	"github.com/fullstory/subtext/cli/internal/tunnel"
+	"github.com/fullstorydev/subtext/cli/internal/auth"
+	"github.com/fullstorydev/subtext/cli/internal/tunnel"
 )
 
 // tunnelCmd replaces the passthrough namespace stub from namespaces.go.

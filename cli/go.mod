@@ -1,4 +1,4 @@
-module github.com/fullstory/subtext/cli
+module github.com/fullstorydev/subtext/cli
 
 go 1.25.2
 

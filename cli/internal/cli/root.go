@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fullstory/subtext/cli/internal/auth"
-	"github.com/fullstory/subtext/cli/internal/config"
-	"github.com/fullstory/subtext/cli/internal/mcpclient"
+	"github.com/fullstorydev/subtext/cli/internal/auth"
+	"github.com/fullstorydev/subtext/cli/internal/config"
+	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
 const (
@@ -104,7 +104,15 @@ func keyHint(key string) string {
 	return key[len(key)-8:]
 }
 
+// Version is set at build time via ldflags:
+//
+//	-X github.com/fullstorydev/subtext/cli/internal/cli.Version=v1.2.3
+var Version string
+
 func binaryVersion() string {
+	if Version != "" {
+		return Version
+	}
 	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "(devel)" && info.Main.Version != "" {
 		return info.Main.Version
 	}

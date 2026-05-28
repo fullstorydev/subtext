@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fullstory/subtext/cli/internal/sightmap"
+	"github.com/fullstorydev/subtext/cli/internal/sightmap"
 )
 
 var sightmapCmd = &cobra.Command{

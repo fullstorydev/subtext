@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fullstory/subtext/cli/internal/auth"
+	"github.com/fullstorydev/subtext/cli/internal/auth"
 )
 
 func TestResolveAPIKey(t *testing.T) {

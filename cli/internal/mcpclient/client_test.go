@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fullstory/subtext/cli/internal/mcpclient"
+	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
 // mockTool is the single tool served by newMockServer.

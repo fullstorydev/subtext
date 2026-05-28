@@ -17,14 +17,15 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/fullstorydev/subtext/cli/internal/cli.Version={{.Version}}
 
 archives:
   - id: default
-    format: tar.gz
+    formats: [tar.gz]
     name_template: "subtext_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     files:
       - none*
 
@@ -36,7 +37,7 @@ snapshot:
 
 release:
   github:
-    owner: fullstory
+    owner: fullstorydev
     name: subtext
   name_template: "CLI v{{ .Version }}"
   ids:
@@ -44,8 +45,8 @@ release:
 
 brews:
   - name: subtext
-    tap:
-      owner: fullstory
+    repository:
+      owner: fullstorydev
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://subtext.fullstory.com

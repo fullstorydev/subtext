@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fullstory/subtext/cli/internal/config"
+	"github.com/fullstorydev/subtext/cli/internal/config"
 )
 
 func TestLoad(t *testing.T) {

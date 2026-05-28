@@ -6,7 +6,7 @@
   "homepage": "https://subtext.fullstory.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fullstory/subtext.git",
+    "url": "https://github.com/fullstorydev/subtext.git",
     "directory": "cli/npm"
   },
   "engines": {
