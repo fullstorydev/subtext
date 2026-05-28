@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +43,7 @@ func runWhoami(cmd *cobra.Command, _ []string) error {
 		os.Exit(exitUsage)
 	}
 
-	raw, err := c.Call(context.Background(), "tools/list", nil)
+	raw, err := c.Call(cmd.Context(), "tools/list", nil)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) && (mcpErr.StatusCode == 401 || mcpErr.Code == "permission_denied") {

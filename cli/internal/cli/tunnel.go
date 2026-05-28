@@ -92,7 +92,7 @@ The relay URL is obtained from the hosted browser:
 	RunE: runTunnelConnect,
 }
 
-func runTunnelConnect(_ *cobra.Command, _ []string) error {
+func runTunnelConnect(cmd *cobra.Command, _ []string) error {
 	// Daemon mode: child process launched by --detach path.
 	if os.Getenv("SUBTEXT_TUNNEL_DAEMON") == "1" {
 		return runTunnelDaemon()
@@ -100,7 +100,7 @@ func runTunnelConnect(_ *cobra.Command, _ []string) error {
 	if connectFlags.detach {
 		return runTunnelDetach()
 	}
-	return runTunnelForeground()
+	return runTunnelForeground(cmd.Context())
 }
 
 // newTunnelClient resolves credentials and builds a Client from the current connect flags.
@@ -125,13 +125,13 @@ func newTunnelClient() (*tunnel.Client, error) {
 }
 
 // runTunnelForeground connects and blocks until SIGTERM/SIGINT or relay error.
-func runTunnelForeground() error {
+func runTunnelForeground(parent context.Context) error {
 	client, err := newTunnelClient()
 	if err != nil {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	ctx, stop := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
 	onReady := func(info tunnel.ReadyInfo) {

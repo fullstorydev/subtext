@@ -52,7 +52,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 
 	rest := args[1:]
 	if wantsHelp(rest) {
-		return runCallHelp(toolName)
+		return runCallHelp(cmd.Context(), toolName)
 	}
 
 	c, apiKey, _, err := resolveClient()
@@ -107,14 +107,14 @@ func runCall(cmd *cobra.Command, args []string) error {
 }
 
 // runCallHelp fetches the tool schema and prints a human-readable summary.
-func runCallHelp(toolName string) error {
+func runCallHelp(ctx context.Context, toolName string) error {
 	c, _, _, err := resolveClient()
 	if err != nil {
 		invocation := "subtext " + strings.Replace(toolName, "-", " ", 1)
 		fmt.Printf("%s\n\nLog in to see argument details: set SUBTEXT_API_KEY or pass --api-key.\n", invocation)
 		return nil
 	}
-	tool, err := c.GetTool(context.Background(), toolName)
+	tool, err := c.GetTool(ctx, toolName)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) && mcpErr.StatusCode == 404 {
