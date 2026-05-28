@@ -1,0 +1,12 @@
+subtext live act-click
+
+Click on an element in the browser.
+
+Required:
+  --selector  string  CSS selector to click
+
+Usage:
+  subtext live act-click [flags]
+
+For complex (nested object) arguments:
+  subtext live act-click --params-file=args.json

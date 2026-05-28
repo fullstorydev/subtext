@@ -1,0 +1,15 @@
+components:
+  - name: Header
+    selector: header
+    source: main-nav
+    memory:
+      - primary navigation area
+      - contains logo and search
+  - name: SearchInput
+    selector:
+      - input[type=search]
+      - .search-field
+
+memory:
+  - top-level context about the app layout
+  - search is the primary entry point
