@@ -35,18 +35,6 @@ func TestResolveAPIKey(t *testing.T) {
 			wantSrc:   "env:SUBTEXT_API_KEY",
 		},
 		{
-			name:    "SECRET_SUBTEXT_API_KEY is legacy fallback",
-			envs:    map[string]string{"SECRET_SUBTEXT_API_KEY": "legacy"},
-			wantKey: "legacy",
-			wantSrc: "env:SECRET_SUBTEXT_API_KEY",
-		},
-		{
-			name:    "FULLSTORY_API_KEY is legacy fallback",
-			envs:    map[string]string{"FULLSTORY_API_KEY": "legacy-fs"},
-			wantKey: "legacy-fs",
-			wantSrc: "env:FULLSTORY_API_KEY",
-		},
-		{
 			name:      "config key is lowest priority",
 			configKey: "cfg-key",
 			wantKey:   "cfg-key",
