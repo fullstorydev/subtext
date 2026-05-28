@@ -1,0 +1,12 @@
+version: 1
+
+components:
+  - name: NavBar
+    selector: "nav.main-nav"
+    source: src/NavBar.tsx
+    children:
+      - name: NavLink
+        selector: "a.nav-link"
+      - name: NavLogo
+        selector: "img.logo"
+        source: src/Logo.tsx
