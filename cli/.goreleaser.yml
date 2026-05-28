@@ -1,0 +1,57 @@
+version: 2
+
+project_name: subtext
+
+builds:
+  - id: subtext
+    main: ./cmd/subtext
+    binary: subtext
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "subtext_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - none*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+release:
+  github:
+    owner: fullstory
+    name: subtext
+  name_template: "CLI v{{ .Version }}"
+  ids:
+    - default
+
+brews:
+  - name: subtext
+    tap:
+      owner: fullstory
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://subtext.fullstory.com
+    description: Subtext CLI — drive the Subtext MCP server from your terminal
+    license: MIT
+    install: |
+      bin.install "subtext"
+    test: |
+      system "#{bin}/subtext", "--version"
