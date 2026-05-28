@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"fs/fstesting"
+	"github.com/fullstory/subtext/cli/internal/fstesting"
 )
 
 func TestUpload_OK(t *testing.T) {

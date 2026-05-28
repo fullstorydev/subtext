@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"fs/services/lidar/main/subtext/internal/sightmap"
+	"github.com/fullstory/subtext/cli/internal/sightmap"
 )
 
 var sightmapCmd = &cobra.Command{

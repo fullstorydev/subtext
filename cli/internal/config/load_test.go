@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"fs/services/lidar/main/subtext/internal/config"
+	"github.com/fullstory/subtext/cli/internal/config"
 )
 
 func TestLoad(t *testing.T) {

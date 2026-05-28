@@ -3,7 +3,7 @@ package tunnel
 import (
 	"testing"
 
-	"fs/fstesting"
+	"github.com/fullstory/subtext/cli/internal/fstesting"
 )
 
 func TestParseOriginPattern(t *testing.T) {

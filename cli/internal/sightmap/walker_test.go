@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"fs/fstesting"
+	"github.com/fullstory/subtext/cli/internal/fstesting"
 )
 
 func TestFlatten_StringSelector(t *testing.T) {

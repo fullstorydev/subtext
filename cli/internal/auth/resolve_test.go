@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"fs/services/lidar/main/subtext/internal/auth"
+	"github.com/fullstory/subtext/cli/internal/auth"
 )
 
 func TestResolveAPIKey(t *testing.T) {

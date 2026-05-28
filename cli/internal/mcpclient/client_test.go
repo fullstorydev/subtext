@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"fs/services/lidar/main/subtext/internal/mcpclient"
+	"github.com/fullstory/subtext/cli/internal/mcpclient"
 )
 
 // mockTool is the single tool served by newMockServer.

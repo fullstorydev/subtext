@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"fs/services/lidar/main/subtext/internal/mcpclient"
+	"github.com/fullstory/subtext/cli/internal/mcpclient"
 )
 
 // namespaceHelpFunc returns a cobra help function for a namespace command.

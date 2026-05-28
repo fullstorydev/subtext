@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"fs/services/lidar/main/subtext/internal/mcpclient"
+	"github.com/fullstory/subtext/cli/internal/mcpclient"
 )
 
 func TestResolveEndpoint(t *testing.T) {

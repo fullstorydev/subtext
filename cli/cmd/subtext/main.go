@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"fs/services/lidar/main/subtext/internal/cli"
+	"github.com/fullstory/subtext/cli/internal/cli"
 )
 
 func main() {

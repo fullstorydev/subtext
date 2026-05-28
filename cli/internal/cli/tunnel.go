@@ -20,8 +20,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"fs/services/lidar/main/subtext/internal/auth"
-	"fs/services/lidar/main/subtext/internal/tunnel"
+	"github.com/fullstory/subtext/cli/internal/auth"
+	"github.com/fullstory/subtext/cli/internal/tunnel"
 )
 
 // tunnelCmd replaces the passthrough namespace stub from namespaces.go.

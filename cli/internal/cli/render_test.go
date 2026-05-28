@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"fs/services/lidar/main/subtext/internal/mcpclient"
+	"github.com/fullstory/subtext/cli/internal/mcpclient"
 )
 
 var textContent = []mcpclient.Content{

@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"fs/services/lidar/main/subtext/internal/auth"
-	"fs/services/lidar/main/subtext/internal/config"
-	"fs/services/lidar/main/subtext/internal/mcpclient"
+	"github.com/fullstory/subtext/cli/internal/auth"
+	"github.com/fullstory/subtext/cli/internal/config"
+	"github.com/fullstory/subtext/cli/internal/mcpclient"
 )
 
 const (
