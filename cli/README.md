@@ -1,106 +1,145 @@
-# subtext CLI — local dev
+# Subtext CLI
 
-## Build
+A command-line tool for driving the [Subtext](https://subtext.fullstory.com) MCP server from your terminal. Use it to control live browser sessions, manage session replay comments, create proof documents, and upload sightmaps — the same operations your AI agent performs, but from a shell or CI script.
+
+## Install
 
 ```bash
-cd projects/fullstory
-bazel build //go/src/fs/services/lidar/main/subtext:subtext
+# npx (no install required)
+npx @fullstory/subtext-cli auth whoami
+
+# npm (global install)
+npm install -g @fullstory/subtext-cli
+
+# Homebrew
+brew install fullstory/tap/subtext
+
+# go install
+go install github.com/fullstory/subtext/cli/cmd/subtext@latest
+
+# Download a binary directly
+# https://github.com/fullstory/subtext/releases
 ```
 
-## Shell alias
+## Quickstart
 
 ```bash
-alias subtext="$(pwd)/bazel-bin/go/src/fs/services/lidar/main/subtext/subtext_/subtext"
-```
+# 1. Set your API key
+export SUBTEXT_API_KEY=fs-...
 
-Or add the directory to `$PATH` for the session:
-
-```bash
-export PATH="$(pwd)/bazel-bin/go/src/fs/services/lidar/main/subtext/subtext_:$PATH"
-```
-
-## Auth
-
-The CLI resolves your API key from multiple sources in precedence order:
-
-1. `--api-key` flag (use `-` to read from stdin, keeping the key out of shell history)
-2. `SUBTEXT_API_KEY` env var
-3. `api_key` field in the config file (see [Config file](#config-file) below)
-
-```bash
+# 2. Verify connectivity
 subtext auth whoami
-# OK. Endpoint: https://api.fullstory.com/mcp/subtext. Key source: env:SUBTEXT_API_KEY. Server reports N tools.
 
-echo $MY_KEY | subtext --api-key - auth whoami
+# 3. Open a live browser session
+subtext live connect --url https://example.com
+
+# 4. Take a screenshot
+subtext live view screenshot
+
+# 5. Create a proof document
+subtext doc create --title "My review"
 ```
 
-## Config file
+## Commands
 
-`~/.config/subtext/config.yaml` (optional). All fields are optional and act as the lowest-priority fallback after flags and env vars.
+| Namespace | Description |
+|-----------|-------------|
+| `live` | Connect to and drive a hosted browser (navigate, click, screenshot, inspect) |
+| `comment` | Add, list, reply to, and resolve session comments |
+| `doc` | Create and manage proof documents (create, update, attach, close) |
+| `tunnel` | Manage reverse tunnels for localhost access |
+| `artifact` | Upload and retrieve file artifacts |
+| `sightmap` | Upload `.sightmap/` component definitions to a live session |
+| `auth` | Manage authentication (`login`, `whoami`) |
 
-```yaml
-api_key: fs-...            # optional; overridden by --api-key / SUBTEXT_API_KEY
-region: na1                # optional; na1 (default) or eu1
-endpoint: https://...      # optional; overrides region if set
-sightmap_root: /path/to/project  # optional; overridden by --root / SIGHTMAP_ROOT
-```
-
-Override the path with `--config <file>` or `SUBTEXT_CONFIG`.
+Every namespace supports per-tool help that fetches live schema from the server:
 
 ```bash
-subtext --config ~/.config/subtext/config.yaml auth whoami
-SUBTEXT_CONFIG=/path/to/config.yaml subtext auth whoami
+subtext live --help
+subtext live connect --help
+subtext doc create --help
 ```
 
 ## Calling tools
 
-Tools are invoked via the namespace verb pattern: `subtext <namespace> <verb> [--flags]`.
+Tools follow the `subtext <namespace> <verb> [--flags]` pattern:
 
 ```bash
-# Per-tool help (fetches schema live from server)
-subtext live connect --help
-subtext comment add --help
-subtext doc create --help
+# Connect a browser and navigate
+subtext live connect --url https://example.com
+subtext live view navigate --url https://example.com/dashboard
 
-# Call a tool
-subtext live connect --url=https://example.com
-subtext doc create --title="My doc" --tags=ux --tags=p1
+# Create a document and attach a screenshot
+subtext doc create --title "Regression check" --tags p1
+subtext live view screenshot
+subtext doc attach --session-url <url>
 
 # JSON output (default)
-subtext live connect --url=https://example.com --format json
+subtext live connect --url https://example.com --format json
 
-# Text output
-subtext live connect --url=https://example.com --format text
+# Human-readable text output
+subtext live connect --url https://example.com --format text
 
-# Complex (nested object) args via a JSON file
-subtext doc update --params-file=edits.json
+# Pass complex nested args from a file
+subtext doc update --params-file edits.json
 ```
+
+## Auth
+
+The CLI resolves your API key in this order:
+
+1. `--api-key` flag (pass `-` to read from stdin, keeping the key out of shell history)
+2. `SUBTEXT_API_KEY` environment variable
+3. `api_key` field in the config file
+
+```bash
+subtext auth whoami
+# OK. Endpoint: https://api.fullstory.com/mcp/subtext. Key source: env:SUBTEXT_API_KEY.
+
+echo "$MY_KEY" | subtext --api-key - auth whoami
+```
+
+## Config file
+
+`~/.config/subtext/config.yaml` (all fields optional):
+
+```yaml
+api_key: fs-...            # overridden by --api-key / SUBTEXT_API_KEY
+region: na1                # na1 (default) or eu1
+endpoint: https://...      # overrides region if set
+sightmap_root: /path/to/project  # overridden by --root / SIGHTMAP_ROOT
+```
+
+Override the path with `--config <file>` or `SUBTEXT_CONFIG`.
+
+## Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `SUBTEXT_API_KEY` | API key |
+| `SUBTEXT_REGION` | Default region: `na1` (default) or `eu1` |
+| `SUBTEXT_ENDPOINT` | Override endpoint URL |
+| `SUBTEXT_CONFIG` | Override config file path |
+| `SUBTEXT_ALLOW_INSECURE_ENDPOINT` | Set to `1` to allow `http://` endpoints |
+| `SIGHTMAP_ROOT` | Root for `sightmap upload`; auto-detected if unset |
 
 ## Sightmap upload
 
-`.sightmap/` YAML files map component names to CSS selectors. Uploading them to
-a live session lets the hosted browser resolve names to elements for screenshots
-and interactions.
+`.sightmap/` YAML files map component names to CSS selectors. Upload them to a live session so the hosted browser can resolve component names to DOM elements.
 
 **How it works:**
 
-1. `subtext live tunnel` mints a session and returns a `sightmapUploadUrl` — a
-   URL with a single-use nonce (`token=…`) baked in as a query param. The nonce
-   is the credential (no `Authorization` header needed) and expires in 5 minutes.
-2. `subtext sightmap upload --url <URL>` walks the `.sightmap/` directory,
-   flattens nested `children:` into compound CSS selectors using the descendant
-   combinator, collects per-component and top-level `memory:` strings, and POSTs
-   the result to the nonce URL.
-3. The server wires the component map into the live session. After upload the
-   hosted browser can resolve component names to DOM elements.
+1. `subtext live tunnel` mints a session and returns a `sightmapUploadUrl` — a nonce URL (no `Authorization` header needed) that expires in 5 minutes.
+2. `subtext sightmap upload --url <URL>` walks `.sightmap/`, flattens nested `children:` into compound CSS selectors, collects `memory:` strings, and POSTs to the nonce URL.
+3. After upload, the hosted browser can resolve component names during screenshots and interactions.
 
 ```bash
-# Mint a session and capture the sightmap upload URL
+# Mint a session and capture the upload URL
 URL=$(subtext live tunnel --format json | jq -r '.data.sightmapUploadUrl')
 
-# Upload from the current project (auto-detects .sightmap/ by walking up)
+# Upload from the current project root
 subtext sightmap upload --url "$URL"
-# Uploaded 12 sightmap component(s).
+# Uploaded 12 component(s).
 
 # Explicit root
 subtext sightmap upload --url "$URL" --root /path/to/project
@@ -110,44 +149,14 @@ subtext sightmap upload --url "$URL" --format json
 # {"ok":true,"components":12}
 ```
 
-The nonce is single-use — a second `upload` call with the same URL will fail
-with `invalid or expired nonce`. Mint a fresh URL for each upload.
+The nonce is single-use. Mint a fresh URL for each upload.
 
-## Commands to try
+## Development
 
 ```bash
-# Connectivity check
-subtext auth whoami
-subtext auth whoami --json
-
-# Dynamic help — fetches live tool names + descriptions from the server
-subtext live --help
-subtext comment --help
-subtext doc --help
-subtext tunnel --help
-subtext artifact --help
-
-# Offline fallback (no SUBTEXT_API_KEY set → static Long text + skill URL)
-FULLSTORY_API_KEY= SUBTEXT_API_KEY= subtext live --help
-
-# eu1 region
-subtext --region eu1 auth whoami
-
-# Custom endpoint (staging, localdev with SUBTEXT_ALLOW_INSECURE_ENDPOINT=1)
-subtext --endpoint https://api.staging.fullstory.com/mcp/subtext auth whoami
-SUBTEXT_ALLOW_INSECURE_ENDPOINT=1 subtext --endpoint http://localhost:8080 auth whoami
-
-# JSON output
-subtext auth whoami --json
+cd cli
+go build ./cmd/subtext
+go test ./...
 ```
 
-## Environment variables
-
-| Variable | Purpose |
-|---|---|
-| `SUBTEXT_API_KEY` | API key |
-| `SUBTEXT_REGION` | Default region: `na1` (default) or `eu1` |
-| `SUBTEXT_ENDPOINT` | Override endpoint URL entirely |
-| `SUBTEXT_CONFIG` | Override config file path |
-| `SUBTEXT_ALLOW_INSECURE_ENDPOINT` | Set to `1` to allow `http://` endpoints |
-| `SIGHTMAP_ROOT` | Root for `sightmap upload` — overrides `sightmap_root` in config; auto-detected if both unset |
+Requires Go 1.22+.
