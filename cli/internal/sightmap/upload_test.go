@@ -20,7 +20,7 @@ func TestUpload_OK(t *testing.T) {
 		fstesting.Ok(t, json.NewDecoder(r.Body).Decode(&body), "decode request body")
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "components": len(body.Sightmap)})
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "components": len(body.Sightmap)})
 	}))
 	t.Cleanup(srv.Close)
 
@@ -39,7 +39,7 @@ func TestUpload_NoAuthHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fstesting.Equals(t, "", r.Header.Get("Authorization"), "no Authorization header expected")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"status": "ok", "components": 0})
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "components": 0})
 	}))
 	t.Cleanup(srv.Close)
 

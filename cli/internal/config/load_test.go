@@ -56,7 +56,7 @@ func TestLoad(t *testing.T) {
 			if _, err := f.WriteString(tc.content); err != nil {
 				t.Fatal(err)
 			}
-			f.Close()
+			_ = f.Close()
 
 			got, err := config.Load(f.Name())
 			if tc.wantErr {
@@ -90,8 +90,8 @@ func TestLoad_EmptyPath_EnvVar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.WriteString("api_key: from-env\n")
-	f.Close()
+	_, _ = f.WriteString("api_key: from-env\n")
+	_ = f.Close()
 
 	t.Setenv("SUBTEXT_CONFIG", f.Name())
 

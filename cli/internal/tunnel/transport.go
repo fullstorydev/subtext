@@ -277,14 +277,14 @@ func (t *transport) handleConnectStream(ctx context.Context, stream net.Conn) er
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		io.Copy(conn, stream)
+		_, _ = io.Copy(conn, stream)
 		if tc, ok := conn.(*net.TCPConn); ok {
 			_ = tc.CloseWrite()
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		io.Copy(stream, conn)
+		_, _ = io.Copy(stream, conn)
 		_ = stream.Close()
 	}()
 	wg.Wait()

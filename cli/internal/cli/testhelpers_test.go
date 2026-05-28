@@ -31,11 +31,11 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	fn()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = orig
 
 	out, err := io.ReadAll(r)
-	r.Close()
+	_ = r.Close()
 	if err != nil {
 		t.Fatal(err)
 	}

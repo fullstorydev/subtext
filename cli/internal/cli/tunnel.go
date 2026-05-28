@@ -257,8 +257,8 @@ func runTunnelDetach() error {
 // SIGTERM or the relay closes.
 func runTunnelDaemon() error {
 	readyFDStr := os.Getenv("SUBTEXT_TUNNEL_READY_FD")
-	os.Unsetenv("SUBTEXT_TUNNEL_DAEMON")
-	os.Unsetenv("SUBTEXT_TUNNEL_READY_FD")
+	_ = os.Unsetenv("SUBTEXT_TUNNEL_DAEMON")
+	_ = os.Unsetenv("SUBTEXT_TUNNEL_READY_FD")
 
 	var readyPipe *os.File
 	if readyFDStr != "" {
