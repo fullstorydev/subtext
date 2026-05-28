@@ -3,7 +3,7 @@
 ## Build and run
 
 ```bash
-cd /Users/clint/sandbox/work/forks/subtext/cli
+cd cli
 go build -o /tmp/subtext ./cmd/subtext
 /tmp/subtext auth whoami
 ```
