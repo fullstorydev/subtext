@@ -49,8 +49,7 @@ func Upload(ctx context.Context, uploadURL string, p Payload) (int, error) {
 }
 
 // httpClient returns an http.Client that relaxes TLS verification for local
-// dev hostnames (.test, localhost, 127.0.0.1) to match the Python script's
-// behaviour and the local dev server at api.fullstory.test.
+// dev hostnames (.test, localhost, 127.0.0.1) where self-signed certs are common.
 func httpClient(rawURL string) *http.Client {
 	c := &http.Client{Timeout: 30 * time.Second}
 	if isLocalHost(rawURL) {

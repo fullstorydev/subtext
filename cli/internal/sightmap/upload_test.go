@@ -74,7 +74,7 @@ func TestIsLocalHost(t *testing.T) {
 		url  string
 		want bool
 	}{
-		{"https://api.fullstory.test:8043/mcp/subtext", true},
+		{"https://api.example.test:8043/mcp/subtext", true},
 		{"https://localhost:3000/upload", true},
 		{"https://127.0.0.1:8080/upload", true},
 		{"https://api.fullstory.com/mcp/subtext", false},
