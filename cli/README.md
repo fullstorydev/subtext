@@ -11,9 +11,6 @@ npx @fullstory/subtext-cli auth whoami
 # npm (global install)
 npm install -g @fullstory/subtext-cli
 
-# Homebrew
-brew install fullstory/tap/subtext
-
 # go install
 go install github.com/fullstorydev/subtext/cli/cmd/subtext@latest
 

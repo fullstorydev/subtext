@@ -42,17 +42,3 @@ release:
   name_template: "CLI v{{ .Version }}"
   ids:
     - default
-
-brews:
-  - name: subtext
-    repository:
-      owner: fullstorydev
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: https://subtext.fullstory.com
-    description: Subtext CLI — drive the Subtext MCP server from your terminal
-    license: MIT
-    install: |
-      bin.install "subtext"
-    test: |
-      system "#{bin}/subtext", "--version"
