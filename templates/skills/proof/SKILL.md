@@ -2,6 +2,7 @@
 name: proof
 description: You MUST use this skill when implementing, fixing, or refactoring code. Captures evidence artifacts (screenshots, network traces, code diffs, trace session links) into a proof document as you work.
 metadata:
+  targets: [mcp, cli]
   requires:
     skills: ["subtext:shared", "subtext:live", "subtext:comments", "subtext:docs"]
   mcp-server: subtext
@@ -17,14 +18,14 @@ Every code change that affects what a user sees must be visually proven. This sk
 
 ## Screenshot Capture
 
-**Always use `live-view-screenshot` with `upload: true`.** This uploads the screenshot to cloud storage and returns a signed URL you can attach to comments and PRs.
+**Always use {{tool "live-view-screenshot"}} with `upload: true`.** This uploads the screenshot to cloud storage and returns a signed URL you can attach to comments and PRs.
 
 ```
 live-view-screenshot({ connection_id, view_id, upload: true })
 → { screenshot_url: "https://..." }
 ```
 
-**Do NOT use `artifact-upload` for screenshots.** It requires base64-encoding the entire PNG and frequently fails on large images. The `upload: true` flag on `live-view-screenshot` handles the upload server-side — smaller payload, no encoding issues.
+**Do NOT use {{tool "artifact-upload"}} for screenshots.** It requires base64-encoding the entire PNG and frequently fails on large images. The `upload: true` flag on {{tool "live-view-screenshot"}} handles the upload server-side — smaller payload, no encoding issues.
 
 **Pass `screenshot_url` through verbatim — query string included.** The full signed URL is the credential. Don't strip `?Expires=…&GoogleAccessId=…&Signature=…` when copying it into PR descriptions, comments, or summaries — without those params GCS returns 403 and the image won't render.
 
@@ -52,17 +53,17 @@ The `doc_id` travels through every step below. The `doc_url` is the permanent li
 
 ### Step 1: Connect to the running app
 
-Open a browser connection per `subtext:live`'s connect flow — `live-connect` for remote URLs, tunnel-first (`live-tunnel` → `tunnel-connect` → `live-view-new`) for localhost. The hosted browser cannot reach localhost without the tunnel; see `subtext:live` for both flows in detail.
+Open a browser connection per `subtext:live`'s connect flow — {{tool "live-connect"}} for remote URLs, tunnel-first ({{tool "live-tunnel"}} → {{tool "tunnel-connect"}} → {{tool "live-view-new"}}) for localhost. The hosted browser cannot reach localhost without the tunnel; see `subtext:live` for both flows in detail.
 
 If the app isn't running, **try to start the dev server yourself first.** Look for `package.json` scripts (`dev`, `start`, `serve`), a `Makefile`, or a `docker-compose.yml`. Run the appropriate command in the background. Only ask the user if you can't figure out how to start it.
 
-Read any existing comments with `comment-list` — prior feedback may inform your work.
+Read any existing comments with {{tool "comment-list"}} — prior feedback may inform your work.
 
-Call `doc-create` with the `verification` seed template (or `bug-fix` / `changeset` if the context fits better). Save `doc_id` and `doc_url`.
+Call {{tool "doc-create"}} with the `verification` seed template (or `bug-fix` / `changeset` if the context fits better). Save `doc_id` and `doc_url`.
 
 ### Step 2: Share the trace URL
 
-**Immediately** print the `trace_url` from the connect step on its own line. (`live-connect` returns it for remote; `live-view-new` returns it for tunnel-first.) This lets the user watch the agent's browser in real time and gives downstream reviewers (including `subtext:review` follow-ups) a stable entry point to the recorded session.
+**Immediately** print the `trace_url` from the connect step on its own line. ({{tool "live-connect"}} returns it for remote; {{tool "live-view-new"}} returns it for tunnel-first.) This lets the user watch the agent's browser in real time and gives downstream reviewers{{if ne .Target "cli"}} (including `subtext:review` follow-ups){{end}} a stable entry point to the recorded session.
 
 ```
 Trace: {trace_url}
@@ -73,15 +74,15 @@ Do NOT bury the link in a wall of text. It goes first, on its own line.
 
 ### Polling discipline (Steps 3–6)
 
-While the trace is open, the human reviewer can leave comments or take browser control at any time. Between any two `live-*` calls in the loop below, call `live-signal` with the cursor saved from the previous call (omit `since` on the first call to baseline). New comments come back inline — read each, reply via `comment-reply` if it directs the work, and save the new `cursor`. The `operator` field on every response is the source of truth for control state. See `subtext:live` for the full response shape and operator-gate behavior.
+While the trace is open, the human reviewer can leave comments or take browser control at any time. Between any two `live-*` calls in the loop below, call {{tool "live-signal"}} with the cursor saved from the previous call (omit `since` on the first call to baseline). New comments come back inline — read each, reply via {{tool "comment-reply"}} if it directs the work, and save the new `cursor`. The `operator` field on every response is the source of truth for control state. See `subtext:live` for the full response shape and operator-gate behavior.
 
 ### Step 3: Navigate to the affected area and capture BEFORE
 
 Drive the browser to the exact page/component/state where the change will be visible.
 
 1. Navigate to the right URL, click through to the right state
-2. Call `live-view-screenshot` with `upload: true` — this is the BEFORE evidence. Save the returned `screenshot_url`.
-3. Call `comment-add` with intent `ask`, passing the `screenshot_url`:
+2. Call {{tool "live-view-screenshot"}} with `upload: true` — this is the BEFORE evidence. Save the returned `screenshot_url`.
+3. Call {{tool "comment-add"}} with intent `ask`, passing the `screenshot_url`:
    - Text: "BEFORE: [describe current state]. About to make [describe planned change]."
    - This is a chapter marker — it anchors the timeline for anyone reviewing the session later.
 4. Attach to the proof document:
@@ -104,16 +105,16 @@ doc-attach(doc_id, section: "Changes", render_as: "link",
            label: {one-line description of what changed})
 ```
 
-If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry. Continue polling `live-signal`; when `operator` flips back to `agent`, resume UI-facing work. Backend changes that don't need visual verification can continue while you wait.
+If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry. Continue polling {{tool "live-signal"}}; when `operator` flips back to `agent`, resume UI-facing work. Backend changes that don't need visual verification can continue while you wait.
 
 ### Step 5: Verify the change with live tools
 
 Return to the browser. Refresh, hot reload, or reconnect if the dev server restarted.
 
 1. Navigate back to the same page/state from Step 3
-2. Call `live-view-screenshot` with `upload: true` — this is the AFTER evidence. Save the returned `screenshot_url`.
+2. Call {{tool "live-view-screenshot"}} with `upload: true` — this is the AFTER evidence. Save the returned `screenshot_url`.
 3. **Visually compare** BEFORE vs AFTER against the original prompt intent or acceptance criteria
-4. Call `comment-add` with the AFTER `screenshot_url`:
+4. Call {{tool "comment-add"}} with the AFTER `screenshot_url`:
    - Intent: `looks-good` if it matches intent, `bug` if something is wrong
    - Text: "AFTER: [describe what changed]. [Assessment against acceptance criteria]."
 5. Attach to the proof document:
@@ -125,13 +126,13 @@ Return to the browser. Refresh, hot reload, or reconnect if the dev server resta
 
 - Click buttons, fill forms, hover elements — confirm the change works functionally, not just visually
 - Check edge cases: empty states, long text, missing data
-- If the change touches styles: check dark mode, mobile viewport (use `live-emulate`)
+- If the change touches styles: check dark mode, mobile viewport (use {{tool "live-emulate"}})
 
 ### Step 6: Self-correct if needed
 
 If the AFTER doesn't match intent:
 
-1. Call `live-view-screenshot` with `upload: true`, then `comment-add` with intent `bug` and the `screenshot_url`: "ISSUE: [what's wrong]. Fixing now."
+1. Call {{tool "live-view-screenshot"}} with `upload: true`, then {{tool "comment-add"}} with intent `bug` and the `screenshot_url`: "ISSUE: [what's wrong]. Fixing now."
 2. Attach the issue screenshot to the proof document: `doc-attach(doc_id, section: "After", render_as: "image", url: {screenshot_url}, label: "Issue: {what's wrong}")`
 3. Go back to Step 4, make the fix
 4. Return to Step 5, re-verify
@@ -142,8 +143,8 @@ If the AFTER doesn't match intent:
 
 Once the change is verified:
 
-1. Take a final `live-view-screenshot` with `upload: true` of the confirmed state
-2. Call `comment-add` with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
+1. Take a final {{tool "live-view-screenshot"}} with `upload: true` of the confirmed state
+2. Call {{tool "comment-add"}} with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
 3. Attach the trace to the proof document: `doc-attach(doc_id, section: "Evidence", render_as: "link", url: {trace_url}, label: "Session trace")`
 4. Re-read the document (`doc-read(doc_id)`) and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
 5. Close: `doc-close(doc_id, status: "complete", summary: {one sentence outcome})`
@@ -164,7 +165,7 @@ Once the change is verified:
 **Proof document:** {doc_url}
 ```
 
-The `screenshot_url` values are signed URLs from `live-view-screenshot` with `upload: true`. They render directly in GitHub PR descriptions as inline images.
+The `screenshot_url` values are signed URLs from {{tool "live-view-screenshot"}} with `upload: true`. They render directly in GitHub PR descriptions as inline images.
 
 ## When to Use This Skill
 
@@ -222,8 +223,8 @@ If the change affects more than one page or state:
 ## Composition
 
 - **Requires:** `subtext:live` (browser tools, returns `trace_url`), `subtext:comments` (annotations), `subtext:docs` (proof document)
-- **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
-- **Triggers from:** any file edit to UI code, or when the user asks for a visual change
+{{if ne .Target "cli"}}- **Hands off to:** `subtext:review` — when the session is complete, another agent (or the same agent later) can review the recorded session as a secondary verification pass
+{{end}}- **Triggers from:** any file edit to UI code, or when the user asks for a visual change
 
 ## Async heartbeat (Claude Code only, MANDATORY)
 

@@ -2,6 +2,7 @@
 name: onboard
 description: Interactive first-run onboarding for new Subtext users. Connects to the user's local dev server, proves a small change with before/after evidence in a watchable trace, then bootstraps a starter sightmap from what was learned.
 metadata:
+  targets: [mcp]
   platform: claude-code
   requires:
     skills: ["subtext:shared", "subtext:proof", "subtext:sightmap", "subtext:live", "subtext:tunnel"]
@@ -96,7 +97,7 @@ Ask for a small visible change. Give concrete examples so the user doesn't have 
 Once the user describes the change, follow the **`subtext:proof`** workflow you already read inline. Important:
 
 - The connection from Step 1 is reusable. Skip proof's Step 1 (connect) and Step 2 (share trace URL — already done). Start at proof's Step 3 (BEFORE capture).
-- Use the existing `connection_id` and `view_id` from Step 1 in `live-view-screenshot` and `comment-add` calls.
+- Use the existing `connection_id` and `view_id` from Step 1 in {{tool "live-view-screenshot"}} and {{tool "comment-add"}} calls.
 
 When proof's loop completes, recap to the user in a single message:
 

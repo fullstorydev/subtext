@@ -1,25 +1,14 @@
----
-name: tunnel
-description: Use when opening a hosted browser connection against a localhost or local dev server URL. Sets up a reverse tunnel so the hosted browser can reach the user's local server.
-metadata:
-  targets: [mcp, cli]
-  requires:
-    skills: ["subtext:shared", "subtext:live"]
----
-
 # Tunnel Setup for Hosted Browser
-
-> **ENVIRONMENT:** If a `subtext-environment` skill is available in the host project, read it before connecting — it specifies which MCP server prefix to use for live and tunnel tools.
 
 When the hosted browser needs to load a page from the user's local dev server (e.g. `http://localhost:3000`), a reverse tunnel is required. The hosted browser cannot reach localhost directly — the tunnel proxies requests from the hosted infrastructure back to the user's machine.
 
-{{if eq .Target "cli"}}## Commands{{else}}## MCP Tools{{end}}
+## Commands
 
-| Tool | Server | Description |
-|------|--------|-------------|
-| {{tool "live-tunnel"}} | subtext | Allocate a connection and get a relay URL for tunneling |
-| {{tool "tunnel-connect"}} | subtext-tunnel | Connect local server(s) to relay |
-| {{tool "tunnel-status"}} | subtext-tunnel | Check tunnel connection state |
+| Command | Description |
+|---------|-------------|
+| {{tool "live-tunnel"}} | Allocate a connection and get a relay URL for tunneling |
+| {{tool "tunnel-connect"}} | Connect local server(s) to relay |
+| {{tool "tunnel-status"}} | Check tunnel connection state |
 
 ## When to Use
 
@@ -56,39 +45,28 @@ Default deny: omit something and chromium can't reach it through this tunnel.
 
 Set up the tunnel before opening a view. {{tool "live-tunnel"}} allocates the browser connection and returns a `connectionId` — use it with {{tool "live-view-new"}} to navigate.
 
-1. Call {{tool "live-tunnel"}} on the **subtext** MCP server → returns `relayUrl`, `connectionId`, and `sightmapUploadUrl`
+1. Run {{tool "live-tunnel"}} → returns `relayUrl`, `connectionId`, and `sightmapUploadUrl`
 2. If the project has `.sightmap/` definitions, upload them now (see `subtext:shared`). Upload before {{tool "live-view-new"}} so the sightmap is active for the first snapshot.
-3. Call {{tool "tunnel-connect"}} on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
+3. Run {{tool "tunnel-connect"}} with `relayUrl` and `allowedOrigins`
 4. Verify `state` is `"ready"` in the response
-5. Call {{tool "live-view-new"}} on **subtext** with the `connection_id` from step 1 and the full localhost URL
+5. Run {{tool "live-view-new"}} with the `connection_id` from step 1 and the full localhost URL
 
 ```
-live-tunnel() → { relayUrl, connectionId: "abc-123", sightmapUploadUrl: "..." }
+subtext live tunnel → { relayUrl, connectionId: "abc-123", sightmapUploadUrl: "..." }
 # upload .sightmap/ here if project has definitions (see subtext:shared)
-tunnel-connect({
-  relayUrl,
-  allowedOrigins: ["localhost:3000"],
-}) → { state: "ready", tunnelId: "..." }
-live-view-new({ connection_id: "abc-123", url: "http://localhost:3000/dashboard" })
+subtext tunnel connect --relay-url <relayUrl> --allowed-origins localhost:3000
+→ { state: "ready", tunnelId: "..." }
+subtext live view new --connection-id abc-123 --url http://localhost:3000/dashboard
 ```
 
 ### Connection-first (attach tunnel to existing connection)
 
 If {{tool "live-connect"}} was already called and you need to attach a tunnel afterward, pass the existing `connectionId` to {{tool "live-tunnel"}}.
 
-1. Call {{tool "live-tunnel"}} on the **subtext** MCP server with `connection_id` from the existing connection → returns `relayUrl`
-2. Call {{tool "tunnel-connect"}} on the **subtext-tunnel** MCP server with `relayUrl` and `allowedOrigins`
+1. Run {{tool "live-tunnel"}} with `--connection-id` from the existing connection → returns `relayUrl`
+2. Run {{tool "tunnel-connect"}} with `relayUrl` and `allowedOrigins`
 3. Verify `state` is `"ready"` in the response
 4. Navigate to the localhost URL with {{tool "live-view-navigate"}}
-
-```
-live-tunnel({ connection_id: "existing-conn-id" }) → { relayUrl, connectionId: "existing-conn-id" }
-tunnel-connect({
-  relayUrl,
-  allowedOrigins: ["localhost:3000"],
-}) → { state: "ready", tunnelId: "..." }
-live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3000" })
-```
 
 ## Picking an allowlist
 
@@ -96,30 +74,18 @@ live-view-navigate({ connection_id: "existing-conn-id", url: "http://localhost:3
 
 - **App with auth/SSO redirects between subdomains** (the common case). List the trunk:
   ```
-  allowedOrigins: ["example.test:8043"]
+  --allowed-origins example.test:8043
   ```
   This covers `app.example.test:8043`, `oauthtest.example.test:8043`, every other subdomain. Don't narrow to `app.example.test:8043` — the first OAuth bounce will fail.
 
-- **Multi-port local stack** (web app on `:3000` + API on `:4200`, frontend + asset server, etc.) — list each origin:
+- **Multi-port local stack** (web app on `:3000` + API on `:4200`) — list each origin:
   ```
-  allowedOrigins: [
-    "localhost:3000",
-    "localhost:4200",
-  ]
+  --allowed-origins localhost:3000,localhost:4200
   ```
 
 - **Single-page local app, one origin, no auth** — bare trunk works:
   ```
-  allowedOrigins: ["localhost:3000"]
-  ```
-  (Subdomains of `localhost` would also match. That's fine — they all resolve to your loopback interface anyway.)
-
-- **Mixed hosts** — combine freely in one tunnel:
-  ```
-  allowedOrigins: [
-    "example.test:8043",
-    "127.0.0.1:8766",
-  ]
+  --allowed-origins localhost:3000
   ```
 
 ## Diagnosing a chrome-error page
@@ -149,5 +115,5 @@ If the trunk reconnect still fails the same way, the navigation is going somewhe
 - **Never fabricate a `connectionId`** — only use IDs returned from {{tool "live-connect"}}, {{tool "live-tunnel"}}, or {{tool "tunnel-connect"}} calls.
 - {{tool "live-tunnel"}} allocates a browser connection on the same pod as the tunnel relay. In tunnel-first flow, this replaces {{tool "live-connect"}} — use {{tool "live-view-new"}} to open views instead.
 - The tunnel stays connected across multiple views — you only need to set it up once per connection.
-- If the tunnel disconnects (e.g. the relay restarts), it reconnects automatically. Call {{tool "tunnel-status"}} to check.
+- If the tunnel disconnects (e.g. the relay restarts), it reconnects automatically. Run {{tool "tunnel-status"}} to check.
 - The tunnel only needs to be set up for localhost/local URLs. Remote URLs (e.g. `https://example.com`) work directly without a tunnel.

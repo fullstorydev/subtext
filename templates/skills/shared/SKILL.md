@@ -1,6 +1,9 @@
 ---
 name: shared
 description: Foundation skill for the subtext plugin. MCP tool conventions, environment detection, security rules, and sightmap upload.
+metadata:
+  targets: [mcp, cli]
+
 ---
 
 # Shared
@@ -17,17 +20,17 @@ Three tools return a sightmap upload URL:
 
 | Tool | Field | Format |
 |------|-------|--------|
-| `review-open` | `sightmap_upload_url:` | text line in response |
-| `live-connect` | `sightmap_upload_url:` | text line in response |
-| `live-tunnel` | `sightmapUploadUrl` | JSON field in response |
+| {{tool "review-open"}} | `sightmap_upload_url:` | text line in response |
+| {{tool "live-connect"}} | `sightmap_upload_url:` | text line in response |
+| {{tool "live-tunnel"}} | `sightmapUploadUrl` | JSON field in response |
 
-If the project has `.sightmap/` definitions, upload them via the side-band script after getting the URL and **before** proceeding (before `review-view`/`review-diff` for review flows; before `live-view-new` for the tunnel-first flow):
+If the project has `.sightmap/` definitions, upload them via the side-band script after getting the URL and **before** proceeding (before {{tool "review-view"}}/{{tool "review-diff"}} for review flows; before {{tool "live-view-new"}} for the tunnel-first flow):
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/shared/collect_and_upload_sightmap.py --url <sightmap_upload_url>
 ```
 
-The upload uses a single-use token embedded in the URL — no additional auth is needed. Do NOT pass the `sightmap` parameter directly to `review-open`/`live-connect`.
+The upload uses a single-use token embedded in the URL — no additional auth is needed. Do NOT pass the `sightmap` parameter directly to {{tool "review-open"}}/{{tool "live-connect"}}.
 
 ## Tool Name Prefixes
 
@@ -35,10 +38,10 @@ Tools within the subtext server are grouped by prefix:
 
 | Prefix | Tools |
 |--------|-------|
-| `review-` | Session replay: `review-open`, `review-view`, `review-diff`, `review-close` |
-| `live-` | Browser automation: `live-connect`, `live-disconnect`, `live-view-*`, `live-act-*`, `live-log-*`, `live-net-*`, `live-tunnel`, `live-emulate`, `live-eval-script` |
-| `comment-` | Comments: `comment-add`, `comment-list`, `comment-reply`, `comment-resolve` |
-| `doc-` | Proof documents: `doc-create`, `doc-update`, `doc-attach`, `doc-close`, `doc-read`, `doc-diff`, `doc-list` |
+| `review-` | Session replay: {{tool "review-open"}}, {{tool "review-view"}}, {{tool "review-diff"}}, {{tool "review-close"}} |
+| `live-` | Browser automation: {{tool "live-connect"}}, {{tool "live-disconnect"}}, `live-view-*`, `live-act-*`, `live-log-*`, `live-net-*`, {{tool "live-tunnel"}}, {{tool "live-emulate"}}, {{tool "live-eval-script"}} |
+| `comment-` | Comments: {{tool "comment-add"}}, {{tool "comment-list"}}, {{tool "comment-reply"}}, {{tool "comment-resolve"}} |
+| `doc-` | Proof documents: {{tool "doc-create"}}, {{tool "doc-update"}}, {{tool "doc-attach"}}, {{tool "doc-close"}}, {{tool "doc-read"}}, {{tool "doc-diff"}}, {{tool "doc-list"}} |
 
 The **subtext-tunnel** MCP server (for the reverse tunnel client) is a separate stdio server with its own tool namespace.
 

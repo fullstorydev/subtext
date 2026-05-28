@@ -1,6 +1,9 @@
 ---
 name: sightmap
 description: Use when setting up the sight map (.sightmap/ YAML files) — defining components, views, requests, or other runtime semantics for the application. Also use when snapshot output shows generic a11y roles instead of meaningful names.
+metadata:
+  targets: [mcp, cli]
+
 ---
 
 # Sightmap
@@ -198,7 +201,7 @@ For example, with the schema above on `/products/123`:
 
 ## Requests
 
-Requests map API endpoints to semantic names with optional payload schemas. When matched, network tools (`live-net-list`, `live-net-get`) overlay the definition metadata — giving immediate context about what each request does.
+Requests map API endpoints to semantic names with optional payload schemas. When matched, network tools ({{tool "live-net-list"}}, {{tool "live-net-get"}}) overlay the definition metadata — giving immediate context about what each request does.
 
 ### Schema
 
@@ -283,13 +286,13 @@ When on `/search`, both `GetUser` and `SearchFlights` are available for matching
 
 ### Enriched Network Output
 
-**List view** (`live-net-list`) — matched requests show the semantic name:
+**List view** ({{tool "live-net-list"}}) — matched requests show the semantic name:
 ```
 reqid=1 FetchFlights GET https://app.example.com/api/flights [success - 200]
 reqid=2 GET https://app.example.com/assets/logo.png [success - 200]
 ```
 
-**Detail view** (`live-net-get`) — a Sightmap section appears with description and field schemas:
+**Detail view** ({{tool "live-net-get"}}) — a Sightmap section appears with description and field schemas:
 ```
 ## Request https://app.example.com/api/flights
 ### Sightmap: FetchFlights

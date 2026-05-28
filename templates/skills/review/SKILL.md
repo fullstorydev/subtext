@@ -2,6 +2,7 @@
 name: review
 description: Review a completed Subtext session and produce a structured summary. Use when you have a session URL and want to understand what happened — whether to verify another agent's proof work, walk through a dev / staging / preview flow, or summarize a captured session. Optionally emits reproduction steps on request (execution lives in `subtext:live`). Skip for tasks that modify code (use `subtext:proof`) or drive a running app (use `subtext:live`).
 metadata:
+  targets: [mcp]
   requires:
     skills: ["subtext:shared", "subtext:session", "subtext:comments"]
   mcp-server: subtext
@@ -39,11 +40,11 @@ Review a completed session. Produce a structured summary of what happened. Optio
 
 ### Step 1: Open the session
 
-Call `review-open` with whichever identifier you have — see `subtext:session` for the five accepted forms (`trace_id`, `session_url`, `device_id` + `session_id`, `email_address`, `user_uid`). When handed off from `subtext:proof`, prefer the `trace_id` from the proof run — no URL construction needed.
+Call {{tool "review-open"}} with whichever identifier you have — see `subtext:session` for the five accepted forms (`trace_id`, `session_url`, `device_id` + `session_id`, `email_address`, `user_uid`). When handed off from `subtext:proof`, prefer the `trace_id` from the proof run — no URL construction needed.
 
 ### Step 2: Read the chapter markers
 
-Call `comment-list`. Existing comments serve as chapter markers. A session produced by `subtext:proof` will have a predictable spine:
+Call {{tool "comment-list"}}. Existing comments serve as chapter markers. A session produced by `subtext:proof` will have a predictable spine:
 
 - `BEFORE:` — initial state
 - `AFTER:` — post-change state
@@ -54,12 +55,12 @@ Let the markers drive your reading order. If they're absent (non-proof sessions)
 
 ### Step 3: Read the session content
 
-Use `review-view` at key timestamps. Prioritize in this order:
+Use {{tool "review-view"}} at key timestamps. Prioritize in this order:
 
 1. **Chapter markers** — read the frames around each one
-2. **Errors** — use `review-inspect` or console/network lookups for failure moments
+2. **Errors** — use {{tool "review-inspect"}} or console/network lookups for failure moments
 3. **Navigation inflections** — page changes, route transitions, modals
-4. **Before/after pairs** — `review-diff` between known anchor points is the most revealing read
+4. **Before/after pairs** — {{tool "review-diff"}} between known anchor points is the most revealing read
 
 Don't sweep the entire session frame-by-frame. That's expensive and usually unnecessary.
 
@@ -117,7 +118,7 @@ Write the steps as deterministic actions a `subtext:live`-driven agent can follo
 
 | Signal                              | Reading strategy                                  |
 | ----------------------------------- | ------------------------------------------------- |
-| BEFORE / AFTER / VERIFIED markers present | Use them as the spine. `review-diff` between pairs. |
+| BEFORE / AFTER / VERIFIED markers present | Use them as the spine. {{tool "review-diff"}} between pairs. |
 | Only ISSUE markers                  | Agent was struggling — lead with what went wrong. |
 | No markers (dev / staging / preview)      | Read navigation and errors first, form the narrative yourself. |
 
