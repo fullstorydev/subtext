@@ -3,7 +3,7 @@ name: Release CLI
 on:
   push:
     tags:
-      - "cli-v*"
+      - "cli/v*"
 
 permissions:
   contents: write
@@ -25,6 +25,20 @@ jobs:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Validate npm version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#cli/v}"
+          PKG_VERSION=$(node -p "require('./npm/package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+
       - name: Run tests
         run: go test ./...
 
@@ -39,8 +53,6 @@ jobs:
       - name: Publish npm package
         if: vars.PUBLISH_NPM == 'true'
         working-directory: cli/npm
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-          npm publish --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

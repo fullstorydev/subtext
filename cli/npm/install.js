@@ -33,7 +33,7 @@ if (!goPlatform || !goArch) {
 const isWindows = process.platform === "win32";
 const ext = isWindows ? ".zip" : ".tar.gz";
 const archiveName = `subtext_${goPlatform}_${goArch}${ext}`;
-const releaseTag = `cli-v${version}`;
+const releaseTag = `cli/v${version}`;
 const downloadURL = `https://github.com/fullstorydev/subtext/releases/download/${releaseTag}/${archiveName}`;
 
 const vendorDir = path.join(__dirname, "vendor");
@@ -41,7 +41,12 @@ const binaryName = isWindows ? "subtext.exe" : "subtext";
 const binaryPath = path.join(vendorDir, binaryName);
 
 if (fs.existsSync(binaryPath)) {
-  process.exit(0);
+  try {
+    fs.accessSync(binaryPath, fs.constants.X_OK);
+    process.exit(0);
+  } catch (_) {
+    // Exists but not executable (interrupted install, wrong permissions) — re-download.
+  }
 }
 
 fs.mkdirSync(vendorDir, { recursive: true });
@@ -65,7 +70,7 @@ function download(url, dest, cb) {
       file.on("finish", () => file.close(cb));
     })
     .on("error", (err) => {
-      fs.unlinkSync(dest);
+      try { fs.unlinkSync(dest); } catch (_) {}
       cb(err);
     });
 }

@@ -65,7 +65,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 		os.Exit(exitUsage)
 	}
 
-	tool, err := c.GetTool(context.Background(), toolName)
+	tool, err := c.GetTool(cmd.Context(), toolName)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) {
@@ -91,7 +91,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 		os.Exit(exitUsage)
 	}
 
-	contents, err := c.CallTool(context.Background(), toolName, arguments)
+	contents, err := c.CallTool(cmd.Context(), toolName, arguments)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) {

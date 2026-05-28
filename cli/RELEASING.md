@@ -9,15 +9,15 @@
 
 ### 1. Decide on the version
 
-We use `cli-vX.Y.Z` tags for CLI releases (separate from the npm `v*` tags used by the agent plugin). The CLI version lives only in the git tag — there is no version file to update.
+We use `cli/vX.Y.Z` tags for CLI releases (separate from the npm `v*` tags used by the agent plugin). The `cli/v` prefix lets `go install` resolve the module via the Go module proxy. The CLI version lives only in the git tag — there is no version file to update.
 
 ### 2. Update the npm wrapper version
 
-The npm package version must be bumped manually before tagging so that `npm publish` picks up the right version and `install.js` points at the correct release download URL.
+The npm package version must be bumped manually before tagging so that `npm publish` picks up the right version and `install.js` points at the correct release download URL. The release workflow will fail the validation step if the tag and `package.json` version disagree.
 
 ```bash
-# In cli/npm/package.json, bump "version" to match your tag (without the "cli-" prefix)
-# e.g. if you're tagging cli-v0.2.0, set "version": "0.2.0"
+# In cli/npm/package.json, bump "version" to match your tag (without the "cli/v" prefix)
+# e.g. if you're tagging cli/v0.2.0, set "version": "0.2.0"
 ```
 
 Commit:
@@ -31,8 +31,8 @@ git push
 ### 3. Tag and push
 
 ```bash
-git tag cli-v0.2.0
-git push origin cli-v0.2.0
+git tag cli/v0.2.0
+git push origin cli/v0.2.0
 ```
 
 This triggers the `release-cli` GitHub Actions workflow.
@@ -45,7 +45,7 @@ Go to **Actions → Release CLI** in the repo. It will:
 2. Run GoReleaser, which:
    - Builds binaries for darwin/linux/windows × amd64/arm64.
    - Creates tar.gz / zip archives and a `checksums.txt`.
-   - Creates a GitHub Release named `CLI vX.Y.Z` under the `cli-v*` tag.
+   - Creates a GitHub Release named `CLI vX.Y.Z` under the `cli/v*` tag.
 3. Publishes the npm package to `@fullstory/subtext-cli` (requires `PUBLISH_NPM=true` repo variable and `NPM_TOKEN` secret).
 
 ### 5. Smoke test
@@ -54,8 +54,8 @@ Go to **Actions → Release CLI** in the repo. It will:
 # via npm
 npx @fullstory/subtext-cli@0.2.0 --version
 
-# via go install
-go install github.com/fullstorydev/subtext/cli/cmd/subtext@cli-v0.2.0
+# via go install (requires cli/v0.2.0 tag to be indexed by the Go module proxy)
+go install github.com/fullstorydev/subtext/cli/cmd/subtext@v0.2.0
 subtext --version
 ```
 

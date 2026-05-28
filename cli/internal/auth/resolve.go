@@ -39,6 +39,14 @@ func ResolveAPIKey(flagValue, configKey string) (Resolved, error) {
 		return Resolved{Key: v, Source: "env:SUBTEXT_API_KEY"}, nil
 	}
 
+	if v := os.Getenv("SECRET_SUBTEXT_API_KEY"); v != "" {
+		return Resolved{Key: v, Source: "env:SECRET_SUBTEXT_API_KEY"}, nil
+	}
+
+	if v := os.Getenv("FULLSTORY_API_KEY"); v != "" {
+		return Resolved{Key: v, Source: "env:FULLSTORY_API_KEY"}, nil
+	}
+
 	if configKey != "" {
 		return Resolved{Key: configKey, Source: "config"}, nil
 	}

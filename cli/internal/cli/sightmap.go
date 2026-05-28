@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -42,7 +41,7 @@ func init() {
 	sightmapCmd.AddCommand(sightmapUploadCmd)
 }
 
-func runSightmapUpload(_ *cobra.Command, _ []string) error {
+func runSightmapUpload(cmd *cobra.Command, _ []string) error {
 	root := sightmapUploadFlags.root
 	if root == "" {
 		cwd, err := os.Getwd()
@@ -67,7 +66,7 @@ func runSightmapUpload(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	n, err := sightmap.Upload(context.Background(), sightmapUploadFlags.url, payload)
+	n, err := sightmap.Upload(cmd.Context(), sightmapUploadFlags.url, payload)
 	if err != nil {
 		return err
 	}
