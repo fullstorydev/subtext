@@ -1,5 +1,11 @@
 # subtext
 
+## 0.3.2
+
+### Patch Changes
+
+- f2a41ae: pickup the latest tunnel version
+
 ## 0.3.0
 
 ### Minor Changes
