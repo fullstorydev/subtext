@@ -14,7 +14,7 @@ What you get:
 
 ## Uploading definitions
 
-After obtaining a sightmap upload URL from {{tool "live-tunnel"}}, {{tool "live-connect"}}, or {{tool "review-open"}}, upload with:
+After obtaining a sightmap upload URL from {{tool "live-tunnel"}} or {{tool "live-connect"}}, upload with:
 
 ```bash
 subtext sightmap upload --url <sightmap_upload_url>

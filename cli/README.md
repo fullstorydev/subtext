@@ -31,7 +31,7 @@ subtext auth whoami
 subtext live connect --url https://example.com
 
 # 4. Take a screenshot
-subtext live view screenshot
+subtext live view-screenshot
 
 # 5. Create a proof document
 subtext doc create --title "My review"
@@ -64,11 +64,11 @@ Tools follow the `subtext <namespace> <verb> [--flags]` pattern:
 ```bash
 # Connect a browser and navigate
 subtext live connect --url https://example.com
-subtext live view navigate --url https://example.com/dashboard
+subtext live view-navigate --url https://example.com/dashboard
 
 # Create a document and attach a screenshot
 subtext doc create --title "Regression check" --tags p1
-subtext live view screenshot
+subtext live view-screenshot
 subtext doc attach --session-url <url>
 
 # JSON output (default)

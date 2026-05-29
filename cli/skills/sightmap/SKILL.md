@@ -22,7 +22,7 @@ What you get:
 
 ## Uploading definitions
 
-After obtaining a sightmap upload URL from `subtext live tunnel`, `subtext live connect`, or `subtext review open`, upload with:
+After obtaining a sightmap upload URL from `subtext live tunnel` or `subtext live connect`, upload with:
 
 ```bash
 subtext sightmap upload --url <sightmap_upload_url>
