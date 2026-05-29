@@ -2,8 +2,9 @@
 // Sync the per-harness manifest versions to package.json's version.
 //
 // Changesets only bumps `package.json`; the per-harness plugin.json files
-// (.claude-plugin/, .codex-plugin/, .cursor-plugin/) and the marketplace
-// listing carry their own `version` fields that the harnesses' UIs display.
+// (.claude-plugin/, .codex-plugin/, .cursor-plugin/), the Gemini extension
+// manifest (gemini-extension.json), and the marketplace listing carry their
+// own `version` fields that the harnesses' UIs display.
 // This script reads the post-`changeset version` package.json and writes
 // that version into every manifest, so a future Version PR opens with all
 // manifests already synced.
@@ -24,6 +25,7 @@ const PER_HARNESS_MANIFESTS = [
   '.claude-plugin/plugin.json',
   '.codex-plugin/plugin.json',
   '.cursor-plugin/plugin.json',
+  'gemini-extension.json',
 ];
 
 let touched = 0;
