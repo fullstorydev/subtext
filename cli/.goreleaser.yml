@@ -2,6 +2,9 @@ version: 2
 
 project_name: subtext
 
+git:
+  tag_prefix: "cli/"
+
 builds:
   - id: subtext
     main: ./cmd/subtext
