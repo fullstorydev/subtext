@@ -42,13 +42,26 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      - name: Extract semver tag
+        run: echo "GORELEASER_CURRENT_TAG=${GITHUB_REF_NAME#cli/}" >> $GITHUB_ENV
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean
+          args: release --clean --skip=publish
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ env.GORELEASER_CURRENT_TAG }}
+
+      - name: Create GitHub Release
+        run: |
+          VERSION="${GITHUB_REF_NAME#cli/v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "CLI v${VERSION}" \
+            cli/dist/*.tar.gz cli/dist/*.zip cli/dist/checksums.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish npm package
         if: vars.PUBLISH_NPM == 'true'
