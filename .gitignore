@@ -6,4 +6,4 @@ node_modules/
 
 # Local design docs, plans, and skill-eval writeups. Authored alongside
 # implementation work but not part of the shipped plugin surface.
-docs/
+/docs/
