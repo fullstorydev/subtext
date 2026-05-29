@@ -22,10 +22,12 @@ Every code change that affects what a user sees must be visually proven. This sk
 
 **Always use `subtext live view-screenshot` with `upload: true`.** This uploads the screenshot to cloud storage and returns a signed URL you can attach to comments and PRs.
 
+
+```bash
+subtext live view-screenshot --upload
+# → { "data": { "screenshot_url": "https://..." } }
 ```
-live-view-screenshot({ connection_id, view_id, upload: true })
-→ { screenshot_url: "https://..." }
-```
+
 
 **Do NOT use `subtext artifact upload` for screenshots.** It requires base64-encoding the entire PNG and frequently fails on large images. The `upload: true` flag on `subtext live view-screenshot` handles the upload server-side — smaller payload, no encoding issues.
 
@@ -33,10 +35,12 @@ live-view-screenshot({ connection_id, view_id, upload: true })
 
 To attach a screenshot to a comment:
 
+
+```bash
+URL=$(subtext live view-screenshot --upload | jq -r '.data.screenshot_url')
+subtext comment add --screenshot_url "$URL" --intent looks-good --text "AFTER: ..."
 ```
-live-view-screenshot({ ..., upload: true }) → screenshot_url
-comment-add({ ..., screenshot_url, intent: "looks-good", text: "AFTER: ..." })
-```
+
 
 ## Proof Document
 
@@ -44,10 +48,12 @@ Every proof run creates a permanent record alongside the live session. This lets
 
 **Create once, attach continuously, close at the end.** Pass the `verification` seed template (see `subtext:docs`) unless you have a better fit:
 
+
+```bash
+subtext doc create --title "<task title>" --content "<verification seed template from subtext:docs>"
+# → doc_id, doc_url  ← save both
 ```
-doc-create(title: <task title>, content: <verification seed template from subtext:docs>)
-→ doc_id, doc_url  ← save both
-```
+
 
 The `doc_id` travels through every step below. The `doc_url` is the permanent link you hand to the user at the end.
 
@@ -88,9 +94,11 @@ Drive the browser to the exact page/component/state where the change will be vis
    - Text: "BEFORE: [describe current state]. About to make [describe planned change]."
    - This is a chapter marker — it anchors the timeline for anyone reviewing the session later.
 4. Attach to the proof document:
+
+   ```bash
+   subtext doc attach --doc_id <id> --section "Before" --render_as image --url <screenshot_url> --label "Before: <description>"
    ```
-   doc-attach(doc_id, section: "Before", render_as: "image", url: {screenshot_url}, label: "Before: {description}")
-   ```
+
 
 **Judgment call:** If the change affects multiple pages or states, capture BEFORE for each.
 
@@ -101,11 +109,13 @@ Edit files, update components, fix styles — whatever the task requires.
 This is the only step where you leave the browser and work in the codebase.
 
 After editing, attach the diff to the proof document:
+
+```bash
+subtext doc attach --doc_id <id> --section "Changes" --render_as link \
+  --text "$(git diff)" --content_type text/plain \
+  --label "<one-line description of what changed>"
 ```
-doc-attach(doc_id, section: "Changes", render_as: "link",
-           text: {git diff output}, content_type: "text/plain",
-           label: {one-line description of what changed})
-```
+
 
 If a `live-act-*` tool returns `Control transferred to human viewer`, the reviewer has taken control. Enter standby — do not retry. Continue polling `subtext live signal`; when `operator` flips back to `agent`, resume UI-facing work. Backend changes that don't need visual verification can continue while you wait.
 
@@ -120,9 +130,11 @@ Return to the browser. Refresh, hot reload, or reconnect if the dev server resta
    - Intent: `looks-good` if it matches intent, `bug` if something is wrong
    - Text: "AFTER: [describe what changed]. [Assessment against acceptance criteria]."
 5. Attach to the proof document:
+
+   ```bash
+   subtext doc attach --doc_id <id> --section "After" --render_as image --url <screenshot_url> --label "After: <description>"
    ```
-   doc-attach(doc_id, section: "After", render_as: "image", url: {screenshot_url}, label: "After: {description}")
-   ```
+
 
 **Use live interaction tools to test the change:**
 
@@ -135,7 +147,12 @@ Return to the browser. Refresh, hot reload, or reconnect if the dev server resta
 If the AFTER doesn't match intent:
 
 1. Call `subtext live view-screenshot` with `upload: true`, then `subtext comment add` with intent `bug` and the `screenshot_url`: "ISSUE: [what's wrong]. Fixing now."
-2. Attach the issue screenshot to the proof document: `doc-attach(doc_id, section: "After", render_as: "image", url: {screenshot_url}, label: "Issue: {what's wrong}")`
+2. Attach the issue screenshot to the proof document:
+
+   ```bash
+   subtext doc attach --doc_id <id> --section "After" --render_as image --url <screenshot_url> --label "Issue: <what's wrong>"
+   ```
+
 3. Go back to Step 4, make the fix
 4. Return to Step 5, re-verify
 
@@ -147,9 +164,19 @@ Once the change is verified:
 
 1. Take a final `subtext live view-screenshot` with `upload: true` of the confirmed state
 2. Call `subtext comment add` with intent `looks-good` and the `screenshot_url`: "VERIFIED: [summary of what was changed and confirmed]."
-3. Attach the trace to the proof document: `doc-attach(doc_id, section: "Evidence", render_as: "link", url: {trace_url}, label: "Session trace")`
-4. Re-read the document (`doc-read(doc_id)`) and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
-5. Close: `doc-close(doc_id, status: "complete", summary: {one sentence outcome})`
+3. Attach the trace to the proof document:
+
+   ```bash
+   subtext doc attach --doc_id <id> --section "Evidence" --render_as link --url <trace_url> --label "Session trace"
+   ```
+
+4. Re-read the document (`subtext doc read`) and confirm a cold reviewer would understand what changed, what was tested, and why. Attach anything missing.
+5. Close:
+
+   ```bash
+   subtext doc close --doc_id <id> --status complete --summary "<one sentence outcome>"
+   ```
+
 6. If a PR exists or will be created:
    - Include before/after screenshot URLs (from Step 3 and Step 5) in the PR description
    - Include the `trace_url` and `doc_url` so reviewers can watch the session and read the evidence record
