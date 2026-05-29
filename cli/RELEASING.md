@@ -59,6 +59,18 @@ go install github.com/fullstorydev/subtext/cli/cmd/subtext@v0.2.0
 subtext --version
 ```
 
+## GoReleaser and the cli/v* tag prefix
+
+GoReleaser OSS does not natively support the `prefix/vX.Y.Z` tag format used by Go monorepos — that's a [GoReleaser Pro feature](https://goreleaser.com/customization/monorepo/). The `cli/v` prefix is required so `go install` resolves the module correctly via the Go module proxy.
+
+The release workflow works around this with three steps:
+
+1. Strip the prefix into `GORELEASER_CURRENT_TAG` (e.g. `v0.1.0`) so GoReleaser has a valid semver for building and embedding the version in the binary.
+2. Pass `--skip=validate` so GoReleaser doesn't reject the tag for not existing in git (only `cli/v0.1.0` exists, not `v0.1.0`).
+3. Pass `--skip=publish` and create the GitHub Release manually via `gh release create cli/vX.Y.Z` so the release tag stays as `cli/v0.1.0` and doesn't collide with the plugin's `v*` tag namespace.
+
+If the project moves to GoReleaser Pro, the workaround can be replaced with a `monorepos: [{tag_prefix: "cli/", dir: "cli/"}]` config block.
+
 ## Snapshot builds (local testing)
 
 ```bash
