@@ -42,13 +42,20 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      # GoReleaser OSS does not support the cli/vX.Y.Z tag prefix used by Go
+      # monorepos (that's a Pro feature). Workaround: strip the prefix into
+      # GORELEASER_CURRENT_TAG so GoReleaser gets a valid semver, skip its
+      # validate step (which would reject the tag since cli/v0.1.0 != v0.1.0
+      # in git), skip its publish step, and create the GitHub Release manually
+      # so the release tag stays as cli/v0.1.0 and doesn't collide with the
+      # plugin's v* tags. See https://goreleaser.com/customization/monorepo/
       - name: Extract semver tag
         run: echo "GORELEASER_CURRENT_TAG=${GITHUB_REF_NAME#cli/}" >> $GITHUB_ENV
 
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean --skip=publish
+          args: release --clean --skip=publish,validate
           workdir: cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
