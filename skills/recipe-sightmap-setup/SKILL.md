@@ -1,10 +1,13 @@
 ---
+
 name: recipe-sightmap-setup
 description: Short recipe to create sightmap definitions for a project from scratch.
 metadata:
+  _generated_from: templates/skills/recipe-sightmap-setup/SKILL.md
   requires:
     skills: ["subtext:sightmap"]
 ---
+
 
 # Recipe: Sightmap Setup
 

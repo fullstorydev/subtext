@@ -1,10 +1,13 @@
 ---
+
 name: setup-plugin
 description: Install the Subtext plugin and configure MCP servers. Authenticates via OAuth or API Key.
 metadata:
+  _generated_from: templates/skills/setup-plugin/SKILL.md
   requires:
     skills: ["subtext:shared"]
 ---
+
 
 # Setup Plugin
 

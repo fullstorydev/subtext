@@ -1,10 +1,13 @@
 ---
+
 name: comments
 description: Comment MCP tools for agent-user collaboration. Use when reviewing sessions or live pages to leave observations, read user feedback, reply, and resolve.
 metadata:
+  _generated_from: templates/skills/comments/SKILL.md
   requires:
     skills: ["subtext:shared"]
 ---
+
 
 # Comments
 

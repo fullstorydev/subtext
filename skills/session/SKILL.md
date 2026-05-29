@@ -1,10 +1,13 @@
 ---
+
 name: session
 description: Session replay tools for analyzing Fullstory session recordings. Sparse API catalog — tools are self-describing.
 metadata:
+  _generated_from: templates/skills/session/SKILL.md
   requires:
     skills: ["subtext:shared"]
 ---
+
 
 # Session Replay
 

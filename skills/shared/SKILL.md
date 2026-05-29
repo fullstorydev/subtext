@@ -1,7 +1,12 @@
 ---
+
 name: shared
 description: Foundation skill for the subtext plugin. MCP tool conventions, environment detection, security rules, and sightmap upload.
+metadata:
+  _generated_from: templates/skills/shared/SKILL.md
+
 ---
+
 
 # Shared
 

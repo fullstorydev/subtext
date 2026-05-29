@@ -1,11 +1,14 @@
 ---
+
 name: first-session
 description: Agent explores the user's site via hosted broswer (live), leaving comments as it goes. Accepts a user-described flow or explores organically. Capped at ~10 interactions across 2-3 pages. Returns session URL, trace URL, and metrics.
 metadata:
+  _generated_from: templates/skills/first-session/SKILL.md
   requires:
     skills: ["subtext:shared", "subtext:live", "subtext:tunnel", "subtext:comments"]
   platform: claude-code
 ---
+
 
 # First Session
 

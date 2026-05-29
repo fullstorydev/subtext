@@ -1,0 +1,12 @@
+version: 1
+
+components:
+  - name: Sidebar
+    selector: "aside.sidebar"
+    source: packages/dashboard/src/Sidebar.tsx
+    children:
+      - name: SidebarMenu
+        selector: "ul.menu"
+        children:
+          - name: MenuItem
+            selector: "li.menu-item"

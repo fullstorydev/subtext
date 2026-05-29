@@ -17,7 +17,7 @@ const result = spawnSync(binary, process.argv.slice(2), { stdio: "inherit" });
 if (result.error) {
   if (result.error.code === "ENOENT") {
     console.error(
-      "subtext: binary not found. Try reinstalling: npm install @fullstory/subtext-cli"
+      "subtext: binary not found. Try reinstalling: npm install @subtextdev/subtext-cli"
     );
   } else {
     console.error("subtext:", result.error.message);

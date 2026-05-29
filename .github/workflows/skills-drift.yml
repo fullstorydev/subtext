@@ -1,0 +1,32 @@
+name: Skills drift check
+
+on:
+  push:
+    paths:
+      - "templates/skills/**"
+      - "cli/hack/buildskills/**"
+  pull_request:
+    paths:
+      - "templates/skills/**"
+      - "cli/hack/buildskills/**"
+      - "skills/**"
+      - "cli/skills/**"
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Regenerate skills
+        working-directory: cli
+        run: go generate ./...
+
+      - name: Check for drift
+        run: git diff --exit-code skills/ cli/skills/
