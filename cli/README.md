@@ -6,10 +6,10 @@ A command-line tool for driving the [Subtext](https://subtext.fullstory.com) MCP
 
 ```bash
 # npx (no install required)
-npx @fullstory/subtext-cli auth whoami
+npx @subtextdev/subtext-cli auth whoami
 
 # npm (global install)
-npm install -g @fullstory/subtext-cli
+npm install -g @subtextdev/subtext-cli
 
 # go install
 go install github.com/fullstorydev/subtext/cli/cmd/subtext@latest

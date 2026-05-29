@@ -1,6 +1,6 @@
 {
-  "name": "@fullstory/subtext-cli",
-  "version": "0.1.0",
+  "name": "@subtextdev/subtext-cli",
+  "version": "1.0.0",
   "description": "Subtext CLI — drive the Subtext MCP server from your terminal",
   "license": "MIT",
   "homepage": "https://subtext.fullstory.com",

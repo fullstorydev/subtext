@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Write access to this repo (`fullstorydev/subtext`).
-- (First release only) `@fullstory` npm scope access. Set `PUBLISH_NPM=true` on the repo once the scope is provisioned.
+- (First release only) `@subtextdev` npm scope access and a Trusted Publisher configured on npmjs.com (see below).
 
 ## Release process
 
@@ -46,13 +46,13 @@ Go to **Actions → Release CLI** in the repo. It will:
    - Builds binaries for darwin/linux/windows × amd64/arm64.
    - Creates tar.gz / zip archives and a `checksums.txt`.
    - Creates a GitHub Release named `CLI vX.Y.Z` under the `cli/v*` tag.
-3. Publishes the npm package to `@fullstory/subtext-cli` (requires `PUBLISH_NPM=true` repo variable and `NPM_TOKEN` secret).
+3. Publishes the npm package to `@subtextdev/subtext-cli` via OIDC (requires a Trusted Publisher configured on npmjs.com — no `NPM_TOKEN` secret needed).
 
 ### 5. Smoke test
 
 ```bash
 # via npm
-npx @fullstory/subtext-cli@0.2.0 --version
+npx @subtextdev/subtext-cli@0.2.0 --version
 
 # via go install (requires cli/v0.2.0 tag to be indexed by the Go module proxy)
 go install github.com/fullstorydev/subtext/cli/cmd/subtext@v0.2.0
@@ -83,6 +83,6 @@ No tag or GitHub credentials needed. Binaries land in `cli/dist/`.
 
 ## First release checklist
 
-- [ ] Confirm `@fullstory` npm scope exists and `NPM_TOKEN` secret is set in repo settings.
-- [ ] Set `PUBLISH_NPM=true` as a repo variable in GitHub Actions settings.
-- [ ] Test `npx @fullstory/subtext-cli auth whoami` after publish.
+- [ ] Confirm `@subtextdev` npm scope exists on npmjs.com.
+- [ ] Configure a Trusted Publisher on npmjs.com: GitHub Actions, org `fullstorydev`, repo `subtext`, workflow `release-cli.yml`, allow `npm publish`.
+- [ ] Test `npx @subtextdev/subtext-cli auth whoami` after publish.
