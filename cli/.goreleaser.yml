@@ -1,0 +1,44 @@
+version: 2
+
+project_name: subtext
+
+builds:
+  - id: subtext
+    main: ./cmd/subtext
+    binary: subtext
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/fullstorydev/subtext/cli/internal/cli.Version={{.Version}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "subtext_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - none*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+release:
+  github:
+    owner: fullstorydev
+    name: subtext
+  name_template: "CLI v{{ .Version }}"
+  ids:
+    - default

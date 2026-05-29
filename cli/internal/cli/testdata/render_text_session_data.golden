@@ -1,0 +1,7 @@
+<session-data>
+connection_id: abc-123
+current_view: view_1
+trace_id: XYZ789
+trace_url: https://app.fullstory.com/subtext/o-ORG/trace/XYZ789
+Created view view_1 (now current)
+</session-data>

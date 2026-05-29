@@ -1,0 +1,26 @@
+{
+  "name": "@fullstory/subtext-cli",
+  "version": "0.1.0",
+  "description": "Subtext CLI — drive the Subtext MCP server from your terminal",
+  "license": "MIT",
+  "homepage": "https://subtext.fullstory.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fullstorydev/subtext.git",
+    "directory": "cli/npm"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "subtext": "bin/subtext.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md"
+  ]
+}

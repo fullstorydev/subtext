@@ -1,0 +1,13 @@
+components:
+  - name: Modal
+    selector: .modal
+    source: dialog
+    memory:
+      - overlay dialog container
+    children:
+      - name: ModalClose
+        selector: .modal-close
+      - name: ModalBody
+        selector: .modal-body
+        memory:
+          - main content area of the dialog

@@ -1,0 +1,11 @@
+views:
+  - components:
+      - name: DashboardCard
+        selector: .dashboard-card
+        source: dashboard
+      - name: DashboardHeader
+        selector: .dashboard-header
+        source: dashboard
+
+memory:
+  - dashboard is the landing page after login
