@@ -13,6 +13,10 @@ func namespaceRunE(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	}
 	toolName := cmd.Use + "-" + args[0]
+	// callCmd is invoked directly (never through cobra's Execute), so its
+	// context is never populated. Propagate the namespace command's context
+	// so the downstream HTTP calls in runCall don't receive a nil context.
+	callCmd.SetContext(cmd.Context())
 	return callCmd.RunE(callCmd, append([]string{toolName}, args[1:]...))
 }
 
