@@ -1,5 +1,11 @@
 # subtext
 
+## 0.3.3
+
+### Patch Changes
+
+- f7f927b: update the skill generation process
+
 ## 0.3.2
 
 ### Patch Changes
