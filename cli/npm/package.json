@@ -16,7 +16,9 @@
     "subtext": "bin/subtext.js"
   },
   "scripts": {
-    "postinstall": "node install.js"
+    "postinstall": "node install.js",
+    "prepack": "cp ../README.md README.md",
+    "postpack": "rm -f README.md"
   },
   "files": [
     "bin/",
