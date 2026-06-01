@@ -3,7 +3,7 @@
 name: proof
 description: You MUST use this skill when implementing, fixing, or refactoring code. Captures evidence artifacts (screenshots, network traces, code diffs, trace session links) into a proof document as you work.
 metadata:
-  _generated_from: templates/skills/proof/SKILL.md
+  _generated_from: templates/skills/proof/SKILL.template
   requires:
     skills: ["subtext:shared", "subtext:live", "subtext:comments", "subtext:docs"]
   mcp-server: subtext

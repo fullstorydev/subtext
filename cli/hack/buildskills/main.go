@@ -44,9 +44,9 @@ func main() {
 		skillName := e.Name()
 		skillDir := filepath.Join(templatesDir, skillName)
 
-		skillFile := filepath.Join(skillDir, "SKILL.md")
+		skillFile := filepath.Join(skillDir, "SKILL.template")
 		if _, err := os.Stat(skillFile); os.IsNotExist(err) {
-			continue // skip dirs without a SKILL.md (e.g. placeholder dirs)
+			continue // skip dirs without a SKILL.template
 		}
 		fm, body, err := readSkill(skillFile)
 		if err != nil {
@@ -67,7 +67,7 @@ func main() {
 
 			// Use SKILL.<target>.md body if present.
 			bodyToRender := body
-			overrideFile := filepath.Join(skillDir, "SKILL."+target+".md")
+			overrideFile := filepath.Join(skillDir, "SKILL."+target+".template")
 			if data, err := os.ReadFile(overrideFile); err == nil {
 				bodyToRender = string(data)
 			}
@@ -193,7 +193,7 @@ func (s *skill) forTarget(target string) string {
 			metadataIndent = strings.Repeat(" ", len(line)-len(strings.TrimLeft(line, " ")))
 			out = append(out, line)
 			// Inject _generated_from as first child.
-			out = append(out, metadataIndent+"  _generated_from: templates/skills/"+s.name+"/SKILL.md")
+			out = append(out, metadataIndent+"  _generated_from: templates/skills/"+s.name+"/SKILL.template")
 			generatedFromInserted = true
 			continue
 		}
@@ -210,7 +210,7 @@ func (s *skill) forTarget(target string) string {
 		// No metadata block exists — add one.
 		// Insert before the closing blank line / end.
 		out = append(out, "metadata:")
-		out = append(out, "  _generated_from: templates/skills/"+s.name+"/SKILL.md")
+		out = append(out, "  _generated_from: templates/skills/"+s.name+"/SKILL.template")
 	}
 
 	return strings.Join(out, "\n")
@@ -275,7 +275,7 @@ func copySiblings(srcDir, outDir, target string) error {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if strings.HasPrefix(name, "SKILL") && strings.HasSuffix(name, ".md") {
+		if strings.HasPrefix(name, "SKILL") && (strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".template")) {
 			continue
 		}
 

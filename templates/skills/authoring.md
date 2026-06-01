@@ -96,7 +96,7 @@ This achieves composition without skill invocation overhead — the agent reads 
 
 ### File layout
 
-Each skill is a directory with a `SKILL.md`. Scripts go alongside it. No global prefix — the plugin is the namespace. Recipes use the `recipe-` prefix; atomics and workflows use bare descriptive names.
+Each skill is a directory with a `SKILL.template`. Scripts go alongside it. No global prefix — the plugin is the namespace. Recipes use the `recipe-` prefix; atomics and workflows use bare descriptive names.
 
 ### Don't duplicate across buckets
 
@@ -107,6 +107,52 @@ If tips exist in an atomic, don't repeat them in a workflow that depends on it. 
 **Create** a new skill when: new MCP server (atomic), new multi-step goal with 2-3+ decision points (workflow), or a repeatable sequence users keep asking for (recipe).
 
 **Extend** an existing skill when: a new tip fits in an atomic, a new decision point fits in an existing workflow, or a new step fits in a recipe. A new section in an existing skill is better than a new skill.
+
+## Editing and generating skills
+
+Skills are authored as templates here in `templates/skills/` and compiled into two output trees by a Go generator.
+
+### Source files
+
+| File | Purpose |
+|------|---------|
+| `SKILL.template` | Base skill content, rendered for all targets |
+| `SKILL.cli.template` | Body override for the CLI target only |
+| `SKILL.mcp.template` | Body override for the MCP target only |
+
+Source files use `.template` instead of `.md` so the output scanner (`openskills`) ignores them. Don't name source files `SKILL.md` or `SKILL.*.md` — those names are reserved for generated output.
+
+### Targets
+
+The frontmatter `targets: [mcp, cli]` field controls which output trees receive the skill. Omit it to build for both. Output destinations:
+
+| Target | Output path |
+|--------|-------------|
+| `mcp` | `skills/` — installed via openskills / Claude Code plugin |
+| `cli` | `cli/skills/` — embedded in the subtext CLI binary |
+
+### Template functions
+
+Available inside `SKILL.template` and `SKILL.<target>.template` bodies:
+
+| Function | Renders as |
+|----------|-----------|
+| `` {{tool "ns-rest"}} `` | `` `ns-rest` `` (MCP) or `` `subtext ns rest` `` (CLI) |
+| `` {{cli "text"}} `` | `text` in CLI output only |
+| `` {{mcp "text"}} `` | `text` in MCP output only |
+| `` {{.Target}} `` | The string `mcp` or `cli` |
+
+Allowed tool namespaces: `live`, `comment`, `doc`, `tunnel`, `review`, `sightmap`, `artifact`, `auth`.
+
+### Generating output
+
+From the `cli/` directory:
+
+```sh
+go generate ./...
+```
+
+Always regenerate after editing any template. CI (`skills-drift.yml`) fails if committed output doesn't match what the generator produces.
 
 ## Acknowledgements
 
