@@ -3,7 +3,7 @@
 name: onboard
 description: Interactive first-run onboarding for new Subtext users. Connects to the user's local dev server, proves a small change with before/after evidence in a watchable trace, then bootstraps a starter sightmap from what was learned.
 metadata:
-  _generated_from: templates/skills/onboard/SKILL.md
+  _generated_from: templates/skills/onboard/SKILL.template
   platform: claude-code
   requires:
     skills: ["subtext:shared", "subtext:proof", "subtext:sightmap", "subtext:live", "subtext:tunnel"]

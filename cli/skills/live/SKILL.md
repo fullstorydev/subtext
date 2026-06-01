@@ -3,7 +3,7 @@
 name: live
 description: Live browser MCP tools for driving a hosted browser — connections, views, interactions, console, network, and tunnel. Use when reproducing flows, taking screenshots, or interacting with a running app.
 metadata:
-  _generated_from: templates/skills/live/SKILL.md
+  _generated_from: templates/skills/live/SKILL.template
   requires:
     skills: ["subtext:shared"]
 ---

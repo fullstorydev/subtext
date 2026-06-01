@@ -3,7 +3,7 @@
 name: tunnel
 description: Use when opening a hosted browser connection against a localhost or local dev server URL. Sets up a reverse tunnel so the hosted browser can reach the user's local server.
 metadata:
-  _generated_from: templates/skills/tunnel/SKILL.md
+  _generated_from: templates/skills/tunnel/SKILL.template
   requires:
     skills: ["subtext:shared", "subtext:live"]
 ---

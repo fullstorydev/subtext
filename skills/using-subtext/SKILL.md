@@ -3,7 +3,7 @@
 name: using-subtext
 description: Use when starting any conversation that may involve rendered UI, observed sessions, or producing reviewer-facing evidence (screenshots, viewer links, code diffs, command output). Establishes how subtext skills compose and when to invoke them before any response or action.
 metadata:
-  _generated_from: templates/skills/using-subtext/SKILL.md
+  _generated_from: templates/skills/using-subtext/SKILL.template
 
 ---
 
