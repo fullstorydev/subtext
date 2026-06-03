@@ -13,7 +13,7 @@ func namespaceRunE(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	}
 	toolName := cmd.Use + "-" + args[0]
-	return callCmd.RunE(callCmd, append([]string{toolName}, args[1:]...))
+	return runCall(cmd, append([]string{toolName}, args[1:]...))
 }
 
 var liveCmd = &cobra.Command{

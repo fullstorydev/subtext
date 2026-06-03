@@ -17,14 +17,9 @@ import (
 	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
-// callCmd is an internal delegation target for namespace commands.
-// It is intentionally not registered with rootCmd.
-var callCmd = &cobra.Command{
-	DisableFlagParsing: true,
-	RunE:               runCall,
-}
-
 func runCall(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+
 	// Strip any leading "--" sentinel cobra may inject.
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
@@ -52,7 +47,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 
 	rest := args[1:]
 	if wantsHelp(rest) {
-		return runCallHelp(cmd.Context(), toolName)
+		return runCallHelp(ctx, toolName)
 	}
 
 	c, apiKey, _, err := resolveClient()
@@ -65,7 +60,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 		os.Exit(exitUsage)
 	}
 
-	tool, err := c.GetTool(cmd.Context(), toolName)
+	tool, err := c.GetTool(ctx, toolName)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) {
@@ -91,7 +86,7 @@ func runCall(cmd *cobra.Command, args []string) error {
 		os.Exit(exitUsage)
 	}
 
-	contents, err := c.CallTool(cmd.Context(), toolName, arguments)
+	contents, err := c.CallTool(ctx, toolName, arguments)
 	if err != nil {
 		var mcpErr *mcpclient.MCPError
 		if errors.As(err, &mcpErr) {
