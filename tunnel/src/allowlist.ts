@@ -183,7 +183,7 @@ export function canonicalizedFrom(p: OriginPattern): string | undefined {
  * `scheme://host:port`. Scheme is ignored; port must match exactly. DNS
  * patterns match the bare host plus any subdomain; IP patterns match exactly.
  */
-const ORIGIN_RE = /^(?:http|https):\/\/([^/?#]+)$/;
+const ORIGIN_RE = /^(?:https?|wss?):\/\/([^/?#]+)$/i;
 
 export function patternMatches(pattern: OriginPattern, origin: string): boolean {
   const m = ORIGIN_RE.exec(origin);

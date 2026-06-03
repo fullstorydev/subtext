@@ -18,8 +18,24 @@ import * as net from 'node:net';
  *   - DNS lookup fails entirely
  *   - The resolved IP is not in 127.0.0.0/8 or ::1
  */
+/**
+ * Normalize ws:// → http:// and wss:// → https:// so WebSocket origins flow
+ * through the same HTTP-origin validation paths. The comparison is
+ * case-insensitive: RFC 3986 §3.1 specifies that URI schemes are case-
+ * insensitive, so WS:// and ws:// are equivalent.
+ */
+export function normalizeWsScheme(origin: string): string {
+  const sep = origin.indexOf('://');
+  if (sep < 0) return origin;
+  const scheme = origin.slice(0, sep).toLowerCase();
+  if (scheme === 'wss') return 'https://' + origin.slice(sep + 3);
+  if (scheme === 'ws') return 'http://' + origin.slice(sep + 3);
+  return origin;
+}
+
 export async function resolveLoopbackOrigin(origin: string): Promise<ResolvedOrigin> {
-  const u = parseOriginStrict(origin);
+  const normalized = normalizeWsScheme(origin);
+  const u = parseOriginStrict(normalized);
   const {scheme, host, port} = u;
 
   // If the host is already an IP literal, we still validate it before letting

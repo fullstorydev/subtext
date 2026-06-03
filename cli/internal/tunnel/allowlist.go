@@ -88,8 +88,11 @@ func MatchesAny(patterns []OriginPattern, origin string) bool {
 // patternMatches reports whether p matches the canonical origin "scheme://host:port".
 // Scheme is ignored; port must match exactly; DNS patterns match the bare host
 // plus any subdomain; IP patterns are exact-match only.
+// ws:// and wss:// are treated as aliases for http:// and https:// so that
+// WebSocket origins match the same allowlist patterns as HTTP origins.
 func patternMatches(p OriginPattern, origin string) bool {
-	_, host, port, err := parseOriginStrict(origin)
+	normalized := normalizeWSOrigin(origin)
+	_, host, port, err := parseOriginStrict(normalized)
 	if err != nil {
 		return false
 	}

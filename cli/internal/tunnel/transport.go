@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -162,6 +163,13 @@ func (t *transport) handleHTTPStream(ctx context.Context, stream net.Conn) error
 		return err
 	}
 
+	// WebSocket upgrade: use a raw TCP pipe instead of http.Client.
+	// http.Client cannot carry the bidirectional WebSocket conversation after
+	// the 101 handshake. Mirrors the TS #pumpWebSocket path.
+	if isWebSocketUpgrade(hdr.Headers) {
+		return t.handleWebSocketUpgrade(ctx, stream, hdr, resolved)
+	}
+
 	reqURL := resolved.IPURL + hdr.URL
 	var bodyReader io.Reader
 	if len(body) > 0 {
@@ -237,6 +245,121 @@ func buildWireHeaders(h http.Header) WireHeaders {
 		wire[name] = values
 	}
 	return wire
+}
+
+// ----- WebSocket upgrade via HTTP stream -----
+
+// isWebSocketUpgrade reports whether the wire headers contain an
+// "Upgrade: websocket" header (case-insensitive).
+func isWebSocketUpgrade(headers WireHeaders) bool {
+	for _, v := range headers["upgrade"] {
+		if strings.EqualFold(v, "websocket") {
+			return true
+		}
+	}
+	return false
+}
+
+// handleWebSocketUpgrade proxies a WebSocket upgrade request that arrived via
+// the HTTP stream type. It dials a raw TCP connection to the local server,
+// sends the HTTP upgrade request, and pumps bytes bidirectionally after the
+// 101 handshake — mirroring what TS does with the http.request 'upgrade' event.
+//
+// http.Client cannot carry the bidirectional WebSocket conversation after the
+// 101 handshake, so we bypass it and speak HTTP/1.1 over a raw TCP socket.
+func (t *transport) handleWebSocketUpgrade(ctx context.Context, stream net.Conn, hdr httpRequestHeader, resolved ResolvedOrigin) error {
+	// Dial raw TCP to the resolved loopback IP.
+	var conn net.Conn
+	var err error
+	if resolved.Scheme == "https" {
+		conn, err = (&tls.Dialer{
+			NetDialer: &net.Dialer{},
+			Config:    &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}).DialContext(ctx, "tcp", resolved.ResolvedIP+":"+resolved.Port)
+	} else {
+		conn, err = (&net.Dialer{}).DialContext(ctx, "tcp", resolved.ResolvedIP+":"+resolved.Port)
+	}
+	if err != nil {
+		writeHTTPError(stream, err)
+		return err
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Build and write the raw HTTP upgrade request to the TCP connection.
+	// req.Write serialises as "GET /path HTTP/1.1\r\nHost: ...\r\n..." which is
+	// exactly what the WebSocket server expects.
+	req, err := http.NewRequest(hdr.Method, "http://x"+hdr.URL, nil)
+	if err != nil {
+		writeHTTPError(stream, err)
+		return err
+	}
+	req.Host = resolved.Hostname + ":" + resolved.Port
+	for name, values := range hdr.Headers {
+		for _, v := range values {
+			req.Header.Add(name, v)
+		}
+	}
+	if err := req.Write(conn); err != nil {
+		writeHTTPError(stream, err)
+		return err
+	}
+
+	// Read the HTTP response using a bufio.Reader. http.ReadResponse handles
+	// chunked/line-oriented parsing correctly and leaves any leftover bytes
+	// (first WebSocket frame data) buffered in br.
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, req)
+	if err != nil {
+		writeHTTPError(stream, err)
+		return err
+	}
+
+	// Forward the response status and headers as a streaming yamux frame.
+	wireResp := buildWireHeaders(resp.Header)
+	hdrJSON, _ := json.Marshal(struct {
+		Status  int         `json:"status"`
+		Headers WireHeaders `json:"headers"`
+	}{resp.StatusCode, wireResp})
+	if _, err := stream.Write(frameJSON(hdrJSON, nil)); err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 101 {
+		return nil
+	}
+
+	// Drain any bytes bufio already read past the HTTP headers — these are the
+	// start of the WebSocket data stream and must not be dropped.
+	var initial []byte
+	if n := br.Buffered(); n > 0 {
+		initial = make([]byte, n)
+		_, _ = io.ReadFull(br, initial)
+	}
+
+	// Bidirectional pump: relay stream ↔ raw TCP conn.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if len(initial) > 0 {
+			_, _ = stream.Write(initial)
+		}
+		_, _ = io.Copy(stream, conn)
+		_ = stream.Close()
+	}()
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(conn, stream)
+		// Half-close the upstream so the server can flush remaining data and
+		// EOF. Both *net.TCPConn and *tls.Conn expose CloseWrite(); the
+		// interface captures either without a concrete type switch.
+		type closeWriter interface{ CloseWrite() error }
+		if cw, ok := conn.(closeWriter); ok {
+			_ = cw.CloseWrite()
+		}
+	}()
+	wg.Wait()
+	return nil
 }
 
 // ----- CONNECT stream (streamTypeConnect) -----

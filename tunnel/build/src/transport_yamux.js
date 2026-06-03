@@ -1,3 +1,5 @@
+import * as http from 'node:http';
+import * as https from 'node:https';
 import * as net from 'node:net';
 import { matchesAny } from './allowlist.js';
 import { resolveLoopbackOrigin } from './loopback.js';
@@ -70,6 +72,11 @@ export class YamuxTransport {
     }
     // ----- HTTP request/response -----
     async #handleHttpStream(stream) {
+        // Set to true once #pumpWebSocket writes the response frame. If the pump
+        // then throws during bidirectional copy, the outer catch must not attempt
+        // to write a second response (502) onto a stream that already carried a
+        // 101 — the relay cannot parse two consecutive response frames.
+        let headersSent = false;
         try {
             const header = await this.#readJsonHeader(stream);
             let reqBody;
@@ -98,6 +105,21 @@ export class YamuxTransport {
             // Set Host explicitly even when it's already in headers — the
             // resolved IP URL has the wrong authority for Host inference.
             reqHeaders.set('Host', `${resolved.hostname}:${resolved.port}`);
+            // WebSocket upgrade: use a raw TCP pipe instead of HTTP request/response.
+            // http.request cannot carry the bidirectional WebSocket conversation after
+            // the 101 handshake without listening for the 'upgrade' event.
+            if (reqHeaders.get('upgrade')?.toLowerCase() === 'websocket') {
+                // #pumpWebSocket uses streamingResponseFrame (no bodyLen field). A
+                // relay in buffered mode cannot parse that format, so we refuse early
+                // and return a buffered 502 the relay can parse.
+                if (!this.#streaming) {
+                    throw new Error('WebSocket upgrade requires streaming mode');
+                }
+                await this.#pumpWebSocket(stream, header, reqHeaders, resolved, () => {
+                    headersSent = true;
+                });
+                return;
+            }
             const resp = await nodeRequest(resolved.scheme, resolved.resolvedIp, resolved.port, header.method, header.url, reqHeaders, reqBody);
             const respHeaders = incomingHeadersToWireHeaders(resp.headers);
             stripTransferHeaders(respHeaders);
@@ -123,7 +145,9 @@ export class YamuxTransport {
             }
         }
         catch (err) {
-            await this.#writeHttpError(stream, err);
+            if (!headersSent) {
+                await this.#writeHttpError(stream, err);
+            }
             throw err;
         }
         finally {
@@ -197,6 +221,91 @@ export class YamuxTransport {
             });
         });
         // Pump yamux stream -> socket (read loop).
+        const yamuxDone = (async () => {
+            try {
+                while (true) {
+                    const chunk = await stream.read();
+                    if (chunk.length === 0) {
+                        socket.end();
+                        break;
+                    }
+                    socket.write(chunk);
+                }
+            }
+            catch {
+                socket.destroy();
+            }
+        })();
+        await Promise.all([socketDone, yamuxDone]);
+    }
+    // ----- WebSocket upgrade via HTTP stream -----
+    /**
+     * Handles a WebSocket upgrade request arriving via the HTTP stream type.
+     * Dials a raw TCP connection to the local server, sends the HTTP upgrade
+     * request, and pumps bytes bidirectionally after the 101 handshake.
+     *
+     * Node's http.request closes the connection when the server sends 101 unless
+     * the caller listens for the 'upgrade' event — this method does exactly that
+     * so that WebSocket frame traffic can flow in both directions over the yamux
+     * stream, matching the behaviour of streamTypeConnect.
+     */
+    async #pumpWebSocket(stream, header, reqHeaders, resolved, onHeadersSent) {
+        const headersObj = Object.fromEntries(reqHeaders.entries());
+        const baseOptions = {
+            hostname: resolved.resolvedIp,
+            port: parseInt(resolved.port, 10),
+            path: header.url,
+            method: header.method,
+            headers: headersObj,
+        };
+        // Use the http.request 'upgrade' event to obtain the raw socket after the
+        // 101 handshake. Without this listener Node closes the connection on 101.
+        const { statusCode, incomingHeaders, socket, head } = await new Promise((resolve, reject) => {
+            const req = resolved.scheme === 'https'
+                ? https.request({ ...baseOptions, rejectUnauthorized: false })
+                : http.request(baseOptions);
+            req.on('upgrade', (res, sock, headBuf) => {
+                resolve({
+                    statusCode: res.statusCode,
+                    incomingHeaders: res.headers,
+                    socket: sock,
+                    head: headBuf,
+                });
+            });
+            req.on('response', (res) => {
+                // Non-101 response — drain and surface the status so the relay sees it.
+                res.resume();
+                resolve({ statusCode: res.statusCode, incomingHeaders: res.headers, socket: null, head: Buffer.alloc(0) });
+            });
+            req.on('error', reject);
+            req.end();
+        });
+        // Forward the HTTP response as a streaming yamux frame.
+        const wireHeaders = incomingHeadersToWireHeaders(incomingHeaders);
+        stripTransferHeaders(wireHeaders);
+        await stream.write(streamingResponseFrame(statusCode, wireHeaders));
+        // Signal to the caller that a response frame is now on the wire. Any
+        // subsequent throw must not attempt to write a second response frame.
+        onHeadersSent();
+        if (socket === null || statusCode !== 101) {
+            return;
+        }
+        // Write any bytes the HTTP parser already buffered past the upgrade headers.
+        if (head.length > 0) {
+            await stream.write(Buffer.from(head));
+        }
+        // Bidirectional pump: relay yamux stream ↔ raw local TCP socket.
+        const socketDone = new Promise((done) => {
+            socket.on('data', (chunk) => {
+                socket.pause();
+                stream.write(chunk).then(() => socket.resume()).catch(() => {
+                    socket.destroy();
+                    done();
+                });
+            });
+            socket.once('end', () => { stream.close(); done(); });
+            socket.once('error', () => { stream.close(); done(); });
+        });
         const yamuxDone = (async () => {
             try {
                 while (true) {

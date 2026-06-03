@@ -121,6 +121,29 @@ describe('patternMatches', () => {
     // IPv6 literal — origin must use brackets.
     ['[::1]:443', 'https://[::1]:443', true],
     ['[::1]:443', 'https://[::1]:444', false],
+
+    // WebSocket schemes (ws:// / wss://) must match the same patterns as
+    // http:// / https://.  The relay sends a ws:// origin for WebSocket upgrade
+    // requests; a host:port that is in the allowlist must not be rejected just
+    // because the scheme prefix is ws instead of http.
+    ['localhost:3000', 'ws://localhost:3000', true],
+    ['localhost:3000', 'wss://localhost:3000', true],
+    ['fullstory.test:8043', 'ws://fullstory.test:8043', true],
+    ['fullstory.test:8043', 'wss://fullstory.test:8043', true],
+    ['fullstory.test:8043', 'ws://app.fullstory.test:8043', true],
+    ['fullstory.test:8043', 'wss://app.fullstory.test:8043', true],
+    // Port mismatch still rejected for ws/wss.
+    ['localhost:3000', 'ws://localhost:4000', false],
+    // Wrong host rejected.
+    ['localhost:3000', 'ws://other.test:3000', false],
+    // IPv4 literal with ws/wss.
+    ['127.0.0.1:3000', 'ws://127.0.0.1:3000', true],
+    ['127.0.0.1:3000', 'wss://127.0.0.1:3000', true],
+    // IPv6 literal with wss.
+    ['[::1]:443', 'wss://[::1]:443', true],
+    // Scheme is case-insensitive per RFC 3986.
+    ['localhost:3000', 'WS://localhost:3000', true],
+    ['localhost:3000', 'WSS://localhost:3000', true],
   ];
   for (const [pattern, origin, want] of cases) {
     it(`${pattern} vs ${origin}`, () => {
@@ -147,6 +170,11 @@ describe('matchesAny', () => {
   it('misses unmatched port and trunk', () => {
     assert.ok(!matchesAny(patterns, 'http://localhost:5000'));
     assert.ok(!matchesAny(patterns, 'http://other.test:8043'));
+  });
+  it('accepts ws/wss schemes', () => {
+    assert.ok(matchesAny(patterns, 'ws://localhost:3000'));
+    assert.ok(matchesAny(patterns, 'wss://fullstory.test:8043'));
+    assert.ok(!matchesAny(patterns, 'ws://localhost:9999'));
   });
   it('empty patterns matches nothing', () => {
     assert.ok(!matchesAny([], 'http://localhost:3000'));
