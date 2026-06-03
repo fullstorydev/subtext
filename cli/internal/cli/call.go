@@ -17,21 +17,8 @@ import (
 	"github.com/fullstorydev/subtext/cli/internal/mcpclient"
 )
 
-// callCmd is an internal delegation target for namespace commands.
-// It is intentionally not registered with rootCmd.
-var callCmd = &cobra.Command{
-	DisableFlagParsing: true,
-	RunE:               runCall,
-}
-
 func runCall(cmd *cobra.Command, args []string) error {
-	// cmd may be callCmd invoked directly by the namespace dispatcher, whose
-	// context is never set by cobra. Fall back to a background context so the
-	// HTTP request builders never receive a nil context.
 	ctx := cmd.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
 
 	// Strip any leading "--" sentinel cobra may inject.
 	if len(args) > 0 && args[0] == "--" {

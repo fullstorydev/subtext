@@ -13,12 +13,10 @@ import (
 )
 
 // TestNamespaceDispatchCallsTool drives the real namespace dispatcher
-// (namespaceRunE -> callCmd) against a stub MCP server. This exercises the
-// cmd.Context() path that the stubbed unit tests never reach: the namespace
-// command invokes callCmd directly (never through cobra's Execute), so callCmd
-// has no context of its own. Before the context fix this produced
-// "net/http: nil Context" on every tool invocation. The test asserts the
-// dispatcher completes a real tools/list + tools/call round trip.
+// (namespaceRunE -> runCall) against a stub MCP server. This exercises the
+// cmd.Context() -> HTTP path that unit tests against individual functions
+// never reach. The test asserts the dispatcher completes a real
+// tools/list + tools/call round trip.
 func TestNamespaceDispatchCallsTool(t *testing.T) {
 	var sawListTools, sawCallTool bool
 
@@ -55,9 +53,9 @@ func TestNamespaceDispatchCallsTool(t *testing.T) {
 	globalFlags.format = "json"
 	globalConfig = config.File{}
 
-	// Give the namespace command a context the way cobra's Execute would, then
-	// dispatch. The dispatcher must propagate this to callCmd or fall back to a
-	// non-nil context — either way the HTTP request must not see a nil context.
+	// Give the namespace command a context the way cobra's Execute would.
+	// runCall receives the namespace command directly, so this context flows
+	// through to every HTTP call.
 	docCmd.SetContext(context.Background())
 
 	var err error
