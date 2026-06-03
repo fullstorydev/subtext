@@ -56,14 +56,14 @@ subtext live tunnel → { relayUrl, connectionId: "abc-123", sightmapUploadUrl: 
 # upload .sightmap/ here if project has definitions (see subtext:shared)
 subtext tunnel connect --relay-url <relayUrl> --allowed-origins localhost:3000
 → { state: "ready", tunnelId: "..." }
-subtext live view-new --connection-id abc-123 --url http://localhost:3000/dashboard
+subtext live view-new --connection_id abc-123 --url http://localhost:3000/dashboard
 ```
 
 ### Connection-first (attach tunnel to existing connection)
 
 If {{tool "live-connect"}} was already called and you need to attach a tunnel afterward, pass the existing `connectionId` to {{tool "live-tunnel"}}.
 
-1. Run {{tool "live-tunnel"}} with `--connection-id` from the existing connection → returns `relayUrl`
+1. Run {{tool "live-tunnel"}} with `--connection_id` from the existing connection → returns `relayUrl`
 2. Run {{tool "tunnel-connect"}} with `relayUrl` and `allowedOrigins`
 3. Verify `state` is `"ready"` in the response
 4. Navigate to the localhost URL with {{tool "live-view-navigate"}}

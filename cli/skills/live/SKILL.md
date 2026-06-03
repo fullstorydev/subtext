@@ -145,7 +145,7 @@ between action loops to learn about new comments and the operator state.
 
 - **Default to `subtext live view-snapshot` for all page observation.** It carries sightmap context (component names, view names, `[src: ...]` annotations) and provides the component UIDs needed by `act-*` commands. Always call it before any interaction sequence.
 - **Use `subtext live view-screenshot` only for visual evidence** — before/after comparisons, layout debugging, or screenshots to embed in PRs. The command returns the image inline by default so you can verify framing. Pass `--upload` only when you need a hosted URL for a PR or comment attachment.
-- When the screenshot is evidence about a specific element, clip to it with `--component-id` (and small `--expand-pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
+- When the screenshot is evidence about a specific element, clip to it with `--component_id` (and small `--expand_pct` for context). `expand_pct` caps at 100, so very short elements (a label, a textbox) still produce thin slices — clip to a wider parent in that case.
 - `subtext live view-inspect` is for **sightmap authoring only** — it returns verbose CSS selectors on every node. Do not use it as a general snapshot replacement. Use it once to discover selectors, write your `.sightmap/` YAML, then use `subtext live view-snapshot` for everything else.
 - Component names from sightmap appear in snapshots — use `[src: ...]` annotations to find source files.
 - Close connections when done to free server resources.
