@@ -1,5 +1,11 @@
 # subtext
 
+## 0.3.4
+
+### Patch Changes
+
+- fecd8f2: tunnel support for connecting to websockets
+
 ## 0.3.3
 
 ### Patch Changes

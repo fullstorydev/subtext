@@ -9,7 +9,7 @@
     {
       "name": "subtext",
       "source": "./",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "description": "Tools that let coding agents verify and show their work against your running application",
       "category": "development",
       "keywords": [
