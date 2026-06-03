@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fullstorydev/subtext/cli/internal/config"
+	"github.com/spf13/cobra"
 )
 
 // TestNamespaceDispatchCallsTool drives the real namespace dispatcher
@@ -53,14 +54,14 @@ func TestNamespaceDispatchCallsTool(t *testing.T) {
 	globalFlags.format = "json"
 	globalConfig = config.File{}
 
-	// Give the namespace command a context the way cobra's Execute would.
-	// runCall receives the namespace command directly, so this context flows
-	// through to every HTTP call.
-	docCmd.SetContext(context.Background())
+	// Simulate what cobra's Execute does: set the context on the command before
+	// RunE is called. Use a local command to avoid mutating the global docCmd.
+	cmd := &cobra.Command{Use: "doc"}
+	cmd.SetContext(context.Background())
 
 	var err error
 	out := captureStdout(t, func() {
-		err = namespaceRunE(docCmd, []string{"list"})
+		err = namespaceRunE(cmd, []string{"list"})
 	})
 
 	if err != nil {
