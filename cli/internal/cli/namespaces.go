@@ -9,11 +9,8 @@ import (
 // to the "live-act-click" tool. DisableFlagParsing must be set on the parent
 // command, so --help is intercepted here before delegating.
 func namespaceRunE(cmd *cobra.Command, args []string) error {
-	// With DisableFlagParsing, cobra hands through any global flags that appear
-	// before the tool subcommand (e.g. "subtext --format=text live view-list").
-	// Pull them out before deriving the tool name, otherwise a leading global
-	// gets glued onto it ("live---format=text") and the lookup 404s. runCall
-	// re-runs extractGlobalFlags on the remainder, a no-op once globals are gone.
+	// DisableFlagParsing passes any leading global flag through as args[0];
+	// pull them out before building the tool name or it gets glued in.
 	args = extractGlobalFlags(args)
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		return cmd.Help()

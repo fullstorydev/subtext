@@ -20,17 +20,6 @@ import (
 func runCall(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	// Strip any leading "--" sentinel cobra may inject.
-	if len(args) > 0 && args[0] == "--" {
-		args = args[1:]
-	}
-
-	// Global flags (--json, --api-key, etc.) are already parsed by cobra before
-	// DisableFlagParsing takes effect for the subcommand. However when
-	// DisableFlagParsing is set, cobra passes ALL remaining args raw. We scan
-	// them to pull out globals so the rest of the code can use globalFlags.
-	args = extractGlobalFlags(args)
-
 	// Re-run config load in case --config appeared after the subcommand name
 	// (cobra.OnInitialize fires before DisableFlagParsing extraction).
 	loadConfig()
