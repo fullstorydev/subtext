@@ -11,10 +11,22 @@
  */
 import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import {WebSocketServer, WebSocket as WsClient} from 'ws';
 import {TunnelClient} from '../src/client.js';
+
+// Generate a fresh ephemeral self-signed cert for 127.0.0.1 at test-run time.
+const _tlsPem = spawnSync(
+  'openssl',
+  ['req', '-x509', '-newkey', 'rsa:2048', '-keyout', '/dev/stdout', '-out', '/dev/stdout',
+   '-days', '1', '-nodes', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1'],
+  {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']},
+).stdout;
+const TEST_TLS_KEY = _tlsPem.match(/(-----BEGIN PRIVATE KEY-----[\s\S]+?-----END PRIVATE KEY-----)/)?.[1] ?? '';
+const TEST_TLS_CERT = _tlsPem.match(/(-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----)/)?.[1] ?? '';
 
 // ----- Yamux protocol helpers (server side in tests) -----
 
@@ -246,6 +258,26 @@ class TestYamuxStream {
 
   sendFin(): void {
     this.#ws.send(makeHeader(TYPE_DATA, FLAG_FIN, this.id, 0));
+  }
+}
+
+// ----- Helpers -----
+
+/**
+ * Read raw bytes from a yamux stream one byte at a time until the HTTP header
+ * terminator \r\n\r\n is found. Used by WebSocket CONNECT tests where we need
+ * to parse a variable-length HTTP response through the raw TCP pipe.
+ */
+async function readHttpResponseHeaders(stream: TestYamuxStream): Promise<string> {
+  const chunks: Buffer[] = [];
+  while (true) {
+    const byte = await stream.readExact(1);
+    chunks.push(byte);
+    const all = Buffer.concat(chunks);
+    if (all.length >= 4 && all.subarray(-4).toString() === '\r\n\r\n') {
+      return all.toString();
+    }
+    if (all.length > 8192) throw new Error('HTTP response headers exceeded 8 KiB');
   }
 }
 
@@ -646,5 +678,433 @@ describe('TunnelClient yamux mode', () => {
 
     client.disconnect();
     targetServer.close();
+  });
+
+  /** Same as connectYamux but sends streaming:true in the ready message. */
+  async function connectYamuxStreaming(opts?: {allowedOrigins?: string[]}): Promise<{
+    client: TunnelClient;
+    yamux: TestYamuxServer;
+    relayWs: WsClient;
+  }> {
+    logs = [];
+    const client = new TunnelClient({
+      relayUrl,
+      connectionId: 'test-yamux-ws',
+      log: (msg) => logs.push(msg),
+      allowedOrigins: opts?.allowedOrigins,
+    });
+
+    const wsPromise = new Promise<WsClient>((resolve) => {
+      wss.once('connection', resolve);
+    });
+
+    client.connect();
+    const relayWs = await wsPromise;
+
+    await new Promise<void>((resolve) => {
+      relayWs.once('message', (data: Buffer) => {
+        const msg = JSON.parse(data.toString());
+        assert.equal(msg.type, 'hello');
+        resolve();
+      });
+    });
+
+    relayWs.send(
+      JSON.stringify({
+        type: 'ready',
+        tunnelId: 't_yamux_ws_test',
+        connectionId: 'test-yamux-ws',
+        protocol: 'yamux',
+        streaming: true,
+      }),
+    );
+
+    await waitFor(() => client.state === 'ready');
+    return {client, yamux: new TestYamuxServer(relayWs), relayWs};
+  }
+
+  it('CONNECT: WebSocket upgrade and frame exchange works through TCP pipe', async () => {
+    // Start a real WebSocket echo server.
+    const wsHttpServer = http.createServer();
+    const echoWss = new WebSocketServer({server: wsHttpServer});
+    echoWss.on('connection', (ws) => {
+      ws.on('message', (data) => ws.send(data.toString()));
+    });
+    await new Promise<void>((r) => wsHttpServer.listen(0, '127.0.0.1', r));
+    const wsPort = (wsHttpServer.address() as net.AddressInfo).port;
+
+    const {client, yamux} = await connectYamux(`http://127.0.0.1:${wsPort}`);
+
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    // CONNECT to the WebSocket server port (raw TCP pipe).
+    const connectHdr = JSON.stringify({host: `127.0.0.1:${wsPort}`});
+    const hdrBuf = Buffer.from(connectHdr);
+    const prefix = Buffer.allocUnsafe(1 + 4);
+    prefix[0] = 0x02; // CONNECT type
+    prefix.writeUInt32BE(hdrBuf.length, 1);
+    await stream.write(Buffer.concat([prefix, hdrBuf]));
+
+    const statusByte = await stream.readExact(1);
+    assert.equal(statusByte[0], 0x00, 'CONNECT should succeed');
+
+    // Send the HTTP/1.1 WebSocket upgrade request through the raw TCP pipe.
+    const upgradeReq = [
+      `GET / HTTP/1.1`,
+      `Host: 127.0.0.1:${wsPort}`,
+      `Upgrade: websocket`,
+      `Connection: Upgrade`,
+      `Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==`,
+      `Sec-WebSocket-Version: 13`,
+      ``,
+      ``,
+    ].join('\r\n');
+    await stream.write(Buffer.from(upgradeReq));
+
+    // Read 101 Switching Protocols response.
+    const respHeaders = await readHttpResponseHeaders(stream);
+    assert.ok(
+      respHeaders.startsWith('HTTP/1.1 101'),
+      `expected 101 Switching Protocols, got: ${respHeaders.slice(0, 120)}`,
+    );
+
+    // Send a WebSocket text frame "hello".
+    // Client→server frames must be masked (RFC 6455). Zero mask = XOR identity.
+    const payload = Buffer.from('hello');
+    const wsFrame = Buffer.allocUnsafe(2 + 4 + payload.length);
+    wsFrame[0] = 0x81; // FIN=1, opcode=1 (text)
+    wsFrame[1] = 0x80 | payload.length; // mask bit + payload length
+    wsFrame.fill(0, 2, 6); // zero mask bytes
+    payload.copy(wsFrame, 6);
+    await stream.write(wsFrame);
+
+    // Read the echoed text frame from the server (server frames are unmasked).
+    const frameHeader = await stream.readExact(2);
+    assert.equal(frameHeader[0] & 0x0f, 1, 'expected text opcode from server');
+    assert.equal(frameHeader[1] & 0x80, 0, 'server frame must be unmasked');
+    const echoPayload = await stream.readExact(frameHeader[1] & 0x7f);
+    assert.equal(echoPayload.toString(), 'hello', 'WebSocket echo payload mismatch');
+
+    client.disconnect();
+    echoWss.close();
+    wsHttpServer.close();
+  });
+
+  it('HTTP stream: ws:// origin passes allowlist gate and WebSocket upgrade is fully proxied', async () => {
+    // Start a real WebSocket echo server.
+    const wsHttpServer = http.createServer();
+    const echoWss = new WebSocketServer({server: wsHttpServer});
+    echoWss.on('connection', (ws) => {
+      ws.on('message', (data) => ws.send(data.toString()));
+    });
+    await new Promise<void>((r) => wsHttpServer.listen(0, '127.0.0.1', r));
+    const wsPort = (wsHttpServer.address() as net.AddressInfo).port;
+
+    // streaming:true is required here: the transport must forward the 101
+    // response immediately rather than trying to buffer an infinite body.
+    const {client, yamux} = await connectYamuxStreaming();
+
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    // Send a WebSocket upgrade request via the HTTP stream type with ws:// origin.
+    // Before the allowlist fix this would be rejected at the gate with a 502.
+    const origin = `ws://127.0.0.1:${wsPort}`;
+    const reqHdr = JSON.stringify({
+      method: 'GET',
+      url: '/',
+      headers: {
+        upgrade: ['websocket'],
+        connection: ['Upgrade'],
+        'sec-websocket-key': ['dGhlIHNhbXBsZSBub25jZQ=='],
+        'sec-websocket-version': ['13'],
+      },
+      bodyLen: 0,
+      origin,
+    });
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const reqPrefix = Buffer.allocUnsafe(1 + 4);
+    reqPrefix[0] = 0x01; // HTTP request type
+    reqPrefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([reqPrefix, reqHdrBuf]));
+
+    // Read the yamux response frame: [4-byte hdr len][JSON {status, headers}].
+    const respLenBuf = await stream.readExact(4);
+    const respHdrLen = respLenBuf.readUInt32BE(0);
+    const respHdrBuf = await stream.readExact(respHdrLen);
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {
+      status: number;
+      headers: Record<string, string[]>;
+    };
+
+    // The ws:// origin passes the allowlist gate and the transport now proxies
+    // the upgrade via http.request's 'upgrade' event, giving us the raw socket
+    // for bidirectional pumping — same end-result as the CONNECT path.
+    assert.equal(
+      respHdr.status,
+      101,
+      `expected 101 Switching Protocols, got ${respHdr.status}`,
+    );
+
+    // Exchange a WebSocket message through the same yamux stream.
+    const payload2 = Buffer.from('hello-http-stream');
+    const wsFrame2 = Buffer.allocUnsafe(2 + 4 + payload2.length);
+    wsFrame2[0] = 0x81;
+    wsFrame2[1] = 0x80 | payload2.length;
+    wsFrame2.fill(0, 2, 6);
+    payload2.copy(wsFrame2, 6);
+    await stream.write(wsFrame2);
+
+    const frameHeader2 = await stream.readExact(2);
+    assert.equal(frameHeader2[0] & 0x0f, 1, 'expected text opcode from server (HTTP stream path)');
+    assert.equal(frameHeader2[1] & 0x80, 0, 'server frame must be unmasked');
+    const echoPayload2 = await stream.readExact(frameHeader2[1] & 0x7f);
+    assert.equal(echoPayload2.toString(), 'hello-http-stream', 'WebSocket echo via HTTP stream path');
+
+    client.disconnect();
+    echoWss.close();
+    wsHttpServer.close();
+  });
+
+  it('HTTP stream: wss:// origin takes the TLS dial path and proxies WebSocket upgrade', async () => {
+    // TLS echo server on 127.0.0.1 with the embedded self-signed cert.
+    const tlsHttpServer = https.createServer({key: TEST_TLS_KEY, cert: TEST_TLS_CERT});
+    const echoWss = new WebSocketServer({server: tlsHttpServer});
+    echoWss.on('connection', (ws) => {
+      ws.on('message', (data) => ws.send(data.toString()));
+    });
+    await new Promise<void>((r) => tlsHttpServer.listen(0, '127.0.0.1', r));
+    const wsPort = (tlsHttpServer.address() as net.AddressInfo).port;
+
+    const {client, yamux} = await connectYamuxStreaming();
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    const origin = `wss://127.0.0.1:${wsPort}`;
+    const reqHdr = JSON.stringify({
+      method: 'GET',
+      url: '/',
+      headers: {
+        upgrade: ['websocket'],
+        connection: ['Upgrade'],
+        'sec-websocket-key': ['dGhlIHNhbXBsZSBub25jZQ=='],
+        'sec-websocket-version': ['13'],
+      },
+      bodyLen: 0,
+      origin,
+    });
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const reqPrefix = Buffer.allocUnsafe(1 + 4);
+    reqPrefix[0] = 0x01;
+    reqPrefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([reqPrefix, reqHdrBuf]));
+
+    const respLenBuf = await stream.readExact(4);
+    const respHdrBuf = await stream.readExact(respLenBuf.readUInt32BE(0));
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {status: number};
+    assert.equal(respHdr.status, 101, `expected 101 from TLS WS server, got ${respHdr.status}`);
+
+    // Exchange a frame to confirm bidirectional pump works over TLS.
+    const payload = Buffer.from('hello-tls');
+    const wsFrame = Buffer.allocUnsafe(2 + 4 + payload.length);
+    wsFrame[0] = 0x81;
+    wsFrame[1] = 0x80 | payload.length;
+    wsFrame.fill(0, 2, 6);
+    payload.copy(wsFrame, 6);
+    await stream.write(wsFrame);
+
+    const fh = await stream.readExact(2);
+    assert.equal(fh[0] & 0x0f, 1, 'text opcode from TLS server');
+    const echo = await stream.readExact(fh[1] & 0x7f);
+    assert.equal(echo.toString(), 'hello-tls');
+
+    client.disconnect();
+    echoWss.close();
+    tlsHttpServer.close();
+  });
+
+  it('HTTP stream: ws:// origin rejected by allowlist returns 502', async () => {
+    // Client configured with allowedOrigins that doesn't cover the origin we'll send.
+    const {client, yamux} = await connectYamuxStreaming({
+      allowedOrigins: ['localhost:3000'],
+    });
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    // Send a ws:// origin whose port isn't in the allowlist.
+    const reqHdr = JSON.stringify({
+      method: 'GET',
+      url: '/',
+      headers: {
+        upgrade: ['websocket'],
+        connection: ['Upgrade'],
+        'sec-websocket-key': ['dGhlIHNhbXBsZSBub25jZQ=='],
+        'sec-websocket-version': ['13'],
+      },
+      bodyLen: 0,
+      origin: 'ws://localhost:9999',
+    });
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const reqPrefix = Buffer.allocUnsafe(1 + 4);
+    reqPrefix[0] = 0x01;
+    reqPrefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([reqPrefix, reqHdrBuf]));
+
+    // A buffered 502 response is expected (the allowlist gate fires before any
+    // upgrade attempt, so the response is always buffered, never a 101).
+    const respLenBuf = await stream.readExact(4);
+    const respHdrBuf = await stream.readExact(respLenBuf.readUInt32BE(0));
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {status: number; bodyLen: number};
+    assert.equal(respHdr.status, 502, `expected 502 from allowlist rejection, got ${respHdr.status}`);
+
+    client.disconnect();
+  });
+
+  it('HTTP stream: non-101 upstream response is forwarded as a streaming frame', async () => {
+    // A raw HTTP server that rejects WebSocket upgrades with 401.
+    const rejectServer = http.createServer();
+    rejectServer.on('upgrade', (_req, socket, _head) => {
+      socket.write(
+        'HTTP/1.1 401 Unauthorized\r\n' +
+        'Content-Length: 0\r\n' +
+        'Connection: close\r\n' +
+        '\r\n',
+      );
+      socket.end();
+    });
+    await new Promise<void>((r) => rejectServer.listen(0, '127.0.0.1', r));
+    const wsPort = (rejectServer.address() as net.AddressInfo).port;
+
+    const {client, yamux} = await connectYamuxStreaming();
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    const origin = `ws://127.0.0.1:${wsPort}`;
+    const reqHdr = JSON.stringify({
+      method: 'GET',
+      url: '/',
+      headers: {
+        upgrade: ['websocket'],
+        connection: ['Upgrade'],
+        'sec-websocket-key': ['dGhlIHNhbXBsZSBub25jZQ=='],
+        'sec-websocket-version': ['13'],
+      },
+      bodyLen: 0,
+      origin,
+    });
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const reqPrefix = Buffer.allocUnsafe(1 + 4);
+    reqPrefix[0] = 0x01;
+    reqPrefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([reqPrefix, reqHdrBuf]));
+
+    // The 401 comes back as a streaming response frame with no body following.
+    const respLenBuf = await stream.readExact(4);
+    const respHdrBuf = await stream.readExact(respLenBuf.readUInt32BE(0));
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {status: number};
+    assert.equal(respHdr.status, 401, `expected 401 from reject server, got ${respHdr.status}`);
+
+    client.disconnect();
+    rejectServer.close();
+  });
+
+  it('HTTP stream: head bytes fused with 101 response arrive before client frames', async () => {
+    // A raw TCP server that sends the 101 response and a server-initiated frame
+    // in a single socket.write(), so Node's HTTP parser will buffer the frame
+    // bytes into `head` (the third argument of the 'upgrade' event).
+    const serverPayload = 'server-first-frame';
+    const earlyFrame = (() => {
+      const p = Buffer.from(serverPayload);
+      const f = Buffer.allocUnsafe(2 + p.length);
+      f[0] = 0x81; // FIN=1 text
+      f[1] = p.length; // no mask (server→client unmasked)
+      p.copy(f, 2);
+      return f;
+    })();
+
+    const rawServer = net.createServer((socket) => {
+      let buf = Buffer.alloc(0);
+      socket.on('data', (chunk: Buffer) => {
+        buf = Buffer.concat([buf, chunk]);
+        if (buf.includes(Buffer.from('\r\n\r\n'))) {
+          socket.removeAllListeners('data');
+          // Fuse 101 response + earlyFrame into one write so the HTTP parser
+          // buffers earlyFrame into the `head` argument of 'upgrade' event.
+          socket.write(Buffer.concat([
+            Buffer.from(
+              'HTTP/1.1 101 Switching Protocols\r\n' +
+              'Upgrade: websocket\r\n' +
+              'Connection: Upgrade\r\n' +
+              // Sec-WebSocket-Accept value matches the test key dGhlIHNhbXBsZSBub25jZQ==
+              'Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n' +
+              '\r\n',
+            ),
+            earlyFrame,
+          ]));
+          // Echo subsequent masked client frames back unmasked.
+          let remainder = Buffer.alloc(0);
+          socket.on('data', (d: Buffer) => {
+            remainder = Buffer.concat([remainder, d]);
+            while (remainder.length >= 6) {
+              const payLen = remainder[1] & 0x7f;
+              if (remainder.length < 6 + payLen) break;
+              const masked = remainder.subarray(6, 6 + payLen);
+              const mask = remainder.subarray(2, 6);
+              const unmasked = Buffer.alloc(payLen);
+              for (let i = 0; i < payLen; i++) unmasked[i] = masked[i] ^ mask[i % 4];
+              const reply = Buffer.allocUnsafe(2 + payLen);
+              reply[0] = 0x81;
+              reply[1] = payLen;
+              unmasked.copy(reply, 2);
+              socket.write(reply);
+              remainder = remainder.subarray(6 + payLen);
+            }
+          });
+        }
+      });
+    });
+    await new Promise<void>((r) => rawServer.listen(0, '127.0.0.1', r));
+    const wsPort = (rawServer.address() as net.AddressInfo).port;
+
+    const {client, yamux} = await connectYamuxStreaming();
+    const stream = yamux.openStream();
+    await yamux.waitForAck(stream.id);
+
+    const origin = `ws://127.0.0.1:${wsPort}`;
+    const reqHdr = JSON.stringify({
+      method: 'GET',
+      url: '/',
+      headers: {
+        upgrade: ['websocket'],
+        connection: ['Upgrade'],
+        'sec-websocket-key': ['dGhlIHNhbXBsZSBub25jZQ=='],
+        'sec-websocket-version': ['13'],
+      },
+      bodyLen: 0,
+      origin,
+    });
+    const reqHdrBuf = Buffer.from(reqHdr);
+    const reqPrefix = Buffer.allocUnsafe(1 + 4);
+    reqPrefix[0] = 0x01;
+    reqPrefix.writeUInt32BE(reqHdrBuf.length, 1);
+    await stream.write(Buffer.concat([reqPrefix, reqHdrBuf]));
+
+    // Read the streaming 101 frame.
+    const respLenBuf = await stream.readExact(4);
+    const respHdrBuf = await stream.readExact(respLenBuf.readUInt32BE(0));
+    const respHdr = JSON.parse(respHdrBuf.toString()) as {status: number};
+    assert.equal(respHdr.status, 101, `expected 101, got ${respHdr.status}`);
+
+    // The head bytes arrive as raw WebSocket frame bytes immediately after the
+    // response header — read the 2-byte frame header and payload without sending
+    // anything from the client first.
+    const serverFh = await stream.readExact(2);
+    assert.equal(serverFh[0] & 0x0f, 1, 'head bytes: text opcode');
+    const serverPl = await stream.readExact(serverFh[1] & 0x7f);
+    assert.equal(serverPl.toString(), serverPayload, 'head bytes forwarded correctly');
+
+    client.disconnect();
+    rawServer.close();
   });
 });

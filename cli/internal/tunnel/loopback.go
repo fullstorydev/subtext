@@ -35,6 +35,25 @@ func ResolveLoopbackHost(ctx context.Context, host, port string) (ResolvedOrigin
 	return resolveLoopbackOriginWith(ctx, "http://"+host+":"+port, net.DefaultResolver.LookupIPAddr)
 }
 
+// normalizeWSOrigin normalizes ws:// → http:// and wss:// → https:// so that
+// WebSocket origins flow through the same HTTP-origin validation paths.
+// The scheme comparison is case-insensitive per RFC 3986 §3.1.
+func normalizeWSOrigin(origin string) string {
+	idx := strings.Index(origin, "://")
+	if idx < 0 {
+		return origin
+	}
+	scheme := strings.ToLower(origin[:idx])
+	switch scheme {
+	case "ws":
+		return "http://" + origin[idx+3:]
+	case "wss":
+		return "https://" + origin[idx+3:]
+	default:
+		return origin
+	}
+}
+
 // resolveLoopbackOriginWith is the testable inner implementation. Tests pass a
 // stub lookup to avoid real DNS resolution.
 //
@@ -44,7 +63,8 @@ func ResolveLoopbackHost(ctx context.Context, host, port string) (ResolvedOrigin
 // the TypeScript tunnel behaviour (loopback.ts:34-41) and fixes the Intercom
 // regression where the server was bound only to 127.0.0.1.
 func resolveLoopbackOriginWith(ctx context.Context, origin string, lookup lookupFunc) (ResolvedOrigin, error) {
-	scheme, host, port, err := parseOriginStrict(origin)
+	normalized := normalizeWSOrigin(origin)
+	scheme, host, port, err := parseOriginStrict(normalized)
 	if err != nil {
 		return ResolvedOrigin{}, err
 	}
