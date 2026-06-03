@@ -94,19 +94,19 @@ subtext live view-snapshot
 # uid=1_3      paragraph visible
 # uid=1_4      link "More information..." visible interactive
 
-# Interact using the component-id from the snapshot
-subtext live act-click --component-id 1_4
-subtext live act-fill --component-id 1_10 --value "hello world"
+# Interact using the component_id from the snapshot
+subtext live act-click --component_id 1_4
+subtext live act-fill --component_id 1_10 --value "hello world"
 
 # Clip a screenshot to a specific element
-subtext live view-screenshot --upload --component-id 1_4
+subtext live view-screenshot --upload --component_id 1_4
 # {"ok":true,"data":{"screenshot_url":"https://storage.googleapis.com/..."}}
 
 # Close
 subtext live disconnect
 ```
 
-`view-snapshot` assigns a `uid` to every element. Pass it as `--component-id` to `act-*` and `view-screenshot` — no CSS selectors needed. That's the core loop. The rest of the CLI adds [comments](#comment), [proof documents](#doc), [localhost tunnels](#tunnel), and [sightmaps](#sightmap) on top of it.
+`view-snapshot` assigns a `uid` to every element. Pass it as `--component_id` to `act-*` and `view-screenshot` — no CSS selectors needed. That's the core loop. The rest of the CLI adds [comments](#comment), [proof documents](#doc), [localhost tunnels](#tunnel), and [sightmaps](#sightmap) on top of it.
 
 ---
 
@@ -163,12 +163,12 @@ uid=1_1    main visible
 uid=1_4    link "More information..." visible interactive
 ```
 
-Pass the `uid` as `--component-id` to `act-*` commands and `view-screenshot`. No CSS selectors needed — use the value from the snapshot you just took:
+Pass the `uid` as `--component_id` to `act-*` commands and `view-screenshot`. No CSS selectors needed — use the value from the snapshot you just took:
 
 ```bash
-subtext live act-click --component-id 1_4
-subtext live act-fill --component-id 1_10 --value "search query"
-subtext live view-screenshot --upload --component-id 1_4   # clip to that element
+subtext live act-click --component_id 1_4
+subtext live act-fill --component_id 1_10 --value "search query"
+subtext live view-screenshot --upload --component_id 1_4   # clip to that element
 ```
 
 UIDs are stable within a connection. Take a fresh snapshot after navigation to get updated UIDs.
@@ -205,12 +205,12 @@ When `subtext live signal` returns `operator=human`, the session has been handed
 ```bash
 subtext live connect --url <url>                         # open a new session
 subtext live view-snapshot                               # DOM snapshot — assigns UIDs to every element
-subtext live act-click --component-id <uid>              # click by uid from snapshot
-subtext live act-fill --component-id <uid> --value <text>  # fill a text input
-subtext live act-hover --component-id <uid>              # hover
+subtext live act-click --component_id <uid>              # click by uid from snapshot
+subtext live act-fill --component_id <uid> --value <text>  # fill a text input
+subtext live act-hover --component_id <uid>              # hover
 subtext live act-keypress --key <key>                    # key press (e.g. Enter, Tab)
-subtext live act-scroll --component-id <uid>             # scroll element into view
-subtext live view-screenshot [--upload] [--component-id <uid>]  # screenshot; clip to UID
+subtext live act-scroll --component_id <uid>             # scroll element into view
+subtext live view-screenshot [--upload] [--component_id <uid>]  # screenshot; clip to UID
 subtext live view-navigate --url <url>                   # navigate to a new URL
 subtext live view-new --url <url>                        # open new tab (tunnel-first flow)
 subtext live emulate --device <name>                     # emulate a device (mobile, tablet)
@@ -227,10 +227,10 @@ Every response that touches a view includes `capture_status`. Check it each call
 ### `comment`
 
 ```bash
-subtext comment list --trace-id <id>
-subtext comment add --trace-id <id> --text "..." --intent bug
-subtext comment reply --comment-id <id> --text "..."
-subtext comment resolve --comment-id <id>
+subtext comment list --trace_id <id>
+subtext comment add --trace_id <id> --text "..." --intent bug
+subtext comment reply --comment_id <id> --text "..."
+subtext comment resolve --comment_id <id>
 ```
 
 Always call `comment list` before adding new comments to avoid duplicates. `--intent` values: `bug`, `tweak`, `ask`, `looks-good`.
@@ -240,20 +240,21 @@ When attaching a screenshot to a comment, pass `screenshot_url` **verbatim** inc
 ### `doc`
 
 ```bash
-subtext doc create --title "..." [--template <name>]
-subtext doc update --doc-id <id> --content "..."
-subtext doc attach --doc-id <id> --text "..." --content-type text/markdown
-subtext doc attach --doc-id <id> --url <screenshot_url> --render-as image
-subtext doc close --doc-id <id>
+subtext doc create --title "..."
+subtext doc list
+subtext doc read --doc_id <id>
+subtext doc update --doc_id <id> --append "..."
+subtext doc attach --doc_id <id> --label "..." --text "..." --content_type text/markdown
+subtext doc attach --doc_id <id> --label "..." --url <screenshot_url> --render_as image
+subtext doc diff --doc_id <id>
+subtext doc close --doc_id <id>
 ```
 
 Lifecycle: `create` → `[update / attach]*` → `close`. Closed docs produce an immutable snapshot (`v1.md`, `v2.md`, …).
 
-Templates for `--template`: `bug-fix`, `ux-review`, `verification`, `changeset`. Seed the structure up front.
-
 Open documents auto-close as `abandoned` after 24 hours of inactivity. Reopen by calling `doc update` on a closed doc.
 
-When attaching text content, use `--text` + `--content-type text/markdown` rather than `--base64-data` to avoid ~33% size inflation.
+When attaching text content, use `--text` + `--content_type text/markdown` rather than `--base64_data` to avoid ~33% size inflation.
 
 ### `tunnel`
 
@@ -282,8 +283,9 @@ Without `--root`, the project root is auto-detected from the current directory. 
 ### `artifact`
 
 ```bash
-subtext artifact upload --file <path>
-subtext artifact get --artifact-id <id>
+subtext artifact upload --filename <name> --text "..."           # text/markdown content
+subtext artifact upload --filename <name> --base64_data <b64>    # binary content
+subtext artifact url --artifact_id <id> --ext <ext>              # refresh an expired URL
 ```
 
 ### `auth`
@@ -354,7 +356,7 @@ subtext live connect --url https://example.com --format text
 TRACE=$(subtext live connect --url https://example.com | jq -r .data.trace_url)
 
 # Pass complex arguments from a file
-subtext doc update --doc-id abc --params-file edits.json
+subtext doc update --doc_id abc --params-file edits.json
 ```
 
 ---
@@ -392,13 +394,13 @@ subtext live view-snapshot
 # uid=1_11     form visible
 # uid=1_12       textbox "Email" visible interactive
 
-# Interact using the component-id from the snapshot
-subtext live act-click --component-id 1_6
-subtext live act-fill --component-id 1_12 --value "user@example.com"
+# Interact using the component_id from the snapshot
+subtext live act-click --component_id 1_6
+subtext live act-fill --component_id 1_12 --value "user@example.com"
 subtext live view-navigate --url https://example.com/dashboard
 
 # Clip a screenshot to a specific element, or capture the full page
-subtext live view-screenshot --upload --component-id 1_11
+subtext live view-screenshot --upload --component_id 1_11
 # {"ok":true,"data":{"screenshot_url":"https://storage.googleapis.com/..."}}
 
 # Close
@@ -449,7 +451,7 @@ subtext live view-navigate --url https://example.com/feature
 SCREENSHOT=$(subtext live view-screenshot --upload | jq -r .data.screenshot_url)
 
 # Attach to a proof doc — pass the full URL verbatim (signed query string included)
-subtext doc attach --doc-id "$DOC_ID" --url "$SCREENSHOT" --render-as image
+subtext doc attach --doc_id "$DOC_ID" --label "screenshot" --url "$SCREENSHOT" --render_as image
 ```
 
 ### Poll for operator signals
