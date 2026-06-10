@@ -18,7 +18,7 @@ import (
 
 // toolNamespaces is the allowlist for {{tool "name"}} references.
 var toolNamespaces = []string{
-	"live", "comment", "doc", "tunnel", "review", "sightmap", "artifact", "auth",
+	"live", "comment", "doc", "tunnel", "review", "privacy", "sightmap", "artifact", "auth",
 }
 
 func main() {

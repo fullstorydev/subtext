@@ -193,6 +193,8 @@ When `subtext live signal` returns `operator=human`, the session has been handed
 | `comment` | passthrough | Add, list, reply to, and resolve session replay comments |
 | `doc` | passthrough | Create and manage proof documents |
 | `artifact` | passthrough | Upload and retrieve file artifacts |
+| `privacy` | passthrough | Detect PII and manage element-block privacy rules |
+| `review` | passthrough | Deep-review a recorded session (screenshots, diffs, component trees) |
 | `tunnel` | native | Manage reverse tunnels for localhost access |
 | `sightmap` | native | Upload `.sightmap/` component definitions |
 | `auth` | native | Verify authentication (`whoami`) |
@@ -287,6 +289,34 @@ subtext artifact upload --filename <name> --text "..."           # text/markdown
 subtext artifact upload --filename <name> --base64_data <b64>    # binary content
 subtext artifact url --artifact_id <id> --ext <ext>              # refresh an expired URL
 ```
+
+### `privacy`
+
+```bash
+subtext privacy propose --session_url <url>                  # scan a session for PII (dry-run)
+subtext privacy create --selectors '[{"selector":".email"}]' # create rules in preview scope
+subtext privacy list                                         # list all editable rules
+subtext privacy list --scope_filter preview                  # preview-scoped rules only
+subtext privacy promote --rule_ids '["<id>"]'                # promote to all sessions
+subtext privacy delete --rule_ids '["<id>"]'                 # delete a preview-scoped rule
+```
+
+Rules are always created in `PREVIEW_SESSIONS_ONLY` scope and must be explicitly promoted. `propose` is a dry-run and persists nothing. Only `mask` and `exclude` block types are supported — unmask rules cannot be created or deleted here.
+
+### `review`
+
+```bash
+subtext review open --trace_id <id>                  # open by trace ID
+subtext review open --session_url <url>              # open by session URL
+subtext review view --client_id <id> --page_id <p> --timestamp <ts>      # screenshot + component tree
+subtext review inspect --client_id <id> --page_id <p> --timestamp <ts>   # detailed component tree with selectors
+subtext review diff --client_id <id> --page_id <p> --from_ts <ts> --to_ts <ts>  # diff two moments
+subtext review close --client_id <id> --use_case bug_diagnosis --was_helpful true
+```
+
+`open` accepts `trace_id`, `session_url`, `device_id`+`session_id`, `email_address`, or `user_uid`. Always call `close` when done — it releases server resources and records feedback.
+
+Primary use cases: verify another agent's proof work (chapter markers as the spine), diagnose a bug from a captured session, produce a structured summary of what happened. Sessions are read-only — use `subtext live` to drive a running app instead.
 
 ### `auth`
 

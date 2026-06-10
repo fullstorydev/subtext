@@ -34,7 +34,7 @@ Parameter schemas are visible in the tool definition at call time.
 `review-open` accepts five mutually-exclusive identifiers. Pick the one that matches what you actually have on hand — they're all first-class:
 
 - `trace_id` — the 12-char base62 id from a prior `live-connect` or `review-open` response. Resolves to the underlying device:session via the trace store. Use this when you're staying inside the trace flow (e.g., re-opening for a follow-on review, or pivoting between live and review surfaces).
-- `session_url` — a full FullStory session URL. Use this when you have a URL from outside the trace flow — a customer-shared link, a Slack paste, or a session you found in the app UI.
+- `session_url` — a full Fullstory session URL. Use this when you have a URL from outside the trace flow — a customer-shared link, a Slack paste, or a session you found in the app UI.
 - `device_id` + `session_id` — both required together. Use when you have the raw ids but no URL.
 - `email_address` / `user_uid` — looks up the user's most recent session. Use when you don't have a specific session in mind.
 

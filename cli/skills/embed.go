@@ -5,5 +5,5 @@ package skills
 import "embed"
 
 // FS contains the embedded CLI skill documentation.
-//go:embed comments docs live proof recipe-sightmap-setup shared sightmap tunnel
+//go:embed comments docs live privacy proof recipe-sightmap-setup review shared sightmap tunnel
 var FS embed.FS
