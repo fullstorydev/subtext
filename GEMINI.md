@@ -15,7 +15,6 @@ Skills under `skills/` are auto-discovered by Gemini CLI. Start with [`using-sub
 - `proof` — capture before/after evidence while implementing UI changes
 - `review` — summarize a recorded session
 - `live` — drive a hosted browser
-- `onboard` — first-run walkthrough
 - `sightmap` — define semantic component naming
 - plus tool-catalog atomics (`session`, `comments`, `tunnel`, `shared`) and the `recipe-sightmap-setup` recipe
 

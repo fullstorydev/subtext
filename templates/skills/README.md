@@ -1,6 +1,6 @@
 # Subtext Skills Overview
 
-Four tiers: atomics describe tools, workflows orchestrate them with decision logic, recipes are short step lists, and onboarding guides new users through setup.
+Three tiers: atomics describe tools, workflows orchestrate them with decision logic, and recipes are short step lists. A small set of user-facing setup skills sit alongside these for first-run installation.
 
 Before creating or modifying any skill, read [`authoring.md`](authoring.md).
 
@@ -24,21 +24,16 @@ Before creating or modifying any skill, read [`authoring.md`](authoring.md).
 
 - **subtext:recipe-sightmap-setup** — Bootstrap `.sightmap/` definitions for a project from scratch.
 
-## Onboarding — "getting started"
+## Setup — "getting started"
 
-- **subtext:onboard** — Three-step first-run flow: connect to the user's local dev server, prove a small change with before/after evidence, bootstrap a starter `.sightmap/` from what was learned.
-- **subtext:setup-plugin** — Install the Subtext plugin and configure MCP servers (invoked implicitly by `onboard` if MCP isn't reachable).
+- **subtext:setup-plugin** — Install the Subtext plugin and configure MCP servers. Called when a workflow's MCP connectivity check fails.
 - **subtext:first-session** — Agent-driven exploration of the user's site via the hosted browser.
+
+First-run onboarding itself is a copy-paste flow the user kicks off — not a skill the agent invokes.
 
 ## How they compose
 
 ```
-onboard
-  ├─ setup-plugin   (implicit health check; only runs on failure)
-  ├─ tunnel + live  (connect to user's local dev server)
-  ├─ proof          (small change → before/after evidence)
-  └─ sightmap       (write .sightmap/components.yaml from what was learned)
-
 proof   ──▶ captures a session ──▶ review  (optional handoff)
 
 review  ──▶ produces repro steps ──▶ subtext:live  (execution)

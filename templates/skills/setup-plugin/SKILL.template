@@ -74,6 +74,6 @@ After the user has addressed authentication, re-run the MCP connectivity check t
 ## Explain
 
 After setup, explain what was installed:
-- **Skills** — `proof` (before/after evidence for UI changes), `review` (structured summary of any session), `onboard` (first-run walkthrough), plus the underlying tool catalogs (`live`, `session`, `comments`, `tunnel`, `sightmap`)
+- **Skills** — `proof` (before/after evidence for UI changes), `review` (structured summary of any session), plus the underlying tool catalogs (`live`, `session`, `comments`, `tunnel`, `sightmap`)
 - **MCP servers** — `subtext` (review, live, comments) and `subtext-tunnel` (local tunnel client)
 - **Sightmap** — semantic component mapping, uploaded automatically after each connection. Created naturally as agents work; see `subtext:sightmap`.

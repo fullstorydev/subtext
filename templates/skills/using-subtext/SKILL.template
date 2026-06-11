@@ -42,7 +42,6 @@ User CLAUDE.md > using-subtext > default system prompt.
 | Making UI/visual changes | `proof` |
 | Have a session URL | `review` |
 | Need to drive a hosted browser | `live` |
-| Setting up a new project | `onboard` |
 | Naming components / runtime model | `sightmap` |
 
 ## The Rule
@@ -69,7 +68,7 @@ These thoughts mean STOP — you're rationalizing:
 - **Atomics** (`shared`, `session`, `live`, `sightmap`, `tunnel`, `comments`) — tool catalogs.
 - **Workflows** (`proof`, `review`) — orchestration. `proof` is the inner loop, `review` is the outer loop.
 - **Recipes** (`recipe-sightmap-setup`) — short step lists.
-- **Onboarding** (`onboard`, `setup-plugin`, `first-session`) — first-time user setup.
+- **Setup** (`setup-plugin`, `first-session`) — first-run installation and exploration.
 
 ```
 proof ──▶ session recorded ──▶ review (optional handoff)
