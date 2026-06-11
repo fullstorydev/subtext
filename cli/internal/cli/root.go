@@ -68,6 +68,8 @@ func init() {
 	rootCmd.AddCommand(tunnelCmd)
 	rootCmd.AddCommand(artifactCmd)
 	rootCmd.AddCommand(sightmapCmd)
+	rootCmd.AddCommand(privacyCmd)
+	rootCmd.AddCommand(reviewCmd)
 }
 
 func loadConfig() {
