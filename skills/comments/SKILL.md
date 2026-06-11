@@ -28,7 +28,7 @@ All comment tools are **stateless** — they identify the parent trace by `trace
 
 ### `trace_id` vs `session_id`
 
-Comments hang off a **trace** — the durable parent identifier that survives even when no FullStory session was captured. Every tool that needs a parent accepts either:
+Comments hang off a **trace** — the durable parent identifier that survives even when no Fullstory session was captured. Every tool that needs a parent accepts either:
 
 - `trace_id` — the 12-char base62 id you get from `live-connect` (`trace_id:` line, or parse the trailing path of `trace_url`) and from `review-open` (`trace_id:` line in the response). **Prefer this.** It's stable, works for traces with no underlying FS session, and is the only key the storage layer actually uses.
 - `session_id` — the legacy `deviceId:sessionId` form. Still accepted for callers that only have an FS session URL on hand. The server promotes it to a trace_id under the hood. Responses include a one-line deprecation hint when you use this path.
