@@ -1,0 +1,12 @@
+*.local.json
+.env.local
+tmp/
+
+# Goal files are app-specific. Only example.json is committed.
+goals/*
+!goals/example.json
+
+# Fixture-specific scripts that stay local for internal testing.
+images-goal.mjs
+run-images-*.mjs
+validate-images-*.mjs

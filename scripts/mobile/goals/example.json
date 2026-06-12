@@ -1,0 +1,83 @@
+{
+  "_comment": "Example goal manifest. Copy this file to create goals for your app.",
+
+  "name": "My Screen",
+  "description": "Navigate to a screen, scroll through it, and validate replay.",
+
+  "run": {
+    "targetScreen": "My Screen",
+    "slug": "my-screen",
+    "navigation": [
+      { "action": "tap", "label": "Back", "ifVisible": true },
+      { "action": "tap", "label": "Menu" },
+      { "action": "scrollToLabel", "label": "My Screen" },
+      { "action": "tap", "label": "My Screen" }
+    ],
+    "scrollDownCount": 2,
+    "scrollUpCount": 1,
+    "maxMenuScrolls": 5,
+    "waitAfterOpenMs": 0
+  },
+
+  "artifactReportName": "my-screen-validation-report.md",
+  "replayReportName": "replay-validation-report.md",
+
+  "requiredArtifacts": [
+    "04-my-screen-source.xml",
+    "fullstory-session-url.txt"
+  ],
+
+  "deviceChecks": [
+    {
+      "artifact": "04-my-screen-source.xml",
+      "contains": "My Screen",
+      "label": "Target screen title in Appium source"
+    },
+    {
+      "artifact": "fullstory-session-url.txt",
+      "matches": "https://app.*\\.fullstory\\.com/ui/",
+      "label": "FullStory replay URL"
+    }
+  ],
+
+  "replayChecks": {
+    "screen": "My Screen",
+    "requiredEvents": [
+      {
+        "contains": "Set Page Properties: My Screen",
+        "label": "Replay event stream includes page property"
+      }
+    ],
+    "booleans": [
+      {
+        "field": "imageContentVisible",
+        "label": "Replay shows content instead of blank/frozen page",
+        "severity": "warn"
+      },
+      {
+        "field": "scrollPlaybackLooksCorrect",
+        "label": "Replay scroll playback moves through the screen",
+        "severity": "warn"
+      }
+    ],
+    "observationHeuristics": {
+      "events": [
+        {
+          "terms": ["Set Page Properties: My Screen", "page-properties"],
+          "normalized": "Set Page Properties: My Screen"
+        }
+      ],
+      "reachedScreen": ["My Screen"],
+      "imageContent": ["VISUAL_IMAGE_CONTENT_OBSERVED"],
+      "scrollPlayback": ["SCROLL_PLAYBACK_OBSERVED"]
+    }
+  },
+
+  "semanticReplayChecks": [
+    "Replay reaches the target screen.",
+    "Expected content appears, not blank or frozen.",
+    "Scroll playback moves through the screen."
+  ],
+
+  "sensitiveRegions": []
+}
