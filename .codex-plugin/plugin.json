@@ -1,0 +1,13 @@
+{
+  "name": "subtext-review",
+  "version": "0.1.0",
+  "description": "Review Fullstory session recordings and manage privacy rules",
+  "author": {
+    "name": "Subtext",
+    "email": "subtext@fullstory.com",
+    "url": "https://subtext.fullstory.com"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

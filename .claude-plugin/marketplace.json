@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "subtext-review-marketplace",
+  "owner": {
+    "name": "Fullstory",
+    "email": "support@fullstory.com"
+  },
+  "plugins": [
+    {
+      "name": "subtext-review",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Review Fullstory session recordings and manage privacy rules",
+      "category": "development",
+      "keywords": [
+        "subtext",
+        "fullstory",
+        "session-replay",
+        "review",
+        "privacy"
+      ],
+      "homepage": "https://github.com/fullstorydev/subtext-review"
+    }
+  ]
+}

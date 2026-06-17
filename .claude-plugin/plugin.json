@@ -1,0 +1,10 @@
+{
+  "name": "subtext-review",
+  "version": "0.1.0",
+  "description": "Review Fullstory session recordings and manage privacy rules",
+  "license": "MIT",
+  "author": {
+    "name": "Fullstory",
+    "url": "https://fullstory.com"
+  }
+}

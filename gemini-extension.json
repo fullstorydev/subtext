@@ -1,0 +1,15 @@
+{
+  "name": "subtext-review",
+  "version": "0.1.0",
+  "description": "Review Fullstory session recordings and manage privacy rules",
+  "mcpServers": {
+    "subtext": {
+      "type": "http",
+      "url": "https://api.fullstory.com/mcp/subtext"
+    },
+    "subtext-eu1": {
+      "type": "http",
+      "url": "https://api.eu1.fullstory.com/mcp/subtext"
+    }
+  }
+}
