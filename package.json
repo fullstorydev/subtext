@@ -1,0 +1,10 @@
+{
+  "name": "subtext-review",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "changeset": "npx --yes @changesets/cli@^2.27.0",
+    "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
+    "release": "npx --yes @changesets/cli@^2.27.0 tag"
+  }
+}
