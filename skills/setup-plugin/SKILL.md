@@ -21,7 +21,7 @@ If MCP tools are not available, the plugin needs to be installed. The command de
 
 ```
 /plugin marketplace add fullstorydev/subtext-review
-/plugin install subtext-review@subtext-review-marketplace
+/plugin install subtext-review@subtext-marketplace
 ```
 
 **Gemini CLI:**

@@ -12,7 +12,7 @@ This plugin bundles:
 **Claude Code**
 ```
 /plugin marketplace add fullstorydev/subtext-review
-/plugin install subtext-review@subtext-review-marketplace
+/plugin install subtext-review@subtext-marketplace
 ```
 
 **Cursor** — install from the Marketplace panel (or a Team Marketplace that imports this repo).

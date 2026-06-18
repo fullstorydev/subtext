@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "subtext-review-marketplace",
+  "name": "subtext-marketplace",
   "owner": {
     "name": "Fullstory",
     "email": "support@fullstory.com"
@@ -20,6 +20,25 @@
         "privacy"
       ],
       "homepage": "https://github.com/fullstorydev/subtext-review"
+    },
+    {
+      "name": "subtext-verify",
+      "source": {
+        "source": "github",
+        "repo": "fullstorydev/subtext-verify"
+      },
+      "defaultEnabled": false,
+      "description": "Drive a hosted browser, capture before/after proof, and leave reviewer-facing evidence against your running app",
+      "category": "development",
+      "keywords": [
+        "subtext",
+        "fullstory",
+        "verification",
+        "testing",
+        "proof",
+        "browser-automation"
+      ],
+      "homepage": "https://github.com/fullstorydev/subtext-verify"
     }
   ]
 }
