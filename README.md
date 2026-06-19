@@ -4,7 +4,7 @@ Read-only review of Fullstory session recordings, plus privacy-rule management, 
 
 This plugin bundles:
 
-- **Skills** — `review` (structured session summaries), `session` (the `review-*` tool catalog), `privacy` (PII detection + element-block rules), plus `shared` and `using-subtext`.
+- **Skills** — `subtext-review` (structured session summaries), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block rules), plus `subtext-shared` and `subtext-using-subtext`.
 - **MCP server** — `subtext` at `https://api.fullstory.com/mcp/subtext` (EU1 mirror: `https://api.eu1.fullstory.com/mcp/subtext`). HTTP only — no local process required.
 
 ## Install

@@ -1,11 +1,11 @@
 ---
-name: privacy
+name: subtext-privacy
 description: Privacy rule management — detect PII in sessions and manage element-block rules. Use when you need to propose, create, list, delete, or promote CSS-selector-based privacy rules for a Fullstory org.
 ---
 
 # Privacy
 
-> **PREREQUISITE:** Read `shared` for MCP conventions.
+> **PREREQUISITE:** Read `subtext-shared` for MCP conventions.
 
 Privacy tools manage element-block rules — CSS-selector-based rules that mask or exclude specific page elements from Fullstory session recordings.
 
@@ -95,5 +95,5 @@ privacy-delete rule_ids=["<id1>"]
 
 ## See Also
 
-- `shared` — MCP conventions
-- `session` — session replay tools (for obtaining a session URL to pass to `propose`)
+- `subtext-shared` — MCP conventions
+- `subtext-session` — session replay tools (for obtaining a session URL to pass to `propose`)

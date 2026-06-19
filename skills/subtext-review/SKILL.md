@@ -1,11 +1,11 @@
 ---
-name: review
+name: subtext-review
 description: Review a completed Subtext session and produce a structured summary. Use when you have a session URL and want to understand what happened — verify a flow, walk through a dev / staging / preview session, or summarize a captured session. Optionally emits reproduction steps on request.
 ---
 
 # Review
 
-> **PREREQUISITE:** Read `shared` and `session` for tool conventions.
+> **PREREQUISITE:** Read `subtext-shared` and `subtext-session` for tool conventions.
 
 **Type:** Workflow — goal-oriented with decision logic.
 
@@ -25,7 +25,7 @@ Review a completed session and produce a structured summary of what happened. Op
 
 ### Step 1: Open the session
 
-Call `review-open` with whichever identifier you have — see `session` for the five accepted forms. Capture the `trace_id` from the response.
+Call `review-open` with whichever identifier you have — see `subtext-session` for the five accepted forms. Capture the `trace_id` from the response.
 
 ### Step 2: Read the session content
 

@@ -1,5 +1,5 @@
 ---
-name: shared
+name: subtext-shared
 description: Foundation skill for the Subtext Review plugin. MCP tool conventions and security rules. Read this when any skill lists it in PREREQUISITE.
 ---
 
@@ -20,7 +20,7 @@ All tools are served from the **subtext** MCP server. A **subtext-eu1** variant 
 
 ## Discovering MCP Tool Parameters
 
-Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`session` or `privacy`) for which tools exist, then let the schema guide parameter usage.
+Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`subtext-session` or `subtext-privacy`) for which tools exist, then let the schema guide parameter usage.
 
 ## Security Rules
 
