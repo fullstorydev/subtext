@@ -1,5 +1,5 @@
 ---
-name: using-subtext
+name: subtext-using-subtext
 description: Overview of the Subtext Review plugin — when to reach for session review vs privacy tools. Read to orient before reviewing a Fullstory session or managing privacy rules.
 ---
 
@@ -11,9 +11,9 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 
 | Signal | Skill |
 |--------|-------|
-| You have a session URL / want to know what happened | `review` |
-| You need the session-replay tool catalog (`review-*`) | `session` |
-| Detect PII or manage element-block privacy rules | `privacy` |
+| You have a session URL / want to know what happened | `subtext-review` |
+| You need the session-replay tool catalog (`review-*`) | `subtext-session` |
+| Detect PII or manage element-block privacy rules | `subtext-privacy` |
 
 ## Notes
 

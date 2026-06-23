@@ -1,11 +1,11 @@
 ---
-name: session
+name: subtext-session
 description: Session replay tools for analyzing Fullstory session recordings. Sparse API catalog — tools are self-describing.
 ---
 
 # Session Replay
 
-> **PREREQUISITE:** Read `shared` for MCP conventions.
+> **PREREQUISITE:** Read `subtext-shared` for MCP conventions.
 
 API catalog for the session replay tools (all prefixed `review-`). These tools let you open sessions, inspect UI state at specific timestamps, and compare state across time.
 
@@ -44,4 +44,4 @@ All five paths return the same trace_id-keyed handle; the entry point doesn't ch
 
 ## See Also
 
-- `shared` — MCP conventions
+- `subtext-shared` — MCP conventions

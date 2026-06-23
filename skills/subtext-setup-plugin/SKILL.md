@@ -1,5 +1,5 @@
 ---
-name: setup-plugin
+name: subtext-setup-plugin
 description: Install the Subtext Review plugin and verify the MCP server is connected. Authenticates via OAuth or API key.
 ---
 
@@ -46,5 +46,5 @@ Re-run the connectivity check after authenticating.
 
 After setup, explain what was installed:
 
-- **Skills** — `review` (structured summary of a session), `session` (the `review-*` tool catalog), `privacy` (PII detection + element-block rules).
+- **Skills** — `subtext-review` (structured summary of a session), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block rules).
 - **MCP server** — `subtext` at `https://api.fullstory.com/mcp/subtext` (EU1: `https://api.eu1.fullstory.com/mcp/subtext`).
