@@ -1,9 +1,9 @@
 ---
 name: subtext-using-subtext
-description: Overview of the Subtext Review plugin — when to reach for session review vs privacy tools. Read to orient before reviewing a Fullstory session or managing privacy rules.
+description: Overview of the Subtext plugin — when to reach for session review vs privacy tools. Read to orient before reviewing a Fullstory session or managing privacy rules.
 ---
 
-# Using Subtext Review
+# Using Subtext
 
 This plugin gives you read-only access to Fullstory session recordings, plus privacy-rule management.
 

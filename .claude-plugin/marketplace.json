@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "subtext-review",
+      "name": "subtext",
       "source": "./",
       "version": "0.1.0",
       "description": "Review Fullstory session recordings and manage privacy rules",
@@ -19,7 +19,7 @@
         "review",
         "privacy"
       ],
-      "homepage": "https://github.com/fullstorydev/subtext-review"
+      "homepage": "https://github.com/fullstorydev/subtext"
     },
     {
       "name": "subtext-verify",

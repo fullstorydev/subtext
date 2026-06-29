@@ -1,11 +1,11 @@
 ---
 name: subtext-shared
-description: Foundation skill for the Subtext Review plugin. MCP tool conventions and security rules. Read this when any skill lists it in PREREQUISITE.
+description: Foundation skill for the Subtext plugin. MCP tool conventions and security rules. Read this when any skill lists it in PREREQUISITE.
 ---
 
 # Shared
 
-Foundation for all Subtext Review skills. Read this when a skill lists it in PREREQUISITE.
+Foundation for all Subtext skills. Read this when a skill lists it in PREREQUISITE.
 
 ## MCP Servers
 

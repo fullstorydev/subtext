@@ -1,11 +1,11 @@
 ---
 name: subtext-setup-plugin
-description: Install the Subtext Review plugin and verify the MCP server is connected. Authenticates via OAuth or API key.
+description: Install the Subtext plugin and verify the MCP server is connected. Authenticates via OAuth or API key.
 ---
 
 # Setup Plugin
 
-Install and verify the Subtext Review plugin/extension. Works for Claude Code, Cursor, Codex, and Gemini CLI.
+Install and verify the Subtext plugin/extension. Works for Claude Code, Cursor, Codex, and Gemini CLI.
 
 ## Pre-check
 
@@ -20,14 +20,14 @@ If MCP tools are not available, the plugin needs to be installed. The command de
 **Claude Code:**
 
 ```
-/plugin marketplace add fullstorydev/subtext-review
-/plugin install subtext-review@subtext-marketplace
+/plugin marketplace add fullstorydev/subtext
+/plugin install subtext@subtext-marketplace
 ```
 
 **Gemini CLI:**
 
 ```
-gemini extensions install https://github.com/fullstorydev/subtext-review
+gemini extensions install https://github.com/fullstorydev/subtext
 ```
 
 Note: Slash commands can't be executed by the agent — the user must run them directly.
