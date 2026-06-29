@@ -1,6 +1,6 @@
 {
-  "name": "subtext-review",
-  "version": "0.1.0",
+  "name": "subtext",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "changeset": "npx --yes @changesets/cli@^2.27.0",

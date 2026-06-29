@@ -1,4 +1,4 @@
-# Subtext Review
+# Subtext
 
 Read-only review of Fullstory session recordings, plus privacy-rule management, for coding agents.
 
@@ -11,22 +11,22 @@ This plugin bundles:
 
 **Claude Code**
 ```
-/plugin marketplace add fullstorydev/subtext-review
-/plugin install subtext-review@subtext-marketplace
+/plugin marketplace add fullstorydev/subtext
+/plugin install subtext@subtext-marketplace
 ```
 
 **Cursor** — install from the Marketplace panel (or a Team Marketplace that imports this repo).
 
-**Codex** — open `/plugins`, install **subtext-review** from the repo marketplace.
+**Codex** — open `/plugins`, install **subtext** from the repo marketplace.
 
 **Gemini CLI**
 ```
-gemini extensions install https://github.com/fullstorydev/subtext-review
+gemini extensions install https://github.com/fullstorydev/subtext
 ```
 
 **Manual / openskills**
 ```
-npx openskills install fullstorydev/subtext-review
+npx openskills install fullstorydev/subtext
 ```
 …then add the `subtext` MCP server (URL above) to your agent's MCP configuration.
 
