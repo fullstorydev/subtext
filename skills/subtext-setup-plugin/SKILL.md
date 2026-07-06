@@ -46,5 +46,5 @@ Re-run the connectivity check after authenticating.
 
 After setup, explain what was installed:
 
-- **Skills** — `subtext-review` (structured summary of a session), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block rules).
+- **Skills** — `subtext-review` (structured summary of a session), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block/URL/network privacy rules).
 - **MCP server** — `subtext` at `https://api.fullstory.com/mcp/subtext` (EU1: `https://api.eu1.fullstory.com/mcp/subtext`).
