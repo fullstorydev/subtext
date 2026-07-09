@@ -1,6 +1,6 @@
-# Subtext
+# Subtext, by Fullstory
 
-Read-only review of Fullstory session recordings, plus privacy-rule management, for coding agents.
+Read-only review of Subtext session recordings, plus privacy-rule management, for coding agents.
 
 This plugin bundles:
 
