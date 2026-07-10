@@ -16,7 +16,7 @@ All tools are served from the **subtext** MCP server. A **subtext-eu1** variant 
 | Prefix | Tools |
 |--------|-------|
 | `review-` | Session replay: `review-open`, `review-view`, `review-inspect`, `review-diff`, `review-close` |
-| `privacy-` | Privacy rules: `privacy-propose`, `privacy-create`, `privacy-list`, `privacy-delete`, `privacy-promote` |
+| `privacy-` | Privacy rules: `privacy-propose`, `privacy-create`, `privacy-list`, `privacy-delete`, `privacy-promote`, `privacy-url-list`, `privacy-url-create`, `privacy-network-list`, `privacy-network-create` |
 
 ## Discovering MCP Tool Parameters
 
@@ -25,5 +25,5 @@ Each MCP tool is self-describing. If you're unsure about parameters, the tool's 
 ## Security Rules
 
 - Never expose API tokens, session tokens, or credentials in output.
-- Confirm with the user before any write operation that modifies org configuration (e.g. `privacy-promote`, `privacy-create`).
+- Confirm with the user before any write operation that modifies org configuration (e.g. `privacy-promote`, `privacy-create`, `privacy-url-create`, `privacy-network-create`).
 - Session URLs may contain sensitive user data — don't log or repeat them unnecessarily.
