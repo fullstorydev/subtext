@@ -15,7 +15,7 @@ API catalog for the session replay tools (all prefixed `review-`). One gesture �
 |------|-------------|
 | `review-list-sessions` | Find reviewable sessions — numbered URLs + timestamps. |
 | `review-open` | Open a session for analysis. Returns a handle (`client_id`) plus the **map** — not the signal flood. |
-| `review-summary` | Static "what happened" — map + the default zoom (all kinds @ `standard`), frozen. Stateless, no handle, cheapest call. Use for a quick read before deciding whether to `open`. |
+| `review-summary` | Static "what happened" — the default zoom (all kinds @ `standard`), frozen. No map, no handle. Stateless, cheapest call. Use for a quick read before deciding whether to `open`. |
 | `review-zoom` | The live lens. Pass a `resolution` map and/or a `t0_ms`/`t1_ms` time window — returns the matching signal slice. |
 | `review-snapshot` | The screen at a moment — screenshot + component tree + boxes, rooted at an optional `component_id`. |
 | `review-close` | Close the session and free resources; records a short usage summary. |
@@ -37,7 +37,7 @@ All five paths return the same handle. Capture the `client_id` from the response
 
 ## The map
 
-`review-open` and `review-summary` responses include a map — a cheap counting fold over the signal layer, never a body dump:
+`review-open`'s response includes a map — a cheap counting fold over the signal layer, never a body dump:
 
 ```
 ## Map · 114 signals · 0.0s–353s · 2 pages
@@ -103,7 +103,7 @@ No network/console excerpts are stapled onto a snapshot — signals only come fr
 
 ## Tips
 
-- Read the map before you zoom. It's free and tells you whether there's anything worth looking at, and roughly where.
+- Read the map before you zoom. It's free and tells you whether there's anything worth looking at.
 - Start every zoom at `standard` (or omit `resolution` entirely) unless you already have a hypothesis about which kind matters.
 - `error` as a resolution key is a floor, not a special case — it only ever raises detail wherever it applies.
 - Use `review-snapshot` for "what did the screen look like," not for signals — it's a different data set.
