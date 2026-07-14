@@ -14,8 +14,9 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 | You have a session URL / want to know what happened | `subtext-review` |
 | You need the session-replay tool catalog (`review-*`) | `subtext-session` |
 | Detect PII or manage element-block, URL, or network privacy rules | `subtext-privacy` |
+| Log workflow milestones (e.g. onboarding progress) for analytics | `subtext-telemetry` |
 
 ## Notes
 
-- Everything here is read-only analysis **except** `privacy-create` / `privacy-promote` / `privacy-delete` / `privacy-url-create` / `privacy-network-create`, which modify org privacy rules — confirm with the user first.
+- Everything here is read-only analysis **except** `privacy-create` / `privacy-promote` / `privacy-delete` / `privacy-url-create` / `privacy-network-create`, which modify org privacy rules — confirm with the user first. (`telemetry-event` writes analytics events only, never org configuration — no confirmation needed.)
 - This plugin does **not** drive a live browser or capture before/after proof of code changes. That lives in the separate **Subtext Verify** plugin.
