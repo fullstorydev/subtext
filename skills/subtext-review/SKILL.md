@@ -25,11 +25,11 @@ Review a completed session and produce a structured summary of what happened. Op
 
 ### Step 1: Open the session
 
-Call `review-open` with whichever identifier you have — see `subtext-session` for the five accepted forms. Capture the `client_id` from the response, and read the **map** it returns — signal counts by kind/tag, page flow, and a density strip with error markers. Don't call `review-zoom` yet.
+Call `review-open` with whichever identifier you have — see `subtext-session` for the five accepted forms. Capture the `client_id` from the response, and read the **map** it returns — signal counts by kind/tag and page flow. Don't call `review-zoom` yet.
 
 ### Step 2: Form hypotheses from the map
 
-The map is the orientation layer. Before zooming, ask: does anything in `kinds`/`tags` stand out (an `error:` count, an unusually dense phase)? Where does the density strip's `hot:` callout point? Form one or two hypotheses about what happened — that's what you zoom to confirm.
+The map is the orientation layer. Before zooming, ask: does anything in `kinds`/`tags` stand out (an `error:` count, an unusually dense phase)? Form one or two hypotheses about what happened — that's what you zoom to confirm.
 
 ### Step 3: Zoom to confirm — as recipes, coarse to fine
 
@@ -39,7 +39,7 @@ Use `review-zoom` with a `resolution` map. Treat resolutions as recipes, not par
 - What happened overall → `resolution={ navigation: "standard", interaction: "standard" }`
 - Devtool-level detail on a suspect window → `resolution={ network: "machine", console: "machine" }`, narrowed with `t0_ms`/`t1_ms`
 
-Start coarse (`standard`, the default) and only reach for `machine`/`detail` on the specific kind or tag your hypothesis needs — each step down costs more tokens for more fidelity. Judge coverage against the map from `review-open` (its `kinds`/`tags` counts and density strip); `review-zoom` returns the signal slice.
+Start coarse (`standard`, the default) and only reach for `machine`/`detail` on the specific kind or tag your hypothesis needs — each step down costs more tokens for more fidelity. Judge coverage against the map from `review-open` (its `kinds`/`tags` counts); `review-zoom` returns the signal slice.
 
 When you need to see the screen itself — confirm a layout, grab a component tree — use `review-snapshot` at the timestamp in question. It's a separate data set from signals; don't expect it to carry network/console detail.
 

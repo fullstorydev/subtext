@@ -46,7 +46,7 @@ kinds: navigation 18 · interaction 36 · network 58 (2 err) · console 2 (2 err
 tags: error:4
 ```
 
-The map is **whole** — rendered once, over the entire session. Zooming into `{navigation: "standard"}` later doesn't touch it: `error:4` stays in the map's counts regardless of what you go on to zoom into. Read the map first; it tells you what exists and roughly where (`hot:` callouts point at the busiest/erroring range) before you pay for a zoom.
+The map is **whole** — rendered once, over the entire session. Zooming into `{navigation: "standard"}` later doesn't touch it: `error:4` stays in the map's counts regardless of what you go on to zoom into. Read the map first; it tells you what exists before you pay for a zoom.
 
 ## The resolution contract
 
