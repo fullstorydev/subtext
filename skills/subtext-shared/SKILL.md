@@ -15,7 +15,7 @@ All tools are served from the **subtext** MCP server. A **subtext-eu1** variant 
 
 | Prefix | Tools |
 |--------|-------|
-| `review-` | Session replay: `review-open`, `review-view`, `review-inspect`, `review-diff`, `review-close` |
+| `review-` | Session replay: `review-list-sessions`, `review-open`, `review-summary`, `review-zoom`, `review-snapshot`, `review-close` |
 | `privacy-` | Privacy rules: `privacy-propose`, `privacy-create`, `privacy-list`, `privacy-delete`, `privacy-promote`, `privacy-url-list`, `privacy-url-create`, `privacy-network-list`, `privacy-network-create` |
 
 ## Discovering MCP Tool Parameters
