@@ -31,22 +31,22 @@ Prefer to wire things up yourself? The wizard just automates the steps below —
 
 **1. Install the plugin**
 
-_Claude Code_
+**Claude Code**
 ```
 /plugin marketplace add fullstorydev/subtext
 /plugin install subtext@subtext-marketplace
 ```
 
-_Cursor_ — install from the Marketplace panel (or a Team Marketplace that imports this repo).
+**Cursor** — install from the Marketplace panel (or a Team Marketplace that imports this repo).
 
-_Codex_ — open `/plugins`, install **subtext** from the repo marketplace.
+**Codex** — open `/plugins`, install **subtext** from the repo marketplace.
 
-_Gemini CLI_
+**Gemini CLI**
 ```
 gemini extensions install https://github.com/fullstorydev/subtext
 ```
 
-_Manual / openskills_
+**Manual / openskills**
 ```
 npx openskills install fullstorydev/subtext
 ```
