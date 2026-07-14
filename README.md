@@ -12,7 +12,7 @@ npx @subtextdev/subtext-wizard
 
 One command handles the whole setup: it logs you in, fetches your org's capture snippet, asks which analytics tools you use, then hands the install off to your own coding agent — which wires up the capture snippet, MCP server, skills, and commands for you. Takes a few minutes.
 
-**Requires a free Subtext account — no credit card.** Subtext is hosted: your app's sessions are recorded to the cloud so your agent can read them back through the MCP server — that's what the account is for. The wizard handles it. When it opens the login page, create an account in one click with Google, then come back to finish.
+**Requires a free Subtext account — no credit card.** Subtext is a hosted service that records and stores your app's sessions. Your account is where they live, and where your agent reads them back through the MCP server. The wizard handles it. When it opens the login page, create an account in one click with Google, then come back to finish.
 
 _EU data region? Run `npx @subtextdev/subtext-wizard --region eu`._
 
