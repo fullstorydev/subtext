@@ -4,7 +4,7 @@
 
 ## Get started
 
-The fastest way in is the setup wizard. Run it in your project directory:
+The fastest way in is the [setup wizard](https://github.com/fullstorydev/subtext-wizard). Run it in your project directory:
 
 ```sh
 npx @subtextdev/subtext-wizard
