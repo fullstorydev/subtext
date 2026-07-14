@@ -1,6 +1,6 @@
 # Subtext, by Fullstory
 
-**Give your coding agent eyes on real usage.** Subtext captures Fullstory session recordings of your app and connects them to your coding agent — Claude Code, Cursor, Codex, or Gemini CLI — so it can review what real users did, reproduce reported bugs, verify its own UI changes, and manage capture privacy rules, all without leaving the terminal.
+**Session replay, built for agents.** Subtext is agentic session review: it captures Fullstory session recordings of your app and connects them to your coding agent — Claude Code, Cursor, Codex, or Gemini CLI — so it can review what real users did, reproduce reported bugs, verify its own UI changes, and manage capture privacy rules, all without leaving the terminal.
 
 ## Get started
 
