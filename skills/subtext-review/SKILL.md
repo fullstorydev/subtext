@@ -25,7 +25,7 @@ Review a completed session and produce a structured summary of what happened. Op
 
 ### Step 1: Open the session
 
-Call `review-open` with whichever identifier you have — see `subtext-session` for the five accepted forms. Capture the `client_id` from the response, and read the **map** it returns — signal counts by kind/tag and page flow. Don't call `review-zoom` yet.
+Call `review-open` with whichever identifier you have — see `subtext-session` for the six accepted forms. Capture the `client_id` from the response, and read the **map** it returns — signal counts by kind/tag and page flow. Don't call `review-zoom` yet.
 
 ### Step 2: Form hypotheses from the map
 

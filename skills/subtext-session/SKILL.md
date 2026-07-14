@@ -14,7 +14,7 @@ API catalog for the session replay tools (all prefixed `review-`). One gesture �
 | Tool | Description |
 |------|-------------|
 | `review-list-sessions` | Find reviewable sessions — numbered URLs + timestamps. |
-| `review-open` | Open a session for analysis. Returns a handle (`client_id`) plus the **map** — not the signal flood. |
+| `review-open` | Open a session for analysis. Returns a handle (`client_id`) plus the **map** and a digest rollup. |
 | `review-summary` | Static "what happened" — the default zoom (all kinds @ `standard`), frozen. No map, no handle. Stateless, cheapest call. Use for a quick read before deciding whether to `open`. |
 | `review-zoom` | The live lens. Pass a `resolution` map and/or a `t0_ms`/`t1_ms` time window — returns the matching signal slice. |
 | `review-snapshot` | The screen at a moment — screenshot + component tree + boxes, rooted at an optional `component_id`. |
@@ -26,14 +26,15 @@ Parameter schemas are visible in the tool definition at call time.
 
 ## Session Input
 
-`review-open` accepts five mutually-exclusive identifiers. Pick the one that matches what you have on hand — they're all first-class:
+`review-open` accepts six mutually-exclusive identifiers. Pick the one that matches what you have on hand — they're all first-class:
 
+- `session_url` — a full Fullstory session URL. The most common form — a customer-shared link, a Slack paste, or a session from the app UI.
 - `trace_id` — the 12-char base62 id from a prior `review-open` response.
-- `session_url` — a full Fullstory session URL (a customer-shared link, a Slack paste, or a session from the app UI).
+- `trace_url` — a full trace URL copied from the browser or returned by a live tool.
 - `device_id` + `session_id` — both required together. Use when you have the raw ids but no URL.
 - `email_address` / `user_uid` — looks up the user's most recent session.
 
-All five paths return the same handle. Capture the `client_id` from the response so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't need to re-resolve the session.
+All six paths return the same handle. Capture the `client_id` from the response so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't need to re-resolve the session.
 
 ## The map
 
