@@ -36,7 +36,7 @@
     ],
     "websiteURL": "https://subtext.fullstory.com",
     "privacyPolicyURL": "https://www.fullstory.com/legal/privacy-policy/",
-    "termsOfServiceURL": "https://www.fullstory.com/legal/terms-and-conditions/",
+    "termsOfServiceURL": "https://subtext.fullstory.com/tos",
     "brandColor": "#F5447B",
     "composerIcon": "./assets/openai-composer-dark.png",
     "logo": "./assets/openai-directory-light.png",
