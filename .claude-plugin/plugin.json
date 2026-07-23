@@ -1,10 +1,20 @@
 {
   "name": "subtext",
-  "version": "0.7.0",
-  "description": "Review Fullstory session recordings and manage privacy rules",
+  "version": "0.8.0",
+  "description": "Review Subtext session recordings and manage privacy rules",
   "license": "MIT",
   "author": {
-    "name": "Fullstory",
-    "url": "https://fullstory.com"
-  }
+    "name": "Subtext",
+    "email": "subtext@fullstory.com",
+    "url": "https://subtext.fullstory.com"
+  },
+  "homepage": "https://subtext.fullstory.com",
+  "repository": "https://github.com/fullstorydev/subtext",
+  "keywords": [
+    "subtext",
+    "fullstory",
+    "session-replay",
+    "review",
+    "privacy"
+  ]
 }
