@@ -1,5 +1,11 @@
 # subtext
 
+## 0.8.0
+
+### Minor Changes
+
+- Enrich the marketplace manifests with Subtext branding. The Codex manifest gains an `interface` block — display name, short/long descriptions, brand color (#F5447B), example prompts, capabilities, legal links, and bundled composer/logo icons. Homepage, repository, and keywords are added across the Claude, Codex, and Cursor manifests, and author identity is standardized to Subtext (subtext@fullstory.com, https://subtext.fullstory.com).
+
 ## 0.7.0
 
 ### Minor Changes

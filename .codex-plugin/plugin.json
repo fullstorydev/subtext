@@ -1,13 +1,46 @@
 {
   "name": "subtext",
-  "version": "0.7.0",
-  "description": "Review Fullstory session recordings and manage privacy rules",
+  "version": "0.8.0",
+  "description": "Review Subtext session recordings and manage privacy rules",
   "author": {
     "name": "Subtext",
     "email": "subtext@fullstory.com",
     "url": "https://subtext.fullstory.com"
   },
+  "homepage": "https://subtext.fullstory.com",
+  "repository": "https://github.com/fullstorydev/subtext",
   "license": "MIT",
+  "keywords": [
+    "subtext",
+    "fullstory",
+    "session-replay",
+    "review",
+    "privacy"
+  ],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Subtext",
+    "shortDescription": "Session replay, built for agents",
+    "longDescription": "Review Subtext session recordings and manage privacy rules from your coding agent. Pull a session URL to walk through what a user did, verify a flow, or summarize a capture; detect PII and propose, create, and promote element-block, URL, and network privacy rules.",
+    "developerName": "Subtext",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Review this Subtext session and tell me what the user did: <url>",
+      "Find PII in our recent sessions and propose privacy rules to block it."
+    ],
+    "websiteURL": "https://subtext.fullstory.com",
+    "privacyPolicyURL": "https://www.fullstory.com/legal/privacy-policy/",
+    "termsOfServiceURL": "https://subtext.fullstory.com/tos",
+    "brandColor": "#F5447B",
+    "composerIcon": "./assets/openai-composer-dark.png",
+    "logo": "./assets/openai-directory-light.png",
+    "logoDark": "./assets/openai-directory-dark.png",
+    "screenshots": []
+  }
 }

@@ -1,16 +1,15 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "subtext-marketplace",
   "owner": {
-    "name": "Fullstory",
-    "email": "support@fullstory.com"
+    "name": "Subtext",
+    "email": "subtext@fullstory.com"
   },
   "plugins": [
     {
       "name": "subtext",
       "source": "./",
-      "version": "0.7.0",
-      "description": "Review Fullstory session recordings and manage privacy rules",
+      "version": "0.8.0",
+      "description": "Review Subtext session recordings and manage privacy rules",
       "category": "development",
       "keywords": [
         "subtext",
@@ -19,7 +18,11 @@
         "review",
         "privacy"
       ],
-      "homepage": "https://github.com/fullstorydev/subtext"
+      "homepage": "https://subtext.fullstory.com",
+      "author": {
+        "name": "Subtext",
+        "email": "subtext@fullstory.com"
+      }
     },
     {
       "name": "subtext-verify",
@@ -38,7 +41,11 @@
         "proof",
         "browser-automation"
       ],
-      "homepage": "https://github.com/fullstorydev/subtext-verify"
+      "homepage": "https://subtext.fullstory.com",
+      "author": {
+        "name": "Subtext",
+        "email": "subtext@fullstory.com"
+      }
     }
   ]
 }

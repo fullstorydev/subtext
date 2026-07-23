@@ -1,7 +1,7 @@
 {
   "name": "subtext",
-  "version": "0.7.0",
-  "description": "Review Fullstory session recordings and manage privacy rules",
+  "version": "0.8.0",
+  "description": "Review Subtext session recordings and manage privacy rules",
   "mcpServers": {
     "subtext": {
       "type": "http",

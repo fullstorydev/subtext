@@ -1,6 +1,6 @@
 {
   "name": "subtext",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "scripts": {
     "changeset": "npx --yes @changesets/cli@^2.27.0",
