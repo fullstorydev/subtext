@@ -1,0 +1,10 @@
+{
+  "source": "@sightmap/sightmap",
+  "version": "unreleased",
+  "skills": [
+    "sightmap-authoring",
+    "sightmap-browser"
+  ],
+  "syncedAt": null,
+  "note": "PROVISIONAL: seeded from the sightmap repo checkout before the skills-bearing release was published. Once @sightmap/sightmap >= 0.14.0 is on npm, add it as a pinned devDependency and run `npm run vendor-skills` to refresh this marker and the vendored skills from the published package. Do not hand-edit the vendored skills."
+}

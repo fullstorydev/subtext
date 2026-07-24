@@ -15,6 +15,16 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 | You need the session-replay tool catalog (`review-*`) | `subtext-session` |
 | Detect PII or manage element-block, URL, or network privacy rules | `subtext-privacy` |
 | Log workflow milestones (e.g. onboarding progress) for analytics | `subtext-telemetry` |
+| The project has a `.sightmap/` corpus, or you want annotated component snapshots | `subtext-sightmap` |
+| Author/maintain a `.sightmap/` corpus, or drive a live browser against it | `sightmap-authoring`, `sightmap-browser` |
+
+## Sightmap
+
+This plugin also bundles the **sightmap** skills — `sightmap-authoring` and
+`sightmap-browser` (maintained in the [sightmap](https://github.com/sightmap/sightmap)
+project, vendored here) — for building and driving a `.sightmap/` corpus.
+`subtext-sightmap` is the bridge: it explains how a corpus feeds the `review-*`
+tools for annotated snapshots.
 
 ## Notes
 
