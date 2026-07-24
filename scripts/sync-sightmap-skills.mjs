@@ -53,11 +53,23 @@ if (!existsSync(srcSkills)) {
   process.exit(1);
 }
 
+// Sweep the entire vendored namespace (every skills/<PREFIX>* directory) before
+// copying fresh. Overwriting only the dirs that still exist upstream would leave
+// a skill that was renamed or dropped upstream behind — the plugin loads every
+// directory under skills/, so a stale copy would keep shipping outdated content.
+// This only touches PREFIX-prefixed dirs, so first-party skills are untouched.
+if (existsSync(SKILLS_DIR)) {
+  for (const entry of readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+    if (entry.isDirectory() && entry.name.startsWith(PREFIX)) {
+      rmSync(join(SKILLS_DIR, entry.name), { recursive: true, force: true });
+    }
+  }
+}
+
 const vendored = [];
 for (const entry of readdirSync(srcSkills, { withFileTypes: true })) {
   if (!entry.isDirectory() || !entry.name.startsWith(PREFIX)) continue;
   const dest = join(SKILLS_DIR, entry.name);
-  rmSync(dest, { recursive: true, force: true });
   cpSync(join(srcSkills, entry.name), dest, { recursive: true });
   vendored.push(entry.name);
   console.log(`vendor: ${entry.name} ← ${SOURCE_PKG}@${version}`);
