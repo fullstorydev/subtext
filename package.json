@@ -5,6 +5,10 @@
   "scripts": {
     "changeset": "npx --yes @changesets/cli@^2.27.0",
     "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
+    "vendor-skills": "node scripts/sync-sightmap-skills.mjs",
     "release": "npx --yes @changesets/cli@^2.27.0 tag"
+  },
+  "devDependencies": {
+    "@sightmap/sightmap": "0.14.0"
   }
 }

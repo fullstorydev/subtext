@@ -64,3 +64,23 @@ Install the Fullstory capture snippet for your org so sessions are recorded. The
 
 - All tools are read-only analysis **except** `privacy-create` / `privacy-promote` / `privacy-delete` / `privacy-url-create` / `privacy-network-create`, which modify org privacy rules.
 - This plugin bundles the **skills** `subtext-review` (structured session summaries), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block/URL/network privacy rules), and `subtext-telemetry` (workflow milestone logging), plus `subtext-shared` and `subtext-using-subtext`.
+- It also bundles the **sightmap** skills `sightmap-authoring` and `sightmap-browser` for building and driving a [`.sightmap/`](https://github.com/sightmap/sightmap) corpus, with `subtext-sightmap` bridging a corpus into session review. These are vendored from the [sightmap](https://github.com/sightmap/sightmap) project (see below) — no extra install, and no binary required at plugin install time.
+
+## Maintaining the vendored sightmap skills
+
+The `sightmap-authoring` and `sightmap-browser` skills under `skills/` are
+**vendored** from the [sightmap](https://github.com/sightmap/sightmap) project
+— do not hand-edit them. They ship inside the `@sightmap/sightmap` npm package;
+Subtext pins that package as a devDependency and copies the skills in via
+`scripts/sync-sightmap-skills.mjs`.
+
+To update them:
+
+```sh
+npm install --save-dev @sightmap/sightmap@<version>   # bump the pin
+npm run vendor-skills                                 # refresh skills/ + .sightmap-vendored.json
+```
+
+Then commit the result. `.sightmap-vendored.json` records the source package and
+exact version vendored. Fixes to the skills' content belong upstream in the
+sightmap repo, not here.
