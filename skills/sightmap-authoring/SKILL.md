@@ -50,13 +50,14 @@ Use `npm` in instructions — it's the universal baseline. `pnpm`/`yarn` work to
 
 | Command | What it does |
 |---------|-------------|
-| `sightmap snapshot --url URL --out FILE.snap --tree-out FILE.snap.tree.json` | Navigate + snap + inline selector hints. Primary tool for every iteration. |
+| `sightmap snapshot --coverage --url URL` | Observe: navigate + coverage + cluster hints, no tree. **Primary edit-loop tool.** |
+| `sightmap snapshot --url URL` | Observe: full annotated tree + coverage to stdout (add `--out FILE` / `--tree-out FILE` to save). |
+| `sightmap capture --url URL` | Persist a novelty-gated capture into the matched view's set. |
 | `sightmap sel-probe 'selector'` | Verify a selector: match count + parent chain. Run before writing any YAML. |
-| `sightmap validate` | Spec-validate `.sightmap/` YAML. No prepare step needed. |
+| `sightmap validate` | Spec-validate `.sightmap/` YAML (errors fail; **warnings** — corpus conflicts + unknown/typo'd fields like `memroy:` — print but pass). No prepare step needed. |
 | `sightmap lint --warn-only` | Style checks (`--warn-only`; exits 0 always). |
 | `sightmap coverage --trace FILE.snap` | Offline T1/T2/T3 re-check on saved snap (requires `.snap.tree.json` companion). |
 | `sightmap multi-coverage` | Cross-page coverage matrix; surfaces global candidates. |
-| `sightmap iterate URL` | Navigate + snap + coverage + clusters in one step (no tree output). Best for the edit loop. |
 
 ### Discovery
 
@@ -91,17 +92,19 @@ component still needs a disambiguating property.
 ## Hard rules
 
 **NEVER write YAML without first verifying selectors.**
-Run `sightmap sel-probe 'selector'` on every new selector before committing
-it to YAML. Wrong match count = corrupt coverage.
+Run `sightmap sel-probe 'selector'` on every new selector before committing it to
+YAML. sel-probe queries the live DOM **and** cross-checks the offline matcher
+that `snapshot`/`coverage`/`capture` actually use — it prints both counts and a
+`⚠ offline/live divergence` warning when they disagree. Trust the **offline**
+count: that is what the corpus will see. Wrong match count = corrupt coverage.
 
-**Selector type matters for the Go matcher.**
-The Go tree matcher stores classes in `SelectorPart.Classes`, NOT in
-`Attrs["class"]`. This means:
-- ✓ `.QSIFeedBackLink` — class selector, works
-- ✗ `[class*="QSIFeedBackLink"]` — attribute selector on `class`, always matches 0
-
-Use `.classname` syntax for class-based selectors. `lint` (go-0048) will warn
-about `[class*=...]` patterns once implemented.
+**Attribute selectors on `class` and `id` match offline**, the same as live
+(`[class*=…]`, `[class^=…]`, `[class~=…]`, `[id^=…]`, `[id$=…]`, …). `class` and
+`id` are captured for every element (SVG included) and resolve to the same fields
+`.classname` / `#id` use. Prefer `.classname` / `#id` when a full class or id is
+stable — they're the shortest forms — but reach for the attribute forms when only
+a fragment is stable, e.g. `[id^="issue_"]` for dynamic `issue_<uuid>` ids.
+Verify any new selector with `sel-probe` regardless.
 
 **Pseudo-classes: `:not()`, `:is()`, `:where()`, `:has()` are supported**
 (both offline — `validate`/`snapshot`/`coverage`/`sel-check` — and live).
@@ -127,11 +130,13 @@ Always `sel-probe`/`sel-check` first — `:has()` now agrees across the live and
 offline matchers.
 
 **ALWAYS navigate before snapping.**
-`snapshot` uses the current browser URL to match views. Use `--url` flag or
-navigate first:
+`snapshot`/`capture` use the current browser URL to match views. Use the `--url`
+flag or navigate first:
 ```bash
-sightmap iterate 'https://www.example.com/page'
-# or for a saved snap file:
+sightmap snapshot --coverage --url 'https://www.example.com/page'
+# persist a capture into the view's set:
+sightmap capture --url 'https://www.example.com/page'
+# or write a one-off snap file (no view set):
 sightmap snapshot --url 'https://www.example.com/page' --out page.snap --tree-out page.snap.tree.json
 ```
 
@@ -139,13 +144,19 @@ sightmap snapshot --url 'https://www.example.com/page' --out page.snap --tree-ou
 Sites using client-side rendering (React/Next.js canvas, lazy hydration) may
 not have their content ready at `loadEventFired`. Homedepot.com's `snapshot`
 already includes `--wait 1`. For other slow pages add `--wait N` seconds.
+A page with **0 interactive nodes** renders `∅` (not `✓`) and `snapshot` exits
+non-zero — that is the blank/still-loading signal; raise `--wait` or use
+`browser wait-for --selector` and re-snap. `capture` refuses to persist such a
+page as a view's baseline (override with `--force`), and `coverage` counts it as
+a failure.
 
 **A snap is only valid for the page loaded when it was taken.**
 Re-snap after every YAML change. Do not reuse stale snaps.
 
 **0 orphaned is the only acceptable exit condition.**
 T3 > 0 means some interactive nodes have zero semantic context. Do not declare
-a page done until `[Coverage] (visible only) ... 0 orphaned ✓`.
+a page done until `[Coverage] (visible only) ... 0 orphaned ✓`. A `∅` mark (0
+interactive nodes) is never done — the page is blank or still loading.
 
 ---
 
@@ -167,13 +178,13 @@ sightmap browser eval 'var el = document.querySelector("INPUT_SELECTOR"); Object
 Only JSON-serializable values are returned. `document.querySelector(...)` returns an error reference. Instead, extract the data you need: `document.querySelector("sel")?.textContent` or `document.querySelector("sel")?.getAttribute("data-x")`.
 
 **Stale session files.**
-`browser status` now probes the CDP endpoint (not just the `.session` file): it reports `✗ unreachable` and removes the stale session file when Chrome is gone or its DevTools never bound (go-stck), so trust its verdict. If a command still fails with a CDP error, run `browser start` again.
+`browser status` now probes the CDP endpoint (not just the `.session` file): it reports `✗ unreachable` and removes the stale session file when Chrome is gone or its DevTools never bound, so trust its verdict. If a command still fails with a CDP error, run `browser start` again.
 
 **Always pass `--tab` when several tabs are open.**
-Page commands (`eval`/`snapshot`/`click`/`navigate`/`sel-probe`/…) auto-pick the lone *content* tab, but ERROR (listing tabs) when zero or several are open — so concurrent agents never silently drive the wrong tab or the extension side panel (go-tabg). `browser start` prints your tab ID; thread it as `--tab <ID>` (flags work before or after positionals now). `browser status` lists every content tab's ID + URL.
+Page commands (`eval`/`snapshot`/`click`/`navigate`/`sel-probe`/…) auto-pick the lone *content* tab, but ERROR (listing tabs) when zero or several are open — so concurrent agents never silently drive the wrong tab or the extension side panel. `browser start` prints your tab ID; thread it as `--tab <ID>` (flags work before or after positionals now). `browser status` lists every content tab's ID + URL.
 
 **`browser navigate` prints the final URL.**
-After a server-side redirect, `navigate` now prints `(redirected to FINAL)` so you know where you actually landed (go-3404).
+After a server-side redirect, `navigate` now prints `(redirected to FINAL)` so you know where you actually landed.
 
 ---
 
@@ -296,7 +307,7 @@ The overlay extension is embedded in the binary and auto-extracted to
 
 If the site has a `package.json` with `g:*` scripts, those are convenience wrappers around the same commands and work equally well.
 
-To connect to an existing Chrome session (go-0053 pending):
+To connect to an existing Chrome session:
 ```bash
 sightmap browser register --addr localhost:PORT
 ```
@@ -321,7 +332,7 @@ Create `.sightmap/views/PAGE.yaml` with `route: "/pattern/**"`. Run
 ### Step 1b — Snap and read coverage
 
 ```bash
-sightmap snapshot --url URL --out PAGE.snap --tree-out PAGE.snap.tree.json
+sightmap snapshot --coverage --url URL
 ```
 
 The `[Coverage] (visible only)` line:
@@ -388,7 +399,7 @@ For every T2 cluster, categorise — don't just accept it:
 Scan YAML for children in different parents with identical selectors. Consolidate
 or promote to global.
 
-**5. Zero-match component check** *(manual until go-0047 lands)*
+**5. Zero-match component check** *(manual)*
 Cross-check the Guide against the view's component list. Any component defined
 in the YAML but absent from the Guide is either on the wrong page, broken
 selector, or genuinely absent. Investigate before accepting.
@@ -442,40 +453,41 @@ sightmap lint --warn-only   # deep-nesting warnings are expected; watch for new 
 that render content after `loadEventFired`. Homedepot's `snapshot` includes
 `--wait 1` by default.
 
-**Class-attribute selectors** (`[class*="..."]`): don't work — use `.classname`.
-
-**Page non-determinism — a view needs MULTIPLE snapshots** (`go-snap`). Real
+**Page non-determinism — a view needs MULTIPLE snapshots**. Real
 pages render differently load-to-load (lazy carousels, personalization, ad-driven
 modules, rotating promos). A single capture can omit whole sections, making
 correct components report `0 matches`. Don't treat a one-shot `0-match` as a dead
 selector — re-snap, and confirm absence with `sel-probe`. A view is a *set* of
 timestamped captures (`snapshots/<view>/<stamp>.snap`, `<stamp>` = UTC
-`YYYYMMDDTHHMMSSZ`; go-snap.10 removed the old per-view `<state>` segment).
+`YYYYMMDDTHHMMSSZ`).
 
-`coverage` is **union-aware** (`go-snap.2`): it groups captures by view and flags
+`coverage` is **union-aware**: it groups captures by view and flags
 a component dead only when it matches 0 across the *whole* set
 (`[Warnings] … 0 of N snaps`). Components present in only some captures are no
 longer flagged — they appear under `[Presence]` with a `matched in K of N snaps
 (last <stamp>)` recency line. T1/T2/T3 stats stay per-capture (they describe one
 DOM).
 
-Writing **defaults to the per-view set form** (`go-snap.6/.10`): `snapshot` (and
-the overlay's Snap-view button) *append* a timestamped capture to
-`snapshots/<view>/<stamp>.snap` rather than overwriting. There is **no per-view
-“state” axis** — just re-snap the view in whatever configurations you want
-(different loads, a drawer open, a tab switched); an explicit `--out FILE` still
-writes exactly there.
+**A `0 matches` warning can be a *conflict*, not a dead selector.** If a component reads `0 matches` but its selector is right, check the `[Conflicts]` section: when two components match the same node, first-match-wins keeps only the first and the other reports zero. Rename or narrow one so each node has a single owner (multi-match decomposition is not a v0 feature). `[Conflicts]` also flags two views matching a URL at equal specificity — give one a more specific route.
 
-A re-snap that adds **no new component type or orphan slot** vs the view set is
-skipped by the **novelty gate** (`go-snap.7`) — `snapshot` prints "nothing new …
-not saved" and the overlay's Snap-view button shows "= nothing new (not saved)".
-The first capture of a view always writes; `--force` (CLI) overrides. So just
-re-snap a dynamic view a few times — only loads that render something
-structurally new are kept; pure value churn (different products/prices) is
-ignored. `coverage` unions the whole view set (`go-snap.2`).
+Observing vs. persisting are **separate commands**. `snapshot` only ever renders
+to stdout (or `--out FILE`) — it never touches the corpus and never gates.
+`capture` (and the overlay's Snap-view button) *append* a timestamped capture to
+`snapshots/<view>/<stamp>.snap` rather than overwriting. There is **no per-view
+“state” axis** — just re-`capture` the view in whatever configurations you want
+(different loads, a drawer open, a tab switched).
+
+A capture that adds **no new component type or orphan slot** vs the view set is
+skipped by the **novelty gate** — `capture` prints "nothing new … not saved" and
+the overlay's Snap-view button shows "= nothing new (not saved)". The first
+capture of a view always writes; `capture --force` overrides. So just re-`capture`
+a dynamic view a few times — only loads that render something structurally new
+are kept; pure value churn (different products/prices) is ignored. `coverage`
+unions the whole view set.
 
 **`coverage` / `multi-coverage`** require `.snap.tree.json` companion files.
-These are written automatically when `--tree-out` is passed to `snapshot`.
+`capture` writes them automatically; `snapshot` writes one when `--tree-out` is
+passed.
 
 **Text duplication artifact**: components whose accessible name is `"X X"` (image
 alt + heading both say "X") will show the duplication even when `category="X"` is

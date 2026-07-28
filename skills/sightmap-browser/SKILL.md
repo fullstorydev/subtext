@@ -14,6 +14,14 @@ component tree and **act on elements by their semantic component identity**
 instead of brittle CSS. To build or maintain the corpus itself, see the
 `sightmap-authoring` skill.
 
+**What to reach for:**
+
+- **`snapshot`** — read page state as an annotated component tree (start here).
+- **interaction** (`click`/`fill`/`scroll`/…) — drive the page by component identity.
+- **`browser screenshot`** — visual evidence; clip to one component with `--component`.
+- **`console` / `network`** — debug what the page logged and requested.
+- **`inspect`** — raw DOM for authoring selectors (see `sightmap-authoring`).
+
 ## Installation
 
 Every command below needs the `sightmap` binary on your PATH. **Check first,
@@ -39,13 +47,13 @@ invocation). Use `npm` in instructions — the published package is identical un
 | `sightmap browser navigate 'URL'` | Navigate to URL (positional arg — no `--url` flag). |
 | `sightmap browser stop` | Stop Chrome session. |
 | `sightmap browser eval 'js'` | Evaluate JS in page context. Returns JSON-serializable values only — DOM element references return an error. |
-| `sightmap browser screenshot --out FILE.png` | Screenshot of the current page. |
+| `sightmap browser screenshot --out FILE.png` | Screenshot the page. Clip to a component with `--component NAME` (or `--selector CSS`), optionally `--expand-pct N` for context. |
 
 ## Reading the page: annotated snapshots
 
-`sightmap snapshot --url URL` (or `sightmap iterate URL`) prints the page's
-component tree with your corpus layered on. Each line starts with a numeric
-component ID, then the node content:
+`sightmap snapshot --url URL` prints the page's component tree with your corpus
+layered on (add `--coverage` for a terse coverage-only view that suppresses the
+tree). Each line starts with a numeric component ID, then the node content:
 
 ```
 42 [SiteHeader]
@@ -60,6 +68,10 @@ component ID, then the node content:
 Properties are sorted alphabetically. The accessible name is shown last inside
 brackets when not suppressed (an exact match with a property value).
 
+If the page has **0 interactive nodes**, coverage renders `∅` (not `✓`) and
+`snapshot` exits non-zero — the page is blank or still loading. Wait for it with
+`browser wait-for --selector ...` (or `--wait N`) and re-snap before acting.
+
 ## Interaction (by ID or component query)
 
 `click`, `fill`, `hover`, and `scroll --component-id` accept **either** a numeric
@@ -69,13 +81,15 @@ probe ID from snapshot output **or** a component query (see below):
 |---------|-------------|
 | `sightmap browser click <id>` | Click element by probe ID |
 | `sightmap browser click 'ComponentQuery'` | Click element by sightmap identity (preferred on dynamic pages) |
-| `sightmap browser fill <id-or-query> "text"` | Type into an input. May append on React-controlled inputs — see gotchas. |
+| `sightmap browser fill [--clear] <id-or-query> "text"` | Type into an input. Errors if the value doesn't stick — retry with `--clear` (see gotchas). |
 | `sightmap browser hover <id-or-query>` | Hover over element |
 | `sightmap browser keypress Enter` | Press a key (optionally focused on `<id>`) |
 | `sightmap browser scroll --delta-y 500` | Scroll the page |
 | `sightmap browser scroll --component-id <id-or-query>` | Scroll a component into view |
 | `sightmap browser click --x N --y N` | Click raw coordinates (escape hatch; layout-fragile) |
-| `sightmap browser wait-for --selector "[data-loaded]"` | Wait for element |
+| `sightmap browser wait-for --view <Name>` | Wait until the URL resolves to a sightmap view (the step boundary after a navigating action) |
+| `sightmap browser wait-for --component '<Query>'` | Wait until a component query matches a node |
+| `sightmap browser wait-for --selector "[data-loaded]"` | Wait until a CSS selector matches (also `--url SUBSTRING` (plain substring, not glob), `--load`) |
 | `sightmap browser tabs list` | List open tabs |
 
 ### Component queries (CSS-shaped, over sightmap components + extracted properties)
@@ -105,6 +119,25 @@ so nothing goes stale. Prefer queries on dynamic pages.
   addressable (see the `sightmap-authoring` skill).
 - `--sightmap-dir` (default `.sightmap`) controls which corpus resolves a query.
 
+## Debugging: console & network
+
+The `browser start` daemon owns the session and runs a **collector** that buffers
+console messages and network requests from every tab for the life of the session
+(bounded ring buffers, ~1000 of each). Read them with thin query commands — no
+re-attaching to Chrome, and history the transient page commands never saw:
+
+| Command | What it does |
+|---------|-------------|
+| `sightmap console list [--level error] [--tab ID] [--limit N]` | Captured console messages (uncaught exceptions fold in as `level=exception`). |
+| `sightmap console get <index>` | One console message by index. |
+| `sightmap network list [--type XHR] [--url /api] [--tab ID] [--limit N]` | Captured requests: `method url → status (type)`. |
+| `sightmap network get <index> [--response-file F]` | One request + its response body (fetched on demand; save with `--response-file`). |
+
+- These need a running `browser start` session — that's where the collector
+  lives. Entries from before the session started aren't available.
+- Reproduce the issue (navigate/click), then read `console list --level error`
+  and `network list` to see what failed; `network get <index>` pulls the body.
+
 ## Gotchas
 
 **`browser navigate` takes a positional URL, not a `--url` flag.**
@@ -113,11 +146,22 @@ sightmap browser navigate 'https://...'     # ✓ correct
 sightmap browser navigate --url 'https://'  # ✗ wrong — passes literal "--url" as the URL
 ```
 
-**`browser fill` may append on React-controlled inputs.**
-If filling the same field multiple times accumulates text, use `browser eval` with the native value setter:
+**`browser fill` detects when a value doesn't stick.**
+On some React-controlled inputs plain `fill` (select-all + type) leaves the field empty. `fill` now reads the value back and **errors** in that case, telling you to retry with `--clear` (which clears via the native value setter first). If filling the same field repeatedly *accumulates* text, also use `--clear`.
 ```bash
-sightmap browser eval 'var el = document.querySelector("INPUT_SELECTOR"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, "new value"); el.dispatchEvent(new Event("input", {bubbles: true}))'
+sightmap browser fill --clear 'SearchInput' 'burrito'
 ```
+
+**`browser click` scrolls the target into view and refuses off-screen / covered clicks.**
+`click` scrolls the element to the center of the viewport, then verifies its center is actually the top-most element there before dispatching. It **errors** (rather than silently no-op'ing) when the target can't be positioned in the viewport, or is `covered by another element` — the signal of an open overlay/modal or a target you need to reveal first. The confirmation line reports the real post-scroll coordinates it clicked.
+
+**After an action that should navigate, wait for the destination — don't snapshot immediately.**
+SPA (client-side) navigation lands *after* `click` returns, so a snapshot taken right away shows the old page. `click` deliberately does not guess or wait; make the wait an explicit step, the way Playwright/Selenium do:
+```
+sightmap browser click 'WorkItemRow[key="FALCON-7"]'
+sightmap browser wait-for --view WorkItemDetail      # or --component 'WorkItemDetail', or --url '/browse/'
+```
+`wait-for` auto-retries until the postcondition holds or it times out (loudly). Record per-app async quirks (which actions navigate, slow routes) in the relevant view/component `memory` so the next agent knows to wait.
 
 **`browser eval` cannot return DOM elements.**
 Only JSON-serializable values are returned. `document.querySelector(...)` returns an error reference. Extract what you need instead: `document.querySelector("sel")?.textContent`.
@@ -129,4 +173,4 @@ Only JSON-serializable values are returned. `document.querySelector(...)` return
 Page commands auto-pick the lone content tab but error (listing tabs) when zero or several are open. `browser start` prints your tab ID; thread it through as `--tab <ID>`.
 
 **`browser navigate` prints the final URL.**
-After a server-side redirect, `navigate` prints `(redirected to FINAL)` so you know where you actually landed.
+After a redirect — server-side *or* client-side (an SPA auth guard bouncing `/login → /`, or `/ → /workspace`) — `navigate` prints `(redirected to FINAL)` so you know where you actually landed, not just the URL you asked for.
