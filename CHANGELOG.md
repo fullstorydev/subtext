@@ -1,5 +1,15 @@
 # subtext
 
+## 0.9.0
+
+### Minor Changes
+
+- 1017842: Bundle the sightmap skills. `sightmap-authoring` and `sightmap-browser` are now vendored from the `@sightmap/sightmap` package into `skills/`, and a new `subtext-sightmap` skill bridges a project's `.sightmap/` corpus into session review (passing definitions to `review-open` for annotated snapshots). No extra install and no binary required at plugin install time.
+
+### Patch Changes
+
+- be7d32c: Update the vendored sightmap skills from `@sightmap/sightmap` 0.14.0 to 0.15.9. `sightmap-authoring` and `sightmap-browser` pick up a large batch of upstream improvements — offline/live selector parity for `id`/`class`/SVG, visibility-aware coverage, `wait-for --view`/`--component` step boundaries, client-side redirect reporting, and stricter loud validation — along with the corrected authoring guidance. Also adds `AGENTS.md` documenting the vendoring and release process (the pin is now `--save-exact` for reproducible provenance).
+
 ## 0.8.0
 
 ### Minor Changes
