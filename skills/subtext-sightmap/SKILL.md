@@ -1,6 +1,6 @@
 ---
 name: subtext-sightmap
-description: Connect a project's .sightmap/ corpus to Subtext session review — maintain it with the bundled sightmap skills and pass its definitions into review tools so snapshots come back with semantic component names.
+description: Connect a project's .sightmap/ corpus to Subtext session review — maintain it with the bundled sightmap skills and upload its definitions into review tools so snapshots come back with semantic component names.
 ---
 
 # Subtext × Sightmap
@@ -28,17 +28,51 @@ Both drive the `sightmap` CLI. If it isn't on PATH, install it
 
 ## Feeding the corpus into review
 
-When you have a `.sightmap/` directory, pass its definitions to the session
-tools so their output is enriched:
+When a project has a `.sightmap/` directory, upload it to the session so the
+output is enriched. There are two ways; **prefer the side-band upload** for any
+real corpus.
 
-- `review-open` accepts a `sightmap` array (component definitions: `name`,
-  `selectors`, optional `memory`, `source`) and a top-level `memory` array.
-- Read the project's `.sightmap/` YAML, translate the component definitions into
-  that shape, and pass them through on open.
-- Matched component names then appear in `review-snapshot` component trees, and
-  `memory` entries surface as an orientation guide.
+### Preferred — side-band upload (whole corpus)
 
-Keep the corpus the source of truth: edit `.sightmap/` YAML, then re-pass it —
+`review-open` returns a single-use `sightmap_upload_url` in its response (so do
+the live tools: `live-connect` returns `sightmap_upload_url`, `live-tunnel`
+returns `sightmapUploadUrl`). Upload the checked-in corpus to that URL with the
+bundled collector script **before** you read anything back — before
+`review-zoom` / `review-snapshot` for a review, or before `live-view-new` for the
+tunnel-first live flow:
+
+```bash
+# run from the project root (where .sightmap/ lives):
+python3 <this skill's directory>/collect_and_upload_sightmap.py --url <sightmap_upload_url>
+```
+
+`collect_and_upload_sightmap.py` sits **beside this SKILL.md** — reference it at
+that path (it ships with the skill; there is no plugin-root variable to expand).
+It walks `.sightmap/**/*.yaml` under the project root (auto-detected by walking up
+from the current directory, or pass `--root DIR` / set `SIGHTMAP_ROOT`), flattens
+hierarchical components into the compound selectors the matcher expects, collects
+top-level `memory`, and POSTs the result using the single-use token embedded in
+the URL — no extra auth. Requires **Python 3.9+ and PyYAML** (`pip install pyyaml`).
+
+Matched component names then appear in `review-snapshot` component trees and
+`review-zoom` signals, and `memory` entries surface as an orientation guide.
+
+> **Scope today:** the collector uploads **components** (including view-scoped
+> components) and top-level **memory** only. `requests:` and `views:` definitions
+> are not uploaded yet — network / view-name enrichment isn't wired through the
+> signal stream.
+
+### Fallback — inline on `review-open` (small, hand-authored sets)
+
+For a handful of flat, hand-written definitions — or a harness without Python —
+`review-open` also accepts a `sightmap` array (component definitions: `name`,
+`selectors`, optional `memory`, `source`) and a top-level `memory` array directly.
+
+Reach for this only for tiny sets. The array takes **already-flattened** compound
+selectors, so nested components must be flattened by hand (each parent selector
+prefixed onto its children) — which is exactly what the collector script does for
+you, which is why the side-band upload is preferred for anything real. Either way,
+keep the `.sightmap/` corpus the source of truth: edit the YAML and re-upload —
 don't paste one-off definitions that aren't checked in.
 
 ## See also
