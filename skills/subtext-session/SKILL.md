@@ -72,7 +72,7 @@ Grain ladder, coarse → fine:
 - **Provide it** → an explicit allow-list. Unlisted kinds are excluded from the slice (never from the map).
 - **Overlap → finest-wins.** A signal matching more than one key takes the finest grain among them — order-independent, and it can only ever show *more*, never hide something.
 
-Keys are scopes (`navigation`, `interaction`, `network`, `console`, …), kinds (`click`, `network`, `exception`, …), or tags (`error`, `exception` — the only tags today) — they resolve the same way.
+Keys are scopes (`navigation`, `interaction`, `network`, `console`, …), kinds (`click`, `network`, `exception`, `classified`, …), or tags — they resolve the same way. `error`/`warn`/`exception` are intrinsic (derived from a signal's own fields); a project's `.sightmap/` can author more: a component's `tags:` rides onto any signal that targets it (e.g. `defect` on a checkout-error element), and a `signals:` rule can generate a brand-new `classified` signal when a match fires against another signal's fields — surfacing a classification buried in a payload (a 200 response whose body says a payment declined) as its own selectable line, without touching the signal it fired on.
 
 ### Zoom recipes
 
@@ -88,6 +88,9 @@ review-zoom resolution={ network: "machine", console: "machine" }
 
 // network readable, but every error deep — finest-wins, no override needed
 review-zoom resolution={ network: "standard", error: "detail" }
+
+// a project-authored classification (a .sightmap/ tag or signals: rule), deep
+review-zoom resolution={ defect: "detail" }
 ```
 
 ## Snapshot
