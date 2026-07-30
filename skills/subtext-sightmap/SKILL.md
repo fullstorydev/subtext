@@ -34,12 +34,9 @@ real corpus.
 
 ### Preferred — side-band upload (whole corpus)
 
-`review-open` returns a single-use `sightmap_upload_url` in its response (so do
-the live tools: `live-connect` returns `sightmap_upload_url`, `live-tunnel`
-returns `sightmapUploadUrl`). Upload the checked-in corpus to that URL with the
-bundled collector script **before** you read anything back — before
-`review-zoom` / `review-snapshot` for a review, or before `live-view-new` for the
-tunnel-first live flow:
+`review-open` returns a single-use `sightmap_upload_url` in its response. Upload
+the checked-in corpus to that URL with the bundled collector script **before**
+you read anything back — before `review-zoom` / `review-snapshot`:
 
 ```bash
 # run from the project root (where .sightmap/ lives):
