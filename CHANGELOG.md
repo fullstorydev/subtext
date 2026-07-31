@@ -1,5 +1,21 @@
 # subtext
 
+## 0.10.1
+
+### Patch Changes
+
+- 2bac307: Document that `resolution` keys in `review-zoom` aren't limited to the two intrinsic tags (`error`/`exception`): a project's `.sightmap/` can author more. A component's `tags:` field rides onto any signal that targets it (e.g. `defect`), and a top-level `signals:` rule can generate a brand-new `classified` signal when a match fires against another signal's own fields — surfacing a classification buried in a payload (a 200 response whose body says a payment declined) without touching the signal it fired on.
+
+  `subtext-session`'s resolution-key description and zoom recipes were updated to match; no tool behavior changed.
+
+- 1b5fcf2: subtext-sightmap: remove references to live-mode tools from the sightmap upload
+  instructions. The bridge skill documented `live-connect` / `live-tunnel` (and
+  `live-view-new`) as alternate sources of the `sightmap_upload_url`, but those are
+  Subtext Verify tools, not part of this plugin. The upload path here is
+  `review-open` → `sightmap_upload_url` → collector (before `review-zoom` /
+  `review-snapshot`), which is confirmed working; the instructions now describe only
+  that flow.
+
 ## 0.10.0
 
 ### Minor Changes
