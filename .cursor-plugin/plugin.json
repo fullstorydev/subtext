@@ -2,7 +2,7 @@
   "name": "subtext",
   "displayName": "Subtext",
   "description": "Review Subtext session recordings and manage privacy rules",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "license": "MIT",
   "author": {
     "name": "Subtext",
