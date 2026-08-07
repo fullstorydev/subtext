@@ -13,7 +13,7 @@ API catalog for the session replay tools (all prefixed `review-`). One gesture �
 
 | Tool | Description |
 |------|-------------|
-| `review-list-sessions` | Find reviewable sessions — numbered URLs + timestamps. |
+| `review-list-sessions` | Find reviewable sessions — numbered URLs + timestamps. With no arguments, the org's most recent captures. With `email_address`/`user_uid`, one user's sessions, paged with `before`. |
 | `review-open` | Open a session for analysis. Returns a handle (`client_id`) plus the **map** and a digest rollup. |
 | `review-summary` | Static "what happened" — the default zoom (all kinds @ `standard`), frozen. No map, no handle. Stateless, cheapest call. Use for a quick read before deciding whether to `open`. |
 | `review-zoom` | The live lens. Pass a `resolution` map and/or a `t0_ms`/`t1_ms` time window — returns the matching signal slice. |
@@ -35,6 +35,16 @@ Parameter schemas are visible in the tool definition at call time.
 - `email_address` / `user_uid` — looks up the user's most recent session.
 
 All six paths return the same handle. Capture the `client_id` from the response so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't need to re-resolve the session.
+
+`review-open`'s `email_address`/`user_uid` jumps straight to that user's *most recent* session. To see more than one, or to search back through their history, use `review-list-sessions` instead.
+
+## Finding a user's sessions
+
+`review-list-sessions` with no arguments lists the org's most recently captured sessions — no filtering, no paging.
+
+Pass `email_address` or `user_uid` to scope it to one user instead. That response reports `newest`/`oldest` — the creation-time range it covered — and, when more history exists, a note to pass `oldest` back as `before` to page further back. `before` is only valid alongside `email_address`/`user_uid`; the org-wide list isn't time-scoped.
+
+Ticket-triage recipe: given a report against a known user, `review-list-sessions` by their `email_address`/`user_uid` to get candidates, `review-summary` each to find the one matching the report, then `review-open` it to investigate.
 
 ## The map
 
