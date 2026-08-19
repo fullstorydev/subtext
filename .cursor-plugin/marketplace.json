@@ -1,0 +1,28 @@
+{
+  "name": "subtext-marketplace",
+  "owner": {
+    "name": "Subtext",
+    "email": "subtext@fullstory.com"
+  },
+  "plugins": [
+    {
+      "name": "subtext",
+      "source": "./",
+      "version": "0.10.2",
+      "description": "Review Subtext session recordings and manage privacy rules",
+      "category": "development",
+      "keywords": [
+        "subtext",
+        "fullstory",
+        "session-replay",
+        "review",
+        "privacy"
+      ],
+      "homepage": "https://subtext.fullstory.com",
+      "author": {
+        "name": "Subtext",
+        "email": "subtext@fullstory.com"
+      }
+    }
+  ]
+}

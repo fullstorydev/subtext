@@ -41,14 +41,20 @@ for (const rel of PER_HARNESS_MANIFESTS) {
   touched++;
 }
 
-// marketplace.json: version lives under plugins[0].
-const marketplacePath = join(REPO_ROOT, '.claude-plugin/marketplace.json');
-if (existsSync(marketplacePath)) {
+// marketplace listings: version lives under plugins[0].
+const MARKETPLACE_MANIFESTS = [
+  '.claude-plugin/marketplace.json',
+  '.cursor-plugin/marketplace.json',
+];
+
+for (const rel of MARKETPLACE_MANIFESTS) {
+  const marketplacePath = join(REPO_ROOT, rel);
+  if (!existsSync(marketplacePath)) continue;
   const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf8'));
   if (marketplace.plugins[0].version !== version) {
     marketplace.plugins[0].version = version;
     writeFileSync(marketplacePath, JSON.stringify(marketplace, null, 2) + '\n');
-    console.log(`sync: .claude-plugin/marketplace.json (plugins[0]) → ${version}`);
+    console.log(`sync: ${rel} (plugins[0]) → ${version}`);
     touched++;
   }
 }
