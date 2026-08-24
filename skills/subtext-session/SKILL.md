@@ -112,6 +112,7 @@ review-zoom resolution={ defect: "detail" }
 - `include` — any of `image`, `tree`, `boxes`.
 - `expand_pct` — grows the `component_id` clip outward by this percent (0–100) for surrounding context.
 - `upload` — store the screenshot and return a shareable signed URL.
+- `full_page` — capture the whole scrollable page instead of the viewport. Requires `include` to contain `image`; can't be combined with `component_id`. These images are big — pair with `upload`. Ignored for mobile session pages.
 
 No network/console excerpts are stapled onto a snapshot — signals only come from `review-zoom`. Want the requests or logs around a moment? Zoom that window.
 
