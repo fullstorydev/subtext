@@ -15,11 +15,12 @@ Two outputs drive everything:
 - **Coverage**: every interactive node has a component ancestor (T1 direct or T2 scoped)
 - **Annotation**: component names + extracted properties appear inline in the tree
 
-> **Further reading.** The Go implementation's `README.md` (`go/README.md`) has a
-> runnable quickstart, and `docs/reference.md` is the full authoring reference (coverage
-> model, component model, the outer loop, tool reference, lint rules, quality
-> checklist). To *use* a finished corpus — driving the browser and interacting
-> with the page — see the `sightmap-browser` skill.
+> **Further reading.** This skill is the authoring reference: the coverage model,
+> the component model (**Component hierarchy** and **Cross-view references**
+> below), the outer loop, the tool surface, lint rules, and the quality checklist
+> are all here. For the normative spec and deeper background, see the docs at
+> <https://docs.sightmap.org>. To *use* a finished corpus — driving the browser
+> and interacting with the page — see the `sightmap-browser` skill.
 
 ## Installation
 
@@ -46,6 +47,42 @@ Use `npm` in instructions — it's the universal baseline. `pnpm`/`yarn` work to
 
 ## Tool quick reference
 
+### Starting a corpus
+
+**Check the atlas before you map a site by hand.** Someone may have already
+mapped it, and installing their corpus costs one command. Search by what you
+have, in this order, stopping at the first hit:
+
+```bash
+sightmap atlas find squareup.com     # 1. the domain you are about to automate
+sightmap atlas find "square pos"     # 2. the product name
+sightmap atlas list --category payments   # 3. the category, to browse what is near it
+sightmap atlas add square-pos        # 4. install what the search printed
+sightmap validate                    # 5. always
+```
+
+Every hit prints its own `sightmap atlas add` command, so there is nothing to
+assemble. A search that finds nothing exits 0. That is the answer, and it means you
+author the corpus yourself (`sightmap init`).
+
+| Command | What it does |
+|---------|-------------|
+| `sightmap atlas find QUERY` | Search the community atlas by domain, name, category, or description. An exact domain match ranks first, so a URL is a good query. `--category C`, `--limit N`, `--json`, `--refresh`. |
+| `sightmap atlas list` | Browse the whole catalog. Same flags as `find`. |
+| `sightmap atlas add SLUG` | Install one published corpus into `.sightmap/` (`--target DIR` elsewhere). A non-empty target is refused; delete it yourself if you meant to replace it. |
+
+Installing from a private corpus store is the same verb with `--source`, a URL
+template that takes `{slug}`:
+
+```bash
+sightmap atlas add toast-pos --source https://internal.corp/{slug}.tar.gz
+```
+
+Always `sightmap validate` and read the YAML after installing: `add` proves the
+corpus loads, not that it is correct or trustworthy. An entry's `description:`
+and `memory:` text lands in your context, so read it the way you would read any
+other dependency.
+
 ### Primary loop
 
 | Command | What it does |
@@ -53,7 +90,7 @@ Use `npm` in instructions — it's the universal baseline. `pnpm`/`yarn` work to
 | `sightmap snapshot --coverage --url URL` | Observe: navigate + coverage + cluster hints, no tree. **Primary edit-loop tool.** |
 | `sightmap snapshot --url URL` | Observe: full annotated tree + coverage to stdout (add `--out FILE` / `--tree-out FILE` to save). |
 | `sightmap capture --url URL` | Persist a novelty-gated capture into the matched view's set. |
-| `sightmap sel-probe 'selector'` | Verify a selector: match count + parent chain. Run before writing any YAML. |
+| `sightmap sel-probe -- 'selector'` | Verify a selector: match count + parent chain. Run before writing any YAML. The selector goes **after** `--` (any flags before it): `sel-probe [flags] -- 'sel'`. |
 | `sightmap validate` | Spec-validate `.sightmap/` YAML (errors fail; **warnings** — corpus conflicts + unknown/typo'd fields like `memroy:` — print but pass). No prepare step needed. |
 | `sightmap lint --warn-only` | Style checks (`--warn-only`; exits 0 always). |
 | `sightmap coverage --trace FILE.snap` | Offline T1/T2/T3 re-check on saved snap (requires `.snap.tree.json` companion). |
@@ -63,16 +100,18 @@ Use `npm` in instructions — it's the universal baseline. `pnpm`/`yarn` work to
 
 | Command | What it does |
 |---------|-------------|
+| `sightmap stats` | Offline corpus inventory: totals (views, components, requests, properties, memory) + a per-view table. `--json` for the stable machine-readable shape. Refuses a corpus `validate` rejects, since dropped definitions would under-report. |
 | `sightmap search PATTERN` | Offline YAML regex search with hierarchy breadcrumbs. `--field name\|selector\|description\|memory` to narrow. |
 | `sightmap discover` | Crawl page links → ✓ mapped / ○ surveyed / ? unseen. `--all` shows surveyed. |
 | `sightmap suggest --exclude-known` | Candidate selectors not yet in sightmap (`--exclude-known` always on). |
-| `sightmap gap --visible` | Orphaned interactive nodes with selector hints (`--visible` always on). |
+| `sightmap gap` | Orphaned interactive nodes with selector hints. Add `--include-hidden` to also list hidden/off-screen nodes. |
+| `sightmap explain [SELECTOR] [--grep STR] [--id N] [--snap FILE]` | Node-first inspection: dump a node's facts (tag/id/classes/attrs), ranked selector candidates, coverage tier + owning component, and ancestor hooks. Use `--grep 'Refresh'` (by role/name) or a selector when you've spotted a node but don't have a selector yet — the shadow-transparent replacement for hand-reading `*.snap.tree.json`. `--snap FILE` inspects a captured tree offline. |
 
 ### Session management
 
 | Command | What it does |
 |---------|-------------|
-| `sightmap browser start` | Launch Chrome + the sightmap overlay server. Writes `.sightmap/.session`. |
+| `sightmap browser start` | Launch Chrome + the sightmap overlay server. **Foreground daemon — holds the shell; pass `--detach` in scripts/agents.** Writes `.sightmap/.session`. |
 | `sightmap browser status` | Check session health and current URL. |
 | `sightmap browser navigate 'URL'` | Navigate to URL (positional arg — no `--url` flag). |
 | `sightmap browser stop` | Stop Chrome session. |
@@ -92,8 +131,8 @@ component still needs a disambiguating property.
 ## Hard rules
 
 **NEVER write YAML without first verifying selectors.**
-Run `sightmap sel-probe 'selector'` on every new selector before committing it to
-YAML. sel-probe queries the live DOM **and** cross-checks the offline matcher
+Run `sightmap sel-probe -- 'selector'` on every new selector before committing it
+to YAML (the selector goes after `--`, any flags before it). sel-probe queries the live DOM **and** cross-checks the offline matcher
 that `snapshot`/`coverage`/`capture` actually use — it prints both counts and a
 `⚠ offline/live divergence` warning when they disagree. Trust the **offline**
 count: that is what the corpus will see. Wrong match count = corrupt coverage.
@@ -208,9 +247,127 @@ brackets when not suppressed by Rule A (exact match with a property value).
 
 ---
 
+## Component hierarchy (`children:`)
+
+Components nest. A component may carry a `children:` list of nested components,
+and this is the idiomatic way to model a container and the controls it owns
+(a sidebar and its buttons, a row and its actions). The snap tree already *shows*
+this nesting (`Sidebar` > `NavLink`); `children:` is how you *author* it.
+
+```yaml
+components:
+  - name: Sidebar
+    selector: 'nav.rail'
+    children:
+      - name: Brand
+        selector: '.brand'          # relative to Sidebar
+      - name: NavLink
+        selector: 'a'               # generic — scoped to Sidebar's subtree
+```
+
+**A child's selector is scoped to its parent's subtree** — the effective
+selector is the ancestor selectors prepended (a descendant combinator),
+recursively. So a child only has to be unambiguous *within its parent*, not
+globally: on a page with 16 `button`s, 14 of them inside `nav.rail`, a
+`Sidebar` > `NavButton` with the generic child selector `button` matches exactly
+those 14. This shortens selectors and keeps obviously-owned sub-components out of
+the global namespace. (Flat components already earn T2 by DOM containment;
+`children:` is not required to reach 0 orphaned — it is how you express ownership
+and shorten child selectors.)
+
+**Use it for:**
+
+- **Owned sub-components** that only ever live in one container (a rail's brand,
+  collapse, new-chat, sign-out buttons): nest them with short relative selectors
+  instead of declaring long-selectored top-level globals.
+- **Repeated-identical controls** — every row's identical Rescue button, a
+  conversation row's `⋯` button, per-row stars. The row is a repeated container,
+  so by the property rules below it carries its own discriminator
+  (`ArchiveRow[title=…]`); nest the identical control beneath it
+  (`ArchiveRow` > `RescueButton`, child selector `button`). You then address one
+  instance with a **descendant component query** — `ArchiveRow[title="…"]
+  RescueButton` — because the parent's discriminator carries into the query.
+  (Query syntax lives in the `sightmap-browser` skill; whitespace is a descendant
+  combinator — there is no `>` child combinator.)
+
+**Depth budget.** Because selectors are prepended, deep trees produce long
+selectors; `lint` warns `[deep-nesting]` at ≥4 levels. When you hit it, **promote
+a singleton**: a descendant that is globally unique (e.g. the one open menu
+popover) belongs as a top-level component, not buried four levels down.
+
+**Names are unique per-parent, not global.** Two different parents may each have
+a child named `Star`; `search` shows them by breadcrumb (`TreeRow › Star`,
+`GalleryTile › Star`). Reuse generic child names freely for coverage, but give a
+**unique** name (or a per-instance property) to anything you intend to drive by
+component query.
+
+## Cross-view references (`$ref`)
+
+A component defined at the root of a `components.yaml` is **global**: it matches
+on every view with no further wiring. To record *in a view* that such a global
+appears there, reference it by name:
+
+```yaml
+views:
+  - name: Home
+    route: "/"
+    components:
+      - $ref: Sidebar            # the global Sidebar can appear on Home
+      - name: Composer
+        selector: '.composer'
+```
+
+- The spelling is exactly `$ref` (a single-key entry). `ref:` and `uses:` are
+  **not** recognized (they validate as unknown fields).
+- `$ref` resolves against a root-level component **name**. A dangling ref is a
+  hard error (`ref-unresolved`); a reference cycle errors too (`ref-circular`).
+- It is **idempotent** for a genuine global: the component already matches
+  everywhere, so `$ref`-ing it adds documentation, not a second match.
+- **What a listed component means:** anything listed on a view (or nested under
+  it), `$ref` included, is something that *can* appear there — **not** a
+  guarantee it is always present. There is no way to assert "always present", so a
+  `$ref`'d component that is absent from some captured states is expected and
+  fine. Use `$ref` to attest which globals a view can show (a rail that's usually
+  there, a modal reachable from the page).
+
+## Memory (`memory:`)
+
+`memory:` carries short free-text notes that surface in your `[Guide]` context
+whenever the definition is active — quirks, invariants, "you have to click this
+twice" lore that isn't recoverable from the DOM. It is a **list of plain
+strings** (not objects — a list of `{name, text}` maps fails to parse), and it
+attaches at the file root (global notes), on a view, or on a component:
+
+```yaml
+version: 1
+memory:
+  - Auth rail is present on every page except /login.
+components:
+  - name: RangeSlider
+    selector: '.range'
+    memory:
+      - "Range: 1st click = start, 2nd = end, 3rd resets"
+```
+
+---
+
 ## Property extraction principles
 
-Every child component that is a link or button **must** have at least one property.
+Two property rules are **mandatory**:
+
+1. Every child component that is a link or button **must** have at least one
+   property.
+2. Every component whose selector matches **more than one instance** — a
+   repeated container or control (cards, list rows, nav tabs, feed items) —
+   **must** carry a property that *varies per instance* (a title, label, key, or
+   state), even a pure container with no link/button of its own. Without one,
+   every instance collapses to an indistinguishable node and no component query
+   can resolve a single one. `sel-probe` already prints the match count: a count
+   > 1 with no per-instance property is the tell. Extract the discriminator from
+   wherever it lives — a header title, an `aria-label`, a stable `data-*`. When
+   the repeated node is an *identical leaf* that has no discriminator of its own
+   (every row's identical Rescue button), put the discriminator on its container
+   and nest the leaf beneath it — see **Component hierarchy** above.
 
 ```yaml
 - name: FooterLink
@@ -218,6 +375,14 @@ Every child component that is a link or button **must** have at least one proper
   properties:
     - name: label
       extract: text
+
+# Repeated container: one selector, many instances → needs a per-instance
+# discriminator so `Card[title^="Today"]` can resolve exactly one.
+- name: Card
+  selector: 'article.card'
+  properties:
+    - name: title
+      extract: '.card__title'
 ```
 
 **Choosing an extract mode:**
@@ -266,6 +431,109 @@ this to your advantage — a well-named property makes the annotation clean.
 
 ---
 
+## Requests and messages
+
+Components and views describe the DOM. Two more top-level entities describe a
+page's *runtime activity*: the network it makes (`requests:`) and the
+console/exceptions it emits (`messages:`). Both are matched against **live
+traffic**, not the DOM tree — you author them from what you observe with the
+`sightmap-browser` skill's `network` and `console` tools, where each captured
+record leads with a `[MatchedName]` slot (or `[--]` when nothing matched). They
+live in their own top-level lists and can share any `.sightmap/*.yaml` file.
+
+### `requests:` — name an endpoint
+
+Name endpoints that *mean something* (an API action, an auth call, a data fetch)
+by route glob + method, so their traffic is classified instead of anonymous.
+Don't map static assets (JS/CSS/images/fonts).
+
+```yaml
+version: 1
+requests:
+  - name: AuraAction
+    route: /aura                 # glob matched against the request URL path
+    method: POST
+    description: Lightning Aura batched server actions.
+```
+
+In `sightmap network list`, traffic to it now reads `[AuraAction]`; unmapped
+traffic reads `[--]`.
+
+### Request `properties:` — extract a value from live traffic
+
+The HTTP status often lies: an endpoint returns `200 OK` while the real outcome
+lives inside the body. A request `properties:` entry pulls a named value out of
+the live request/response so a consumer can reason about it (the SEP-0005 "200 OK
+but the body says declined" case). Each property is resolved
+**source → field → pattern → transform**:
+
+- **`source:`** — which half to read: `rsp.body`, `req.body`, `rsp.headers`, or
+  `req.headers`.
+- **`field:`** — where inside it. For a body, a dot-path into the parsed JSON; a
+  numeric segment indexes an array (`actions.0.state`). For headers, the header
+  name (case-insensitive).
+- **`pattern:`** *(optional)* — an RE2 regex refining what `field` resolved (or
+  scanning the raw source when `field` is omitted). Capture group 1 is the value
+  when present, else the whole match.
+- **`transform:`** *(optional)* — same vocabulary as component properties.
+
+```yaml
+requests:
+  - name: AuraAction
+    route: /aura
+    method: POST
+    properties:
+      # Aura returns HTTP 200 even when an action fails; the real per-action
+      # outcome (SUCCESS | ERROR | INCOMPLETE) is inside the JSON body.
+      - name: first_action_state
+        source: rsp.body
+        field: actions.0.state
+```
+
+Live, matched requests carry the extracted value:
+`[AuraAction] POST /aura → 200 (XHR) {first_action_state=SUCCESS}` — and, on the
+one call that actually failed behind the same 200, `{first_action_state=ERROR}`.
+
+Extraction is **silently omitted** (never an error) when the source isn't
+present, the field doesn't resolve, or the pattern doesn't match — whether a body
+or header is even captured depends on the runtime layer. `status`, `method`, and
+`duration` are already-structured request identity and need no `properties:`
+declaration.
+
+### `messages:` — name a console/exception pattern
+
+A `messages:` entry classifies console output and runtime exceptions by `level`
+and/or a `message` regex. An exception folds in as an ERROR/`exception`-level
+record — there is no separate entity.
+
+```yaml
+version: 1
+messages:
+  - name: DeprecatedChartApi
+    level: WARN                    # exact, case-insensitive; omit to match any level
+    message: has been deprecated   # RE2 regex over the message text; omit to match any
+    description: Legacy chart JS deprecation warning.
+```
+
+In `sightmap console list`, a matched record reads `[DeprecatedChartApi]`;
+unmatched reads `[--]`. Declare at least one of `level`/`message` (an entry
+matching everything isn't useful).
+
+An exception's **stack frames** are addressable with message `properties:`
+(`source: stack` is the only source in v1):
+
+```yaml
+messages:
+  - name: CartSyncCrash
+    message: cart version mismatch
+    properties:
+      - name: origin_fn
+        source: stack
+        field: top.function       # <frame>.<attr>; frame = top|<index>, attr = function|file|line|column
+```
+
+---
+
 ## Seeding from the codebase
 
 When the app's source is available, use it to bootstrap components before you
@@ -300,17 +568,17 @@ cd sites/vividseats.com/    # or any site dir with a .sightmap/
 sightmap browser start   # launches Chrome + sightmap HTTP server (port 7891)
 ```
 
+`browser start` is a **foreground daemon that holds this shell** for the whole
+session. In a script or agent shell (each command run to completion), use
+`sightmap browser start --detach` instead — it backgrounds the daemon and
+returns once it's ready. See the `sightmap-browser` skill's *Session management*.
+
 Verify with `sightmap browser status` — should show `● running cdp=7892` and list your content tab(s).
 The sightmap HTTP server starts automatically and recompiles on YAML changes.
 The overlay extension is embedded in the binary and auto-extracted to
 `~/.sightmap/extension/` on first run — no `--extensions` flag needed.
 
 If the site has a `package.json` with `g:*` scripts, those are convenience wrappers around the same commands and work equally well.
-
-To connect to an existing Chrome session:
-```bash
-sightmap browser register --addr localhost:PORT
-```
 
 ---
 
@@ -323,11 +591,45 @@ sightmap suggest --exclude-known   # candidates not in sightmap
 sightmap discover                  # URL patterns — find unseen routes
 ```
 
-Prefer selectors with `data-testid`, `data-component^=`, `#id`. Avoid
-class selectors (volatile) and auto-generated IDs.
+Prefer selectors with `data-testid`, `data-component^=`, `#id`. Stable,
+hand-authored class names are fine too — the volatility risk is *generated or
+hashed* classes (CSS-modules, hashed production builds) and auto-generated IDs;
+avoid those, not classes as a category.
 
-Create `.sightmap/views/PAGE.yaml` with `route: "/pattern/**"`. Run
-`sightmap validate` before snapping.
+Create a view file `.sightmap/views/PAGE.yaml`. **View fields go under a
+top-level `views:` list** — `route:`/`url:`/`name:` are *not* file-root fields
+(putting them at the root silently makes the file a globals file, matching no
+view):
+
+```yaml
+version: 1
+views:
+  - name: Home
+    route: "/"                     # glob matched against the URL path (** = any depth)
+    url: "https://example.com/"    # a representative URL, used by report/capture
+    components:
+      - name: SearchBar
+        selector: '[data-testid="search"]'
+```
+
+Run `sightmap validate` before snapping.
+
+**Route matching (globs).** `*` matches exactly one path segment; `**` as its
+own segment matches zero or more (`/a/**` matches `/a`, `/a/b`, `/a/b/c`; `/a/*`
+matches only `/a/b`). Matching is against the URL's **decoded** path, so a `%2F`
+in the URL counts as a separator: `/app/x%2Fy%2Fz` is five segments, not three,
+and a `/app/*/*` route won't match it (use `/app/**`). When several views match,
+the most specific wins; ties go to the first-declared view.
+
+**Keep routes specific.** A `route:` glob should identify *this* view, not every
+page. A catch-all like `/lightning/**` or `/**` that matches every URL is a smell:
+as you map more pages they all collapse onto the one view, and — worse —
+`sightmap discover` marks those distinct URLs `✓ [ThatView]` (mapped) purely
+because the catch-all matched, hiding that they are actually uncovered. When a
+new page looks structurally different (its Guide is mostly *different*
+components), give it its own view with a narrower route and demote or drop the
+catch-all. Matching every page is the problem, not the goal — don't keep an
+over-general route just because it "matches."
 
 ### Step 1b — Snap and read coverage
 
@@ -361,8 +663,17 @@ Unlabeled clusters:
        → [data-testid="product-pod"] a
 ```
 
-The `→` selector hint is what to use for a new child component. Use
-`sightmap sel-probe` to verify match count before writing YAML.
+The `→` selector hint (and the `container:` hook on hook-poor DOMs) is what to
+use for a new child component. Use `sightmap sel-probe` to verify match count
+before writing YAML.
+
+When you've spotted a node but need its raw facts to craft a selector — common on
+shadow-DOM / hashed-id apps where `browser eval`'s `querySelector` returns `[]` —
+reach for `sightmap explain` instead of hand-reading the tree JSON: `explain
+--grep 'Refresh'` (by role/name), `explain 'div.card'` (by selector), or `explain
+--snap PAGE.snap --id N` (offline). It dumps the node's tag/id/classes/attrs,
+ranked selector candidates, its tier + owning component, and ancestor hooks —
+shadow-transparent, matching what the offline matcher sees.
 
 After YAML edits, re-snap and check coverage. Repeat until 0 orphaned ✓.
 
@@ -396,8 +707,8 @@ For every T2 cluster, categorise — don't just accept it:
 - **(C) Untried** — run `sightmap sel-probe` first; T2 is only acceptable after a real attempt
 
 **4. Duplicate selectors**
-Scan YAML for children in different parents with identical selectors. Consolidate
-or promote to global.
+Scan YAML for children (see **Component hierarchy**) in different parents with
+identical selectors. Consolidate or promote to global.
 
 **5. Zero-match component check** *(manual)*
 Cross-check the Guide against the view's component list. Any component defined
@@ -417,6 +728,28 @@ sightmap browser navigate https://...
 sightmap snapshot --out PAGE.snap --tree-out PAGE.snap.tree.json
 ```
 
+### Step 1e — Runtime activity (requests & messages)
+
+DOM coverage isn't the whole page. Once components are done, classify what the
+page *does* at runtime — the network it makes and the console/exceptions it emits
+— with the `requests:` and `messages:` entities (see **Requests and messages**
+above; observe them with the `sightmap-browser` skill's `network`/`console`
+tools). Traffic from before the session started isn't captured, so **reproduce it
+first**: refresh the page (or re-trigger the action), then read the streams —
+matched records lead with a `[Name]` slot, unmapped ones with `[--]`:
+
+```bash
+sightmap network list --type XHR    # name meaningful endpoints; skip static assets
+sightmap console list               # name recurring console/exception patterns
+```
+
+- Add a `requests:` entry for endpoints that *mean something* (an API action, an
+  auth call, a data fetch). Add request `properties:` where a value inside the
+  body/headers is the real signal — the "200 OK but the body says failed" case.
+- Add a `messages:` entry for recurring console/exception patterns worth naming.
+- Requests/messages are often global; promote cross-page ones like components
+  (Phase 2). Skip it only when the page makes no meaningful traffic.
+
 ---
 
 ## Phase 2: Cross-page promotion
@@ -430,13 +763,20 @@ sightmap multi-coverage
 - 2 pages, identical selectors → usually promote
 - 2 pages, different selectors → keep view-scoped
 
+Only **current** views count toward this. A capture dir that matches no view in
+the current corpus (a stale or renamed `snapshots/<dir>/`) is marked `*` in the
+matrix and excluded from the candidate list, with a warning — so a leftover dir
+can't manufacture phantom "appears in 2+ views" evidence for a page's own
+components. When you see that warning, delete the stale dir (or re-capture the
+view under its current name) and re-run.
+
 ---
 
 ## Phase 3: Validation
 
 ```bash
 sightmap validate       # ✓ no validation errors = done
-sightmap lint --warn-only   # deep-nesting warnings are expected; watch for new ones
+sightmap lint --warn-only   # deep-nesting warnings (see Component hierarchy: promote singletons); watch for new ones
 ```
 
 **Done when:**
@@ -444,6 +784,7 @@ sightmap lint --warn-only   # deep-nesting warnings are expected; watch for new 
 - [ ] Every page at 0 orphaned ✓
 - [ ] Quality self-review passed for all pages
 - [ ] `sightmap multi-coverage` shows no unaddressed global candidates
+- [ ] Runtime activity classified — meaningful `network`/`console` records lead with a `[Name]`, not `[--]` (or are deliberately left unmapped)
 
 ---
 
@@ -478,12 +819,14 @@ to stdout (or `--out FILE`) — it never touches the corpus and never gates.
 (different loads, a drawer open, a tab switched).
 
 A capture that adds **no new component type or orphan slot** vs the view set is
-skipped by the **novelty gate** — `capture` prints "nothing new … not saved" and
-the overlay's Snap-view button shows "= nothing new (not saved)". The first
-capture of a view always writes; `capture --force` overrides. So just re-`capture`
-a dynamic view a few times — only loads that render something structurally new
-are kept; pure value churn (different products/prices) is ignored. `coverage`
-unions the whole view set.
+skipped by the **novelty gate** — `capture` reports that the view *already has* N
+capture(s) and this one is redundant ("not saved"), and the overlay's Snap-view
+button likewise marks it skipped. Read that as "already covered", **not** as a
+refusal of a first baseline: **the first capture of a view always writes** (an
+empty set can't be redundant), and `capture --force` keeps a redundant one
+anyway. So just re-`capture` a dynamic view a few times — only loads that render
+something structurally new are kept; pure value churn (different products/prices)
+is ignored. `coverage` unions the whole view set.
 
 **`coverage` / `multi-coverage`** require `.snap.tree.json` companion files.
 `capture` writes them automatically; `snapshot` writes one when `--tree-out` is

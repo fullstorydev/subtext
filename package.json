@@ -9,6 +9,6 @@
     "release": "npx --yes @changesets/cli@^2.27.0 tag"
   },
   "devDependencies": {
-    "@sightmap/sightmap": "0.15.9"
+    "@sightmap/sightmap": "^0.27.0"
   }
 }

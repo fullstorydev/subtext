@@ -40,10 +40,26 @@ invocation). Use `npm` in instructions — the published package is identical un
 
 ## Session management
 
+`browser start` is a **long-running foreground daemon**: it owns Chrome and the
+console/network collector for the whole session, so it **holds the shell** until
+you stop it. Every other command here is a thin client that connects to that
+daemon and returns immediately.
+
+- **Interactive:** run `start` in its own terminal, drive from another.
+- **Scripts / agents** (shells that run each command to completion): use
+  **`sightmap browser start --detach`**. It backgrounds the daemon in its own
+  session, waits until it is serving, and returns — so it never hangs your shell,
+  and (unlike `nohup start &`) the daemon survives between one-shot commands.
+- A **client** command that hangs almost always means the daemon isn't up —
+  run `browser status`, don't wait it out.
+- On a headless Linux host `start` auto-detects the missing display and runs
+  headless; if Chrome hits a sandbox restriction the error tells you to add
+  `--chrome-flag=--no-sandbox`.
+
 | Command | What it does |
 |---------|-------------|
-| `sightmap browser start` | Launch Chrome + the sightmap overlay server. Writes `.sightmap/.session`. |
-| `sightmap browser status` | Check session health and current URL. |
+| `sightmap browser start` | Launch Chrome + the overlay server. **Foreground daemon — holds the shell; pass `--detach` in scripts/agents.** Writes `.sightmap/.session`. |
+| `sightmap browser status` | Check session health, tabs, and current URL. Reports `⚠ degraded` when Chrome's CDP is up but the daemon's HTTP server was reaped. |
 | `sightmap browser navigate 'URL'` | Navigate to URL (positional arg — no `--url` flag). |
 | `sightmap browser stop` | Stop Chrome session. |
 | `sightmap browser eval 'js'` | Evaluate JS in page context. Returns JSON-serializable values only — DOM element references return an error. |
@@ -111,32 +127,61 @@ so nothing goes stale. Prefer queries on dynamic pages.
   properties** (not raw DOM attributes). Operators: `=` exact, `^=` prefix,
   `*=` substring, with an optional trailing ` i` for case-insensitive.
 - Whitespace is a **descendant** combinator; the **last** component is the target.
+  It matches at any depth (`A B` = a `B` anywhere under an `A`), and a predicate
+  on an ancestor scopes the target (`Row[title="…"] Star`). There is **no `>`
+  child combinator** — `A > B` is a parse error; use whitespace.
 - If a query matches **zero** components it errors; if it matches **several** it
   errors and prints the candidates with their distinguishing properties — add a
-  predicate to disambiguate, or append `#N`.
+  predicate to disambiguate, or append `#N`. ("Several match" is an ambiguity
+  error listing candidates, **not** a "no such component" error — read it and
+  disambiguate rather than assuming the component is unreachable.)
 - Robust queries need a corpus with disambiguating **properties**; authoring a
   property like `FulfillmentTileButton.label` is what makes the element
   addressable (see the `sightmap-authoring` skill).
 - `--sightmap-dir` (default `.sightmap`) controls which corpus resolves a query.
 
-## Debugging: console & network
+## Console & network — the runtime view of the corpus
 
 The `browser start` daemon owns the session and runs a **collector** that buffers
 console messages and network requests from every tab for the life of the session
 (bounded ring buffers, ~1000 of each). Read them with thin query commands — no
-re-attaching to Chrome, and history the transient page commands never saw:
+re-attaching to Chrome, and with history the transient page commands never saw.
+
+These are not just raw debug streams. Each captured record is matched against the
+corpus's `requests:` and `messages:` entries (see the `sightmap-authoring`
+skill), so every line **leads with a `[MatchedName]` slot** — or `[--]` when
+nothing in the corpus classified it — the way a snapshot foregrounds a node's
+`[Component]`. Matched records also **trail their extracted `{name=value}`
+properties**.
 
 | Command | What it does |
 |---------|-------------|
-| `sightmap console list [--level error] [--tab ID] [--limit N]` | Captured console messages (uncaught exceptions fold in as `level=exception`). |
-| `sightmap console get <index>` | One console message by index. |
-| `sightmap network list [--type XHR] [--url /api] [--tab ID] [--limit N]` | Captured requests: `method url → status (type)`. |
-| `sightmap network get <index> [--response-file F]` | One request + its response body (fetched on demand; save with `--response-file`). |
+| `sightmap console list [--level error] [--tab ID] [--limit N]` | Console messages, each led by its `messages:` match (uncaught exceptions fold in as `level=exception`). |
+| `sightmap console get <index>` | One console message + any extracted stack `properties:`. |
+| `sightmap network list [--type XHR] [--url /api] [--tab ID] [--limit N]` | Requests: `[Match] method url → status (type) {prop=value}`. |
+| `sightmap network get <index> [--response-file F]` | One request + its `requests:` match, a `Properties:` block, and response body (save with `--response-file`). |
+
+Reading the slot:
+```
+[AuraAction]         POST /aura → 200 (XHR) {first_action_state=SUCCESS}   # matched a requests: entry + extracted a body value
+[AuraAction]         POST /aura → 200 (XHR) {first_action_state=ERROR}     # 200 OK, but the body says it failed — the payoff of request properties:
+[--]                 GET  /favicon.ico → 200 (Image)                       # unmatched: no corpus entry, unstructured
+[DeprecatedChartApi] warn  ...stackhbar.js has been deprecated             # matched a messages: entry
+```
+The `[--]` slot is deliberately quiet — it marks a record unclassified without
+drowning the matched ones.
 
 - These need a running `browser start` session — that's where the collector
-  lives. Entries from before the session started aren't available.
-- Reproduce the issue (navigate/click), then read `console list --level error`
-  and `network list` to see what failed; `network get <index>` pulls the body.
+  lives. Records from **before** the session started aren't captured, so in an
+  attached/degraded session (or right after `start`) **reproduce the traffic**:
+  refresh the page or re-trigger the action, then read. (A SPA may never reach
+  `wait-for --load`; prefer `wait-for --url`/`--selector`, or just re-read after
+  a short pause.)
+- `--url` is a substring match, not a path anchor (`--url /aura` also catches
+  `.../auraFW/...`) — narrow it when a route is noisy.
+- To find failures: reproduce, then scan the `[...]` slots in `console list`
+  (`--level error`) and `network list`; `network get <index>` pulls the body +
+  properties.
 
 ## Gotchas
 
