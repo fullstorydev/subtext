@@ -7,7 +7,7 @@ description: Session replay tools for analyzing Fullstory session recordings. Sp
 
 > **PREREQUISITE:** Read `subtext-shared` for MCP conventions.
 
-API catalog for the session replay tools (all prefixed `review-`). These tools let you open sessions, inspect UI state at specific timestamps, and compare state across time.
+API catalog for the session replay tools (all prefixed `review-`). These tools let you open sessions, inspect UI state at specific timestamps, compare state across time, and search across sessions for ones matching a behavior.
 
 ## MCP Tools
 
@@ -18,6 +18,7 @@ API catalog for the session replay tools (all prefixed `review-`). These tools l
 | `review-inspect` | Component tree with full CSS selectors — for detailed element inspection, not general use. |
 | `review-diff` | Compare UI state between two timestamps. |
 | `review-close` | Close the session and free resources. |
+| `review-search` | Find sessions across the org by what happened in them — a predicate tree over navigate/network/custom signals within a time window. Flag-gated (`lidar-review-search`). See `subtext-search` for the discovery workflow. |
 
 ## Discovering Parameters
 
@@ -45,3 +46,4 @@ All five paths return the same trace_id-keyed handle; the entry point doesn't ch
 ## See Also
 
 - `subtext-shared` — MCP conventions
+- `subtext-search` — finding sessions to open by what happened in them (`review-search`)

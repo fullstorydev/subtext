@@ -15,13 +15,13 @@ All tools are served from the **subtext** MCP server. A **subtext-eu1** variant 
 
 | Prefix | Tools |
 |--------|-------|
-| `review-` | Session replay: `review-open`, `review-view`, `review-inspect`, `review-diff`, `review-close` |
+| `review-` | Session replay: `review-open`, `review-view`, `review-inspect`, `review-diff`, `review-close`, `review-search` |
 | `privacy-` | Privacy rules: `privacy-propose`, `privacy-create`, `privacy-list`, `privacy-delete`, `privacy-promote`, `privacy-url-list`, `privacy-url-create`, `privacy-network-list`, `privacy-network-create` |
 | `telemetry-` | Workflow telemetry: `telemetry-event` |
 
 ## Discovering MCP Tool Parameters
 
-Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`subtext-session` or `subtext-privacy`) for which tools exist, then let the schema guide parameter usage.
+Each MCP tool is self-describing. If you're unsure about parameters, the tool's schema is available at call time. Don't memorize parameter lists — consult the atomic skill (`subtext-session`, `subtext-search`, or `subtext-privacy`) for which tools exist, then let the schema guide parameter usage.
 
 ## Security Rules
 

@@ -11,6 +11,7 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 
 | Signal | Skill |
 |--------|-------|
+| You don't have a URL — find sessions by what happened in them (visited URL, network status, custom event) | `subtext-search` |
 | You have a session URL / want to know what happened | `subtext-review` |
 | You need the session-replay tool catalog (`review-*`) | `subtext-session` |
 | Detect PII or manage element-block, URL, or network privacy rules | `subtext-privacy` |
