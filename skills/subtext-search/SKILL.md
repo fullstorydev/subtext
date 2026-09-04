@@ -74,8 +74,6 @@ Reach for search when the user describes a *behavior or symptom* ("where did the
 
 ## Tips
 
-- **Search is the expensive door.** It scans every matching session's signals server-side, so it costs more than opening a known session — scope the window tightly and add predicates to shrink the result set before you start opening sessions.
-- Start from the most specific signal the user gave you — a failing endpoint, a status code, a visited path — and widen only if it returns nothing.
 - **A rejected query won't succeed on retry.** If `review-search` comes back saying the query won't succeed as written (bad window, malformed predicate), fix the query — don't re-send it. A "retry shortly" message is the transient case; that one's worth another attempt.
 - Capture the `trace_id` from the session you open so follow-on `review-*` calls don't re-resolve it.
 
