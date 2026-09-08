@@ -25,19 +25,27 @@ Review a completed session and produce a structured summary of what happened. Op
 
 ### Step 1: Open the session
 
-Call `review-open` with whichever identifier you have — see `subtext-session` for the five accepted forms. Capture the `trace_id` from the response.
+Call `review-open` with whichever identifier you have — see `subtext-session` for the six accepted forms. Capture the `client_id` from the response, and read the **map** it returns — signal counts by kind/tag and page flow. Don't call `review-zoom` yet.
 
-### Step 2: Read the session content
+### Step 2: Form hypotheses from the map
 
-Use `review-view` at key timestamps. Prioritize in this order:
+The map is the orientation layer. Before zooming, ask: does anything in `kinds`/`tags` stand out (an `error:` count, an unusually dense phase)? Form one or two hypotheses about what happened — that's what you zoom to confirm.
 
-1. **Errors** — use `review-inspect` or console / network lookups for failure moments.
-2. **Navigation inflections** — page changes, route transitions, modals.
-3. **Before/after pairs** — `review-diff` between two anchor points is the most revealing read.
+### Step 3: Zoom to confirm — as recipes, coarse to fine
 
-Don't sweep the entire session frame-by-frame — that's expensive and usually unnecessary. Lead with the event summaries from `review-open` and the errors within them.
+Use `review-zoom` with a `resolution` map. Treat resolutions as recipes, not parameters to memorize:
 
-### Step 3: Assess
+- Errors anywhere → `resolution={ error: "standard" }`
+- What happened overall → `resolution={ navigation: "standard", interaction: "standard" }`
+- Devtool-level detail on a suspect window → `resolution={ network: "machine", console: "machine" }`, narrowed with `t0_ms`/`t1_ms`
+
+Start coarse (`standard`, the default) and only reach for `machine`/`detail` on the specific kind or tag your hypothesis needs — each step down costs more tokens for more fidelity. Judge coverage against the map from `review-open` (its `kinds`/`tags` counts); `review-zoom` returns the signal slice.
+
+When you need to see the screen itself — confirm a layout, grab a component tree — use `review-snapshot` at the timestamp in question. It's a separate data set from signals; don't expect it to carry network/console detail.
+
+Don't sweep the entire session frame-by-frame — that's expensive and usually unnecessary. Lead with the map and the errors it surfaces.
+
+### Step 4: Assess
 
 Form a judgment on:
 
@@ -45,7 +53,7 @@ Form a judgment on:
 - **Did it succeed** — any errors? Did the final state match the apparent intent?
 - **Notable moments** — anything surprising, confusing, or worth flagging to the user.
 
-### Step 4: Produce the structured summary
+### Step 5: Produce the structured summary
 
 Output in this shape — stable sections make the result easy to consume, especially for a downstream agent:
 
@@ -69,7 +77,7 @@ Output in this shape — stable sections make the result easy to consume, especi
 <One paragraph. Did the session achieve its apparent goal? Anything the next reader should know?>
 ```
 
-### Step 5: Reproduction steps — only if asked
+### Step 6: Reproduction steps — only if asked
 
 If the user explicitly asks to reproduce, append a structured step list. **Do not execute** — this plugin is read-only. Executing a repro requires driving a live browser, which lives in the separate Subtext Verify plugin.
 
@@ -91,5 +99,5 @@ Always lead with errors. A downstream reader — human or agent — will look fo
 
 ### Repro steps requested
 
-- "reproduce", "repro", "walk me through step by step", "how do I hit this" → produce the step list in Step 5.
-- "review", "summarize", "what happened" → stop at Step 4. Don't volunteer repro steps; they add length without being asked for.
+- "reproduce", "repro", "walk me through step by step", "how do I hit this" → produce the step list in Step 6.
+- "review", "summarize", "what happened" → stop at Step 5. Don't volunteer repro steps; they add length without being asked for.

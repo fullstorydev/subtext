@@ -27,28 +27,33 @@ Parameter schemas are visible in the tool definition at call time. The `where` t
 
 Every search is scoped to a window, and **exactly one** of these is required:
 
-- `since` — a relative range: `"7d"`, `"24h"`, `"90m"`. Days (`d`) plus any Go duration unit.
+- `since` — a relative range: days, hours, or minutes — `"7d"`, `"24h"`, `"90m"`.
 - `time_range` — an absolute `{start, end}` as RFC3339. `start` inclusive, `end` exclusive.
 
 Passing both, or neither, is rejected.
 
 `limit` caps how many sessions come back (default 10, max 100).
 
+Each `review-search` call charges 1 credit, so shape the query before you send it rather than probing with several.
+
 ## The `where` predicate tree
 
-Omit `where`, or pass `{}`, to match **every** session in the window. Otherwise it's a tree:
+Omit `where`, or pass `{}`, to match **every** session in the window. Otherwise it's a recursive tree in which every node sets exactly one of `has` / `and` / `or` / `not_has`.
 
-- **`has`** — the leaf. Its `match` sets exactly one of:
+- **`has`** — the leaf. A required `match` plus an optional `count`. Its `match` sets exactly one of:
   - `navigate` — `url` (a string match).
   - `network` — `url`, `method` (string match; case-sensitive unless you set `case_insensitive` — methods are stored as the client sent them, conventionally uppercase), and `status` (an int match).
   - `custom` — `event_name` (a string match).
-  - An empty match (e.g. `{"navigate": {}}`) counts every item of that kind. An optional `count` on the `has` requires *N* matching items (default: at least one).
-- **`and`** / **`or`** / **`not_has`** — combine `has` nodes.
+  - An empty match (e.g. `{"navigate": {}}`) counts every item of that kind.
+  - `count` is an **object**, not a bare number — `{"gte": 3}`, `{"eq": 1}`, `{"lte": 5}`. Omit it for the default of at least one.
+- **`not_has`** — a negated leaf. Same body as `has` (`match` plus optional `count`); it is not a junction and takes no operand list.
+- **`and`** / **`or`** — junctions. Each wraps an `operands` array: `{"and": {"operands": [ … ]}}`. Operands are full predicate nodes, so junctions nest.
 
-**String match** takes one of `eq` / `contains` / `prefix` / `in`, optionally with `case_insensitive`.
-**Int match** (status) takes `eq` / `gte` / `lte` / `between`.
+**String match** takes exactly one of `eq` / `contains` / `prefix` / `in`, optionally with `case_insensitive`.
+**Int match** (`status`) takes `eq` / `gte` / `lte` / `between`, where `between` is `[min, max]` — inclusive on both ends.
+**`count`** takes `eq` / `gte` / `lte`. It has no `between`.
 
-### Example
+### Examples
 
 Sessions in the last 7 days that hit `checkout/pay` with a 4xx or 5xx:
 
@@ -62,20 +67,34 @@ Sessions in the last 7 days that hit `checkout/pay` with a 4xx or 5xx:
 }
 ```
 
+Combined with a junction — reached `/checkout`, but never got a successful `checkout/pay`:
+
+```json
+{
+  "since": "7d",
+  "where": { "and": { "operands": [
+    { "has":     { "match": { "navigate": { "url": { "contains": "/checkout" } } } } },
+    { "not_has": { "match": { "network":  { "url": { "contains": "checkout/pay" },
+                                            "status": { "between": [200, 299] } } } } }
+  ] } }
+}
+```
+
 ## The handoff
 
 Search narrows the org down to sessions that match a behavior; review reads them:
 
 ```
-review-search  →  pick a matching session  →  review-open  →  review-view / review-diff
+review-search  →  review-summary (triage a candidate)  →  review-open  →  review-zoom / review-snapshot
 ```
 
-Reach for search when the user describes a *behavior or symptom* ("where did the payment call fail?") rather than a user or a URL. When you already have a session URL, skip search and open it directly. When you're chasing one known user's sessions rather than a behavior, that's a plain per-user listing, not a signal search.
+Reach for search when the user describes a *behavior or symptom* ("where did the payment call fail?") rather than a user or a URL. When you already have a session URL, skip search and open it directly. When you're chasing one known user's sessions rather than a behavior, use `review-list-sessions` — it lists recent or per-user sessions but does no signal filtering.
 
 ## Tips
 
 - **A rejected query won't succeed on retry.** If `review-search` comes back saying the query won't succeed as written (bad window, malformed predicate), fix the query — don't re-send it. A "retry shortly" message is the transient case; that one's worth another attempt.
-- Capture the `trace_id` from the session you open so follow-on `review-*` calls don't re-resolve it.
+- `review-summary` is stateless and needs no open session — use it to triage candidates before spending a `review-open` on one.
+- Capture the `client_id` from `review-open` so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't re-resolve the session.
 
 ## See Also
 

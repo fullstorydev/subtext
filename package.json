@@ -1,10 +1,14 @@
 {
   "name": "subtext",
-  "version": "0.5.0",
+  "version": "0.10.3",
   "type": "module",
   "scripts": {
     "changeset": "npx --yes @changesets/cli@^2.27.0",
     "version-packages": "npx --yes @changesets/cli@^2.27.0 version && node scripts/sync-manifest-versions.mjs",
+    "vendor-skills": "node scripts/sync-sightmap-skills.mjs",
     "release": "npx --yes @changesets/cli@^2.27.0 tag"
+  },
+  "devDependencies": {
+    "@sightmap/sightmap": "^0.27.0"
   }
 }
