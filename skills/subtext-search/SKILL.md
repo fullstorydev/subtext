@@ -11,8 +11,6 @@ Search is the front door to review when you don't have a URL and you're looking 
 
 It's part of the session-replay tool family (all `review-` prefixed): search discovers sessions; `review-open` and the rest inspect one.
 
-**Availability:** `review-search` is gated behind the `lidar-review-search` org flag. If it isn't in the tool list, the org doesn't have it enabled — there's nothing to configure client-side.
-
 ## MCP Tools
 
 | Tool | Description |
@@ -27,12 +25,12 @@ Parameter schemas are visible in the tool definition at call time. The `where` t
 
 Every search is scoped to a window, and **exactly one** of these is required:
 
-- `since` — a relative range: days, hours, or minutes — `"7d"`, `"24h"`, `"90m"`.
+- `since` — a positive Go duration, or a day count: `"24h"`, `"90m"`, `"1h30m"`, `"7d"`.
 - `time_range` — an absolute `{start, end}` as RFC3339. `start` inclusive, `end` exclusive.
 
-Passing both, or neither, is rejected.
+Passing both, or neither, is rejected with `exactly one of since or time_range is required`.
 
-`limit` caps how many sessions come back (default 10, max 100).
+`limit` caps how many sessions come back (default 10, max 100). Results are **not** ordered by start time — unlike `review-list-sessions`, which is newest-first. Sort them yourself if order matters.
 
 Each `review-search` call charges 1 credit, so shape the query before you send it rather than probing with several.
 
@@ -92,7 +90,8 @@ Reach for search when the user describes a *behavior or symptom* ("where did the
 
 ## Tips
 
-- **A rejected query won't succeed on retry.** If `review-search` comes back saying the query won't succeed as written (bad window, malformed predicate), fix the query — don't re-send it. A "retry shortly" message is the transient case; that one's worth another attempt.
+- **A rejected query won't succeed on retry.** Validation runs before any work, so a bad window or malformed predicate fails the same way every time — fix the query, don't re-send it. A "retry shortly" message is the transient case; that one's worth another attempt.
+- Validation errors come in two flavors. Rule violations name the rule (`match must have exactly one of navigate/network/custom, not several`) and tell you the fix. Shape violations surface as raw unmarshal errors naming internal types (`cannot unmarshal array into ... review.whereJunction`) — those mean a node has the wrong *structure*, so check it against the shapes above rather than reading the type name.
 - `review-summary` is stateless and needs no open session — use it to triage candidates before spending a `review-open` on one.
 - Capture the `client_id` from `review-open` so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't re-resolve the session.
 
