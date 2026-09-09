@@ -63,7 +63,7 @@ Install the Fullstory capture snippet for your org so sessions are recorded. The
 ## Notes
 
 - All tools are read-only analysis **except** `privacy-create` / `privacy-promote` / `privacy-delete` / `privacy-url-create` / `privacy-network-create`, which modify org privacy rules.
-- This plugin bundles the **skills** `subtext-review` (structured session summaries), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block/URL/network privacy rules), and `subtext-telemetry` (workflow milestone logging), plus `subtext-shared` and `subtext-using-subtext`.
+- This plugin bundles the **skills** `subtext-search` (find sessions by what happened in them), `subtext-review` (structured session summaries), `subtext-session` (the `review-*` tool catalog), `subtext-privacy` (PII detection + element-block/URL/network privacy rules), and `subtext-telemetry` (workflow milestone logging), plus `subtext-shared` and `subtext-using-subtext`.
 - It also bundles the **sightmap** skills `sightmap-authoring` and `sightmap-browser` for building and driving a [`.sightmap/`](https://github.com/sightmap/sightmap) corpus, with `subtext-sightmap` bridging a corpus into session review. These are vendored from the [sightmap](https://github.com/sightmap/sightmap) project (see below) — no extra install, and no binary required at plugin install time.
 
 ## Maintaining the vendored sightmap skills

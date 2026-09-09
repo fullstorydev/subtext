@@ -13,6 +13,7 @@ API catalog for the session replay tools (all prefixed `review-`). One gesture �
 
 | Tool | Description |
 |------|-------------|
+| `review-search` | Find sessions across the org by *what happened in them* — a predicate tree over navigate/network/custom signals within a time window. See `subtext-search` for the query language. |
 | `review-list-sessions` | Find reviewable sessions — numbered URLs + timestamps. With no arguments, the org's most recent captures. With `email_address`/`user_uid`, one user's sessions, paged with `before`. |
 | `review-open` | Open a session for analysis. Returns a handle (`client_id`) plus the **map** and a digest rollup. |
 | `review-summary` | Static "what happened" — the default zoom (all kinds @ `standard`), frozen. No map, no handle. Stateless, cheapest call. Use for a quick read before deciding whether to `open`. |
@@ -45,6 +46,8 @@ All six paths return the same handle. Capture the `client_id` from the response 
 Pass `email_address` or `user_uid` to scope it to one user instead. That response reports `newest`/`oldest` — the creation-time range it covered — and, when more history exists, a note to pass `oldest` back as `before` to page further back. `before` is only valid alongside `email_address`/`user_uid`; the org-wide list isn't time-scoped.
 
 Ticket-triage recipe: given a report against a known user, `review-list-sessions` by their `email_address`/`user_uid` to get candidates, `review-summary` each to find the one matching the report, then `review-open` it to investigate.
+
+When the report names a *behavior* rather than a user — "the payment call is failing" — reach for `review-search` instead; it filters on signals, which `review-list-sessions` does not do. See `subtext-search`.
 
 ## The map
 
@@ -127,3 +130,4 @@ No network/console excerpts are stapled onto a snapshot — signals only come fr
 ## See Also
 
 - `subtext-shared` — MCP conventions
+- `subtext-search` — finding sessions by what happened in them (`review-search`)
