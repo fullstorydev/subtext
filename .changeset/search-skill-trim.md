@@ -1,0 +1,5 @@
+---
+"subtext": patch
+---
+
+Trim `subtext-search` to what the `review-search` schema and its error messages don't already carry, cutting the file roughly in half. Removed the parameter and operator inventory (field names, match kinds, string/int operators, `limit` bounds, empty-match semantics, the `since`/`time_range` window rule) — all of it is in the self-describing tool schema, and the window and match-kind rules additionally reject with messages that name the rule and the fix. What stays is what inspecting the tool can't tell you: when to reach for search over `review-open` or `review-list-sessions`, the handoff into review, result ordering, per-call cost, and the three `where` shapes whose rejections surface as raw unmarshal errors naming an internal type (`and`/`or` taking an `operands` object, `count` taking an object, `not_has` being a leaf rather than a junction). Duplicating a schema in prose is a drift risk with no upside — the schema ships with the server, the skill ships with the plugin.
