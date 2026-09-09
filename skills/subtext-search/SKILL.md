@@ -1,6 +1,6 @@
 ---
 name: subtext-search
-description: Find Fullstory sessions by what happened in them — a predicate tree over navigate / network / custom signals within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
+description: Find Fullstory sessions by what happened in them — a predicate tree over page navigations, custom events, and failed network requests within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
 ---
 
 # Search
@@ -23,6 +23,16 @@ Read the tool schema for parameters and operators; it's complete and self-descri
 
 Then hand off: `review-search` → `review-summary` to triage candidates → `review-open` → `review-zoom` / `review-snapshot`.
 
+## What's searchable
+
+The index holds three kinds of signal, and nothing else:
+
+- **Page navigations** — `navigate.url`
+- **Custom events** — `custom.event_name`
+- **Failed network requests** — `network.*`, but only status >= 400
+
+Successful requests, clicks, and console messages are not indexed and can never match. A predicate over a 2xx status matches nothing at all, and a `not_has` over one is vacuously true for every session — so build absence checks over navigations or custom events instead. A session that *did* something unindexed still has it in the replay; search just can't find the session by it.
+
 ## Result ordering
 
 Results are ordered by **last activity**, most recent first — not by when the session started, so a long-running older session can outrank one that started later. The response displays only `started`, so the sort key isn't visible in the output. On a busy org the top of the list turns over fast: an identical query re-run seconds later can return a different set.
@@ -31,35 +41,38 @@ Results are ordered by **last activity**, most recent first — not by when the 
 
 - Exactly one of `since` / `time_range` is required. Passing both is rejected, not merged.
 - `and` / `or` wrap an `operands` array — `{"and": {"operands": [ … ]}}`, not a bare array.
+- `operands` accept any node, including another junction, so trees nest to any depth.
 - `count` is an object — `{"gte": 3}`, not `3`.
 - `not_has` is a negated leaf with the same body as `has`. It takes no operand list.
 
-The last three reject with a raw unmarshal error naming an internal type rather than the fix. Every other rule announces itself clearly, so send the query and read the error.
+The `operands`, `count`, and `not_has` shapes reject with a raw unmarshal error naming an internal type rather than the fix. Every other rule announces itself clearly, so send the query and read the error.
 
-Hit `checkout/pay` with a 4xx or 5xx:
-
-```json
-{
-  "since": "7d",
-  "where": { "has": { "match": { "network": {
-    "url": { "contains": "checkout/pay" },
-    "status": { "gte": 400 }
-  } } } }
-}
-```
-
-Reached `/checkout`, but never got a successful `checkout/pay`:
+Reached `/checkout`, never reached `/confirmation`, and either a failed `checkout/pay` request or a `payment_declined` event:
 
 ```json
 {
   "since": "7d",
   "where": { "and": { "operands": [
     { "has":     { "match": { "navigate": { "url": { "contains": "/checkout" } } } } },
-    { "not_has": { "match": { "network":  { "url": { "contains": "checkout/pay" },
-                                            "status": { "between": [200, 299] } } } } }
+    { "not_has": { "match": { "navigate": { "url": { "contains": "/confirmation" } } } } },
+    { "or": { "operands": [
+      { "has": { "match": { "network": { "url": { "contains": "checkout/pay" },
+                                         "status": { "gte": 400 } } } } },
+      { "has": { "match": { "custom":  { "event_name": { "eq": "payment_declined" } } } } }
+    ] } }
   ] } }
 }
 ```
+
+## Check the readback
+
+Every response echoes how the server parsed the tree:
+
+```
+Predicate: (navigate url contains "/checkout" AND NOT (navigate url contains "/confirmation") AND (network url contains "checkout/pay" and status >= 400 OR custom event_name eq "payment_declined"))
+```
+
+Read it before trusting the results. A query that parses but doesn't mean what you intended shows up there, never as an error — and zero matches is ambiguous on its own, since it could mean the predicate was wrong, the window was too narrow, or the signal isn't indexed.
 
 ## Cost
 
