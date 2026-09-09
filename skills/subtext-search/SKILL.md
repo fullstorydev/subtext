@@ -30,7 +30,7 @@ Every search is scoped to a window, and **exactly one** of these is required:
 
 Passing both, or neither, is rejected with `exactly one of since or time_range is required`.
 
-`limit` caps how many sessions come back (default 10, max 100). Results are **not** ordered by start time — unlike `review-list-sessions`, which is newest-first. Sort them yourself if order matters.
+`limit` caps how many sessions come back (default 10, max 100). Results are ordered by **last activity**, most recent first — not by when the session started, so a long-running older session can outrank one that started later. The response shows only `started`, so the sort key isn't visible in the output. On a busy org the top of the list turns over fast: an identical query re-run seconds later can return a different set.
 
 Each `review-search` call charges 1 credit, so shape the query before you send it rather than probing with several.
 
