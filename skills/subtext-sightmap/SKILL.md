@@ -35,42 +35,40 @@ real corpus.
 ### Preferred — side-band upload (whole corpus)
 
 `review-open` returns a single-use `sightmap_upload_url` in its response. Upload
-the checked-in corpus to that URL with the bundled collector script **before**
-you read anything back — before `review-zoom` / `review-snapshot`:
+the checked-in corpus to that URL with the `sightmap` CLI, from the project root:
 
 ```bash
 # run from the project root (where .sightmap/ lives):
-python3 <this skill's directory>/collect_and_upload_sightmap.py --url <sightmap_upload_url>
+sightmap export --url <sightmap_upload_url>
 ```
 
-`collect_and_upload_sightmap.py` sits **beside this SKILL.md** — reference it at
-that path (it ships with the skill; there is no plugin-root variable to expand).
-It walks `.sightmap/**/*.yaml` under the project root (auto-detected by walking up
-from the current directory, or pass `--root DIR` / set `SIGHTMAP_ROOT`), flattens
-hierarchical components into the compound selectors the matcher expects, collects
-top-level `memory`, and POSTs the result using the single-use token embedded in
-the URL — no extra auth. Requires **Python 3.9+ and PyYAML** (`pip install pyyaml`).
+`sightmap export` finds the nearest `.sightmap/` at or above the current directory,
+compiles it through the Go loader — the single source of truth, shared with the
+server-side reader, so the two ends can't drift — and POSTs the whole canonical
+wire: **components** (including view-scoped ones, flattened to the compound
+selectors the matcher expects), **views/routes**, **requests**, **messages**,
+**memory**, and authored **tags**. No extra auth; the URL carries its own token.
+Needs the `sightmap` binary on PATH (installed above).
 
-Matched component names then appear in `review-snapshot` component trees and
-`review-zoom` signals, and `memory` entries surface as an orientation guide.
+Matched names then appear in `review-snapshot` component trees and `review-zoom`
+signals — component names on interactions, plus view and network annotations from
+the uploaded routes/requests — and `memory` entries surface as an orientation guide.
 
-> **Scope today:** the collector uploads **components** (including view-scoped
-> components) and top-level **memory** only. `requests:` and `views:` definitions
-> are not uploaded yet — network / view-name enrichment isn't wired through the
-> signal stream.
+> **Upload promptly.** The `sightmap_upload_url` token is single-use **and**
+> time-limited — a stale one returns `401 invalid or expired nonce`. Run the
+> upload right after `review-open`, before any `review-zoom` / `review-snapshot`.
 
-### Fallback — inline on `review-open` (small, hand-authored sets)
+### Fallback — inline on `review-open` (small sets / no binary)
 
-For a handful of flat, hand-written definitions — or a harness without Python —
+Without the `sightmap` binary, or for a handful of flat, hand-written definitions,
 `review-open` also accepts a `sightmap` array (component definitions: `name`,
 `selectors`, optional `memory`, `source`) and a top-level `memory` array directly.
 
-Reach for this only for tiny sets. The array takes **already-flattened** compound
-selectors, so nested components must be flattened by hand (each parent selector
-prefixed onto its children) — which is exactly what the collector script does for
-you, which is why the side-band upload is preferred for anything real. Either way,
-keep the `.sightmap/` corpus the source of truth: edit the YAML and re-upload —
-don't paste one-off definitions that aren't checked in.
+The array takes **already-flattened** compound selectors, so nested components must
+be flattened by hand (each parent selector prefixed onto its children) — which is
+why the side-band upload is preferred for anything real. Either way, keep the
+`.sightmap/` corpus the source of truth: edit the YAML and re-upload — don't paste
+one-off definitions that aren't checked in.
 
 ## See also
 
