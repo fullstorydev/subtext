@@ -58,11 +58,14 @@ daemon and returns immediately.
 
 | Command | What it does |
 |---------|-------------|
-| `sightmap browser start` | Launch Chrome + the overlay server. **Foreground daemon — holds the shell; pass `--detach` in scripts/agents.** Writes `.sightmap/.session`. |
+| `sightmap browser start` | Launch Chrome + the overlay server. **Foreground daemon — holds the shell; pass `--detach` in scripts/agents.** Creates `.sightmap/` if absent and writes `.sightmap/.session` (fails loudly if it can't). Every other command finds the session via this file, so with no session file a command warns and falls back to the default CDP port — which may be a **different agent's** Chrome; pass `--addr` to be explicit. |
 | `sightmap browser status` | Check session health, tabs, and current URL. Reports `⚠ degraded` when Chrome's CDP is up but the daemon's HTTP server was reaped. |
 | `sightmap browser navigate 'URL'` | Navigate to URL (positional arg — no `--url` flag). |
 | `sightmap browser stop` | Stop Chrome session. |
-| `sightmap browser eval 'js'` | Evaluate JS in page context. Returns JSON-serializable values only — DOM element references return an error. |
+| `sightmap browser eval 'js'` | Evaluate JS in page context. Returns JSON-serializable values only — DOM element references return an error. A returned promise is awaited, so `async` evals resolve to their value. |
+| `sightmap browser inject --file X --persist` | Inject a script that re-runs on **every** new document/tab for the whole session (survives navigations), vs `eval`'s one-shot. `--list` / `--remove ID` manage them. Needs a running session (the daemon holds the registry). |
+| `sightmap browser mcp list` | Enumerate the WebMCP tools the page exposes via `document.modelContext` (name, description, input schema; `--json` for full schemas). Reports native vs polyfilled vs absent; fails loudly with the Chrome-flag hint when absent. When a page exposes tools, prefer a named `mcp call` over blind click/fill. |
+| `sightmap browser mcp call <tool> --args '{…}'` | Invoke one exposed tool via `executeTool`. Args via `--args JSON` and/or repeatable `--param k=v`. Unwraps the WebMCP `CallToolResult` (text/guidance shown as itself, not a stringified blob) and exits non-zero on tool `isError`. One tool at a point in time — no cross-navigation; if the tool navigates, re-run `mcp list` on the new view. |
 | `sightmap browser screenshot --out FILE.png` | Screenshot the page. Clip to a component with `--component NAME` (or `--selector CSS`), optionally `--expand-pct N` for context. |
 
 ## Reading the page: annotated snapshots
