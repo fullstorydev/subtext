@@ -137,8 +137,11 @@ that `snapshot`/`coverage`/`capture` actually use — it prints both counts and 
 `⚠ offline/live divergence` warning when they disagree. Trust the **offline**
 count: that is what the corpus will see. Wrong match count = corrupt coverage.
 
-**Attribute selectors on `class` and `id` match offline**, the same as live
-(`[class*=…]`, `[class^=…]`, `[class~=…]`, `[id^=…]`, `[id$=…]`, …). `class` and
+**Every attribute matches offline**, the same as live: the offline element model
+captures the full attribute set the DOM carries — minus injected sightmap ids and
+framework `_ng*`-style scoping attrs — so `[class*=…]`, `[id^=…]`, `[value=…]`,
+`[data-*=…]` and `extract: attr=NAME` all resolve offline for standard **and**
+non-standard attributes (e.g. `value` on a `role="option"` `<li>`). `class` and
 `id` are captured for every element (SVG included) and resolve to the same fields
 `.classname` / `#id` use. Prefer `.classname` / `#id` when a full class or id is
 stable — they're the shortest forms — but reach for the attribute forms when only
@@ -152,18 +155,14 @@ Sibling combinators (`+`, `~`) are NOT supported, including inside `:has()`.
 `:has()` scopes a component to a container by what it *contains* — invaluable
 when a row has no unique attribute of its own. Combinators inside work: `:has(x)`
 = descendant, `:has(> x)` = direct child. Example — target only the add-on row
-that holds a checkbox (not the sibling radio row), so its `text` frames the whole
-offer and feeds a `match:` split:
+that holds a checkbox (not the sibling radio row), so its `text` captures the
+whole offer:
 ```yaml
 - name: AssemblyOption
   selector: '[data-testid="form-group"]:has(input[type="checkbox"])'
   properties:
-    - name: assemblyType        # In-Store | In-Home
+    - name: label               # the whole offer, e.g. "In-Home Assembly $179.00"
       extract: text
-      transform: 'match:(In-Store|In-Home)'
-    - name: price               # FREE | $179.00
-      extract: text
-      transform: 'match:(FREE|\$[\d,.]+)'
 ```
 Always `sel-probe`/`sel-check` first — `:has()` now agrees across the live and
 offline matchers.
@@ -353,10 +352,25 @@ components:
 
 ## Property extraction principles
 
+A property earns its place two ways: it **discriminates** an otherwise ambiguous
+instance so a query can address one (`Card[title^="Today"]`), or it carries
+**signal** a downstream event or agent needs (`price`, `status`, `sku`) —
+including a control's current **state** (a sort's active option, a passenger
+count, a field's value), which counts even when it equals the accessible name;
+the test is whether the value would read differently in another capture, not
+whether it matches the name. A property that does neither is noise: a
+`text`/`label` restating a control's fixed **affordance** (its unchanging name —
+`Search`, `Give Feedback`), or a `text` on a nameless container (a whole-innerText
+subtree dump — promote the real value to a child instead).
+
 Two property rules are **mandatory**:
 
-1. Every child component that is a link or button **must** have at least one
-   property.
+1. Every child component that is a link or button must be **identifiable** — by
+   its accessible name (a self-naming `Give Feedback` button needs no property),
+   or, when the name is absent, ambiguous, or repeated, a *useful* property (a
+   discriminator or signal). Never add a property that just restates the name —
+   unless it is a repeated component's per-instance discriminator (rule 2),
+   which is legitimate even when each value equals its own instance's name.
 2. Every component whose selector matches **more than one instance** — a
    repeated container or control (cards, list rows, nav tabs, feed items) —
    **must** carry a property that *varies per instance* (a title, label, key, or
@@ -367,7 +381,10 @@ Two property rules are **mandatory**:
    wherever it lives — a header title, an `aria-label`, a stable `data-*`. When
    the repeated node is an *identical leaf* that has no discriminator of its own
    (every row's identical Rescue button), put the discriminator on its container
-   and nest the leaf beneath it — see **Component hierarchy** above.
+   and nest the leaf beneath it — see **Component hierarchy** above. But when the
+   matches are *responsive duplicates* of one control (the **same** value on every
+   match, only one visible), there is nothing to discriminate — narrow the
+   selector to the visible instance rather than adding a property.
 
 ```yaml
 - name: FooterLink
@@ -382,48 +399,52 @@ Two property rules are **mandatory**:
   selector: 'article.card'
   properties:
     - name: title
-      extract: '.card__title'
+      extract: attr=aria-label
 ```
 
-**Choosing an extract mode:**
+A `label` restating the accessible name is noise **only when the component's
+selector specifically identifies that control**. If the selector is generic (a
+utility class matching a category), the component is effectively generic and the
+label is its discriminator — keep it, but name the component for what the
+selector actually matches (`Button[label=…]`), not a specific thing the selector
+can't back up (`ExploreMoreFlights` on `a.rounded-button`). Fixing the selector
+to a stable, specific hook is the better end state; until then, an honest generic
+name + label discriminator beats a false-specific name.
 
-| Mode | Use when |
-|------|----------|
-| `text` | Default for most cases |
-| `inner_text` | Adjacent inline elements concatenate without spaces (date+time+venue) |
-| `text_only` | Image alt text bleeds into the label (icon+text buttons) |
-| `attr=NAME` | Need a specific attribute (aria-label, href, data-value) |
-| `exists:SEL` | Boolean state flag — emits "true" or omits entirely |
-| CSS selector | `el.querySelector(SEL)?.textContent` for a specific child element |
+**Extract modes** — exactly one of four forms:
 
-**Transforms** (post-extract): `first_word`, `last_word`, `first_number`,
-`first_dollar`, `number`, `slug`, `match:REGEX`.
+| Mode | Resolves to |
+|------|-------------|
+| `text` | the matched node's accessible name (the default), falling back to its rendered `innerText` when it has no accessible name — so role-less `<span>`s / custom elements resolve their visible value offline, not empty |
+| `attr=NAME` | the value of attribute `NAME` on the matched node |
+| `Child.prop` | the extracted `prop` of a descendant *component* `Child` |
+| `exists:Child` | `"true"` if descendant component `Child` matched, else omitted (a boolean flag) |
 
-`match:REGEX` captures an arbitrary substring or enum from the extracted value.
-If the pattern has a capture group, the value is **group 1**; otherwise the full
-match. On no match (or an invalid pattern) the value passes through unchanged.
-Use it to split one concatenated label into several structured, queryable props
-(which is also what the component-query DSL matches on):
+Extraction is **tree-closed**: `text` and `attr=` read the matched node itself;
+`Child.prop` and `exists:Child` reference a component nested beneath it. A path
+may descend through several declared children (`Row.Price.amount`), taking the
+first match at each step. There is no raw-CSS sub-selector and no text-splitting
+transform — to surface a value from a sub-element, **promote it to a child
+component** and reference it. This is also how you disambiguate a repeated
+identical leaf (rule 2): give the container a discriminator and nest the leaf.
 
 ```yaml
-# "Add In-Store Assembly / FREE"  vs  "Add In-Home Assembly / +$179.00"
-- name: AssemblyCheckbox
-  selector: '[data-testid="assembly-option"]'
+- name: ProductCard
+  selector: 'article.card'
   properties:
-    - name: assemblyType            # → "In-Store" | "In-Home"
-      extract: text
-      transform: 'match:(In-Store|In-Home)'
-    - name: price                   # → "FREE" | "$179.00"
-      extract: text
-      transform: 'match:(FREE|\$[\d,.]+)'
+    - name: title
+      extract: Title.text          # a child component, not a raw CSS sub-selector
+    - name: on_sale
+      extract: exists:SaleBadge    # boolean flag: "true" or omitted
+  children:
+    - name: Title
+      selector: '.card__title'
+      properties:
+        - name: text
+          extract: text
+    - name: SaleBadge
+      selector: '.badge--sale'
 ```
-
-Write patterns in the Go-RE2 ∩ JS-RegExp common subset (alternation, character
-classes, anchors, quantifiers, groups). Avoid inline flags like `(?i)` and
-backreferences — JS rejects them, so the live overlay would silently drop the
-prop while the offline path keeps it. For case-insensitivity use an explicit
-class (`[Ss]tore`) or alternation. Quote the whole `transform:` value in YAML so
-`$`, `|`, and `\` survive.
 
 **Text deduplication (automatic):** If a property value exactly equals the
 accessible name, the accessible name is suppressed from the annotation. Use
@@ -465,7 +486,7 @@ The HTTP status often lies: an endpoint returns `200 OK` while the real outcome
 lives inside the body. A request `properties:` entry pulls a named value out of
 the live request/response so a consumer can reason about it (the SEP-0005 "200 OK
 but the body says declined" case). Each property is resolved
-**source → field → pattern → transform**:
+**source → field → pattern**:
 
 - **`source:`** — which half to read: `rsp.body`, `req.body`, `rsp.headers`, or
   `req.headers`.
@@ -475,7 +496,6 @@ but the body says declined" case). Each property is resolved
 - **`pattern:`** *(optional)* — an RE2 regex refining what `field` resolved (or
   scanning the raw source when `field` is omitted). Capture group 1 is the value
   when present, else the whole match.
-- **`transform:`** *(optional)* — same vocabulary as component properties.
 
 ```yaml
 requests:
@@ -690,14 +710,24 @@ Check `textbox`, `combobox` nodes — if scoped inside a component but unlabeled
 add a named child for them.
 
 **2. Structured data in cards**
-If a property value is a long concatenated string containing date+time+venue
-mixed together, split it:
+If a card mixes several values (date, venue, price) into one blob, promote each
+sub-element to a child component and reference it, rather than reaching in with a
+raw selector:
 ```yaml
-properties:
-  - name: date
-    extract: inner_text
-  - name: venue
-    extract: '[data-testid="venue-name"]'
+- name: EventCard
+  selector: 'article.event'
+  properties:
+    - name: date
+      extract: DateLabel.text
+    - name: venue
+      extract: Venue.text
+  children:
+    - name: DateLabel
+      selector: 'time'
+      properties: [{ name: text, extract: text }]
+    - name: Venue
+      selector: '[data-testid="venue-name"]'
+      properties: [{ name: text, extract: text }]
 ```
 
 **3. T2 triage**
