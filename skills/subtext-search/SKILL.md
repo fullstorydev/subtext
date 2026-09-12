@@ -1,102 +1,84 @@
 ---
 name: subtext-search
-description: Find Fullstory sessions by what happened in them — a predicate tree over navigate / network / custom signals within a time window — then hand a match off to session review. Use when you don't have a URL and need sessions matching a behavior, not a specific user.
+description: Find Subtext sessions by what happened in them — a predicate tree over page navigations, custom events, and failed network requests within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
 ---
 
 # Search
 
-> **PREREQUISITE:** Read `subtext-shared` and `subtext-session` for tool conventions.
+> **PREREQUISITE:** Read `subtext-shared` for MCP conventions and `subtext-session` for the `review-*` catalog and session-identifier forms.
 
-Search is the front door to review when you don't have a URL and you're looking for sessions by *what happened in them* — "sessions that visited `/checkout` and got a 4xx/5xx from `checkout/pay`". `review-search` scans the org's captured sessions over a time window, matches a predicate tree against their signals, and returns the sessions to open with `review-open`.
+`review-search` finds sessions by *what happened in them* — "visited `/checkout` and got a 4xx/5xx from `checkout/pay`". It scans the org over a time window and returns sessions to hand to review.
 
-It's part of the session-replay tool family (all `review-` prefixed): search discovers sessions; `review-open` and the rest inspect one.
+Read the tool schema for parameters and operators; it's complete and self-describing. Below is only what the schema and its error messages don't tell you.
 
-## MCP Tools
+## When to reach for it
 
-| Tool | Description |
-|------|-------------|
-| `review-search` | Cross-session search for the authenticated org — a `has`/`and`/`or`/`not_has` predicate tree over navigate/network/custom signals within a time window. Returns matching sessions to open with `review-open`. |
+| You have | Use |
+|----------|-----|
+| A behavior or symptom, including an app URL sessions visited or requested (`/checkout`) | `review-search` |
+| A Fullstory session URL, naming one recorded session | `review-open` directly — skip search |
+| One known user and no behavior to filter on | `review-list-sessions` — it does no signal filtering |
 
-## Discovering Parameters
+**Two different things get called a URL here.** A *Fullstory session URL* identifies one recorded session, so open it directly. An *app URL* like `/checkout` or `checkout/pay` is something sessions visited or requested — that's a search predicate (`navigate.url`, `network.url`), and having one is a reason to search, not to skip it.
 
-Parameter schemas are visible in the tool definition at call time. The `where` tree is recursive — the outline below is enough to build a query; lean on the schema for exact field names.
+Then hand off: `review-search` → `review-summary` to triage candidates → `review-open` → `review-zoom` / `review-snapshot`.
 
-## Time window — pick exactly one
+## What's searchable
 
-Every search is scoped to a window, and **exactly one** of these is required:
+The index holds three kinds of signal, and nothing else:
 
-- `since` — a positive Go duration, or a day count: `"24h"`, `"90m"`, `"1h30m"`, `"7d"`.
-- `time_range` — an absolute `{start, end}` as RFC3339. `start` inclusive, `end` exclusive.
+- **Page navigations** — `navigate.url`
+- **Custom events** — `custom.event_name`
+- **Failed network requests** — `network.*`, but only status >= 400
 
-Passing both, or neither, is rejected with `exactly one of since or time_range is required`.
+Successful requests, clicks, and console messages are not indexed and can never match. A predicate over a 2xx status matches nothing at all, and a `not_has` over one is vacuously true for every session — so build absence checks over navigations or custom events instead. A session that *did* something unindexed still has it in the replay; search just can't find the session by it.
 
-`limit` caps how many sessions come back (default 10, max 100). Results are **not** ordered by start time — unlike `review-list-sessions`, which is newest-first. Sort them yourself if order matters.
+## Result ordering
 
-Each `review-search` call charges 1 credit, so shape the query before you send it rather than probing with several.
+Results are ordered by **last activity**, most recent first — not by when the session started, so a long-running older session can outrank one that started later. The response displays only `started`, so the sort key isn't visible in the output. On a busy org the top of the list turns over fast: an identical query re-run seconds later can return a different set.
 
-## The `where` predicate tree
+## Gotchas
 
-Omit `where`, or pass `{}`, to match **every** session in the window. Otherwise it's a recursive tree in which every node sets exactly one of `has` / `and` / `or` / `not_has`.
+- Exactly one of `since` / `time_range` is required. Passing both is rejected, not merged.
+- `and` / `or` wrap an `operands` array — `{"and": {"operands": [ … ]}}`, not a bare array.
+- `operands` accept any node, including another junction, so trees nest to any depth.
+- `count` is an object — `{"gte": 3}`, not `3`.
+- `not_has` is a negated leaf with the same body as `has`. It takes no operand list.
 
-- **`has`** — the leaf. A required `match` plus an optional `count`. Its `match` sets exactly one of:
-  - `navigate` — `url` (a string match).
-  - `network` — `url`, `method` (string match; case-sensitive unless you set `case_insensitive` — methods are stored as the client sent them, conventionally uppercase), and `status` (an int match).
-  - `custom` — `event_name` (a string match).
-  - An empty match (e.g. `{"navigate": {}}`) counts every item of that kind.
-  - `count` is an **object**, not a bare number — `{"gte": 3}`, `{"eq": 1}`, `{"lte": 5}`. Omit it for the default of at least one.
-- **`not_has`** — a negated leaf. Same body as `has` (`match` plus optional `count`); it is not a junction and takes no operand list.
-- **`and`** / **`or`** — junctions. Each wraps an `operands` array: `{"and": {"operands": [ … ]}}`. Operands are full predicate nodes, so junctions nest.
+The `operands`, `count`, and `not_has` shapes reject with a raw unmarshal error naming an internal type rather than the fix. Every other rule announces itself clearly, so send the query and read the error.
 
-**String match** takes exactly one of `eq` / `contains` / `prefix` / `in`, optionally with `case_insensitive`.
-**Int match** (`status`) takes `eq` / `gte` / `lte` / `between`, where `between` is `[min, max]` — inclusive on both ends.
-**`count`** takes `eq` / `gte` / `lte`. It has no `between`.
-
-### Examples
-
-Sessions in the last 7 days that hit `checkout/pay` with a 4xx or 5xx:
-
-```json
-{
-  "since": "7d",
-  "where": { "has": { "match": { "network": {
-    "url": { "contains": "checkout/pay" },
-    "status": { "gte": 400 }
-  } } } }
-}
-```
-
-Combined with a junction — reached `/checkout`, but never got a successful `checkout/pay`:
+Reached `/checkout`, never reached `/confirmation`, and either a failed `checkout/pay` request or a `payment_declined` event:
 
 ```json
 {
   "since": "7d",
   "where": { "and": { "operands": [
     { "has":     { "match": { "navigate": { "url": { "contains": "/checkout" } } } } },
-    { "not_has": { "match": { "network":  { "url": { "contains": "checkout/pay" },
-                                            "status": { "between": [200, 299] } } } } }
+    { "not_has": { "match": { "navigate": { "url": { "contains": "/confirmation" } } } } },
+    { "or": { "operands": [
+      { "has": { "match": { "network": { "url": { "contains": "checkout/pay" },
+                                         "status": { "gte": 400 } } } } },
+      { "has": { "match": { "custom":  { "event_name": { "eq": "payment_declined" } } } } }
+    ] } }
   ] } }
 }
 ```
 
-## The handoff
+## Check the readback
 
-Search narrows the org down to sessions that match a behavior; review reads them:
+Every response echoes how the server parsed the tree:
 
 ```
-review-search  →  review-summary (triage a candidate)  →  review-open  →  review-zoom / review-snapshot
+Predicate: (navigate url contains "/checkout" AND NOT (navigate url contains "/confirmation") AND (network url contains "checkout/pay" and status >= 400 OR custom event_name eq "payment_declined"))
 ```
 
-Reach for search when the user describes a *behavior or symptom* ("where did the payment call fail?") rather than a user or a URL. When you already have a session URL, skip search and open it directly. When you're chasing one known user's sessions rather than a behavior, use `review-list-sessions` — it lists recent or per-user sessions but does no signal filtering.
+Read it before trusting the results. A query that parses but doesn't mean what you intended shows up there, never as an error — and zero matches is ambiguous on its own, since it could mean the predicate was wrong, the window was too narrow, or the signal isn't indexed.
 
-## Tips
+## Cost
 
-- **A rejected query won't succeed on retry.** Validation runs before any work, so a bad window or malformed predicate fails the same way every time — fix the query, don't re-send it. A "retry shortly" message is the transient case; that one's worth another attempt.
-- Validation errors come in two flavors. Rule violations name the rule (`match must have exactly one of navigate/network/custom, not several`) and tell you the fix. Shape violations surface as raw unmarshal errors naming internal types (`cannot unmarshal array into ... review.whereJunction`) — those mean a node has the wrong *structure*, so check it against the shapes above rather than reading the type name.
-- `review-summary` is stateless and needs no open session — use it to triage candidates before spending a `review-open` on one.
-- Capture the `client_id` from `review-open` so follow-on `review-zoom`/`review-snapshot`/`review-close` calls don't re-resolve the session.
+Each call charges 1 credit. Validation runs before any work, so a rejected query fails the same way every time — fix it rather than re-sending. A "retry shortly" message is the transient case and is worth another attempt.
 
 ## See Also
 
-- `subtext-shared` — MCP conventions
-- `subtext-session` — the `review-*` tool catalog and session-identifier forms
-- `subtext-review` — the structured-summary workflow that runs on a session once you've found and opened it
+- `subtext-session` — the `review-*` catalog and session-identifier forms
+- `subtext-review` — the structured-summary workflow once you've opened a match
