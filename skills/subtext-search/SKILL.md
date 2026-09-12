@@ -1,6 +1,6 @@
 ---
 name: subtext-search
-description: Find Fullstory sessions by what happened in them — a predicate tree over page navigations, custom events, and failed network requests within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
+description: Find Subtext sessions by what happened in them — a predicate tree over page navigations, custom events, and failed network requests within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
 ---
 
 # Search
