@@ -1,5 +1,39 @@
 # subtext
 
+## 0.12.0
+
+### Minor Changes
+
+- 2b16772: subtext-sightmap: upload the `.sightmap/` corpus with the `sightmap` CLI
+  (`sightmap export --url <sightmap_upload_url>`) instead of the bundled Python
+  collector, and remove `collect_and_upload_sightmap.py`.
+
+  `sightmap export` routes the upload through the Go loader — the single source of
+  truth, shared with the server-side reader — and POSTs the whole canonical wire
+  (components incl. view-scoped, views/routes, requests, messages, memory, tags), so
+  review snapshots and signals now also carry view and network annotations, not just
+  components. Drops the Python 3 / PyYAML dependency. The inline `review-open
+sightmap:` array stays as the small-set / no-binary fallback. Also documents that
+  the upload token is single-use and time-limited (upload immediately after
+  `review-open`).
+
+### Patch Changes
+
+- fc74464: Document what the `review-search` index actually covers, and drop an example that could never match. The index holds page navigations, custom events, and network requests that **failed** (status >= 400). Successful requests, clicks, and console messages are not indexed and can never match — so a predicate over a 2xx status matches nothing, and a `not_has` over one is vacuously true for every session.
+
+  The skill's worked example did exactly that: it used `not_has` over a 2xx `checkout/pay` response to mean "never got a successful payment", which is satisfied by every session in the window regardless of behavior. Replaced with a verified example that builds its absence check over navigations instead, and that also demonstrates junction nesting (`operands` accept any node, not just `has`) and a `custom` event predicate.
+
+  Also documents the predicate readback. Every response echoes how the server parsed the tree, which is the only way to tell a mis-built-but-parseable query from a genuinely empty result — zero matches on its own could mean a wrong predicate, too narrow a window, or an unindexed signal.
+
+  This coverage rule appears in neither the tool schema nor the tool description; it surfaces only in the zero-result help text, so a query that returns rows never reveals it.
+
+- fc74464: Correct the documented result ordering for `review-search`. The skill said results were not ordered by start time and told callers to sort them, which read as "unordered". They are ordered — by last activity, most recent first. Start time is not the sort key, and because the response displays only `started`, the ordering looks arbitrary in the output when it isn't. Also notes that the top of the list turns over quickly on a busy org, so an identical query re-run seconds later can return a different set.
+- fc74464: Trim `subtext-search` to what the `review-search` schema and its error messages don't already carry. Removed the parameter and operator inventory (match kinds and their fields, string/int operators, `between` inclusivity, `method` case sensitivity, `limit` bounds, empty-match semantics) — all of it is in the self-describing tool schema, and the match-kind and `since`-format rules additionally reject with messages that name the rule and the fix.
+
+  What stays is what inspecting the tool can't tell you: when to reach for search over `review-open` or `review-list-sessions`, the handoff into review, result ordering, per-call cost, the mutual exclusivity of `since`/`time_range` (the schema's per-field "one of" wording doesn't convey that passing both is rejected), and the three `where` shapes whose rejections surface as raw unmarshal errors naming an internal type (`and`/`or` taking an `operands` object, `count` taking an object, `not_has` being a leaf rather than a junction).
+
+  Also disambiguates "URL", which previously read as a reason to skip search whenever one was on hand. A Fullstory session URL names one recorded session and should be opened directly; an app URL like `/checkout` is something sessions visited or requested, which is a search predicate and a reason to search rather than skip it.
+
 ## 0.11.1
 
 ### Patch Changes
