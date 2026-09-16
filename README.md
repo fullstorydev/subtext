@@ -14,8 +14,6 @@ One command handles the whole setup: it logs you in, fetches your org's capture 
 
 **Requires a free Subtext account — no credit card.** Subtext is a hosted service that records and stores your app's sessions. Your account is where they live, and where your agent reads them from. When the wizard opens the login page, create an account in one click with Google, then come back to finish.
 
-_EU data region? Run `npx @subtextdev/subtext-wizard --region eu`._
-
 ## What you get
 
 Once setup is done, your agent has these tools:
@@ -54,7 +52,7 @@ npx openskills install fullstorydev/subtext
 
 **2. Connect the MCP server**
 
-The `subtext` server runs at `https://api.fullstory.com/mcp/subtext` (EU1 mirror: `https://api.eu1.fullstory.com/mcp/subtext`). It's HTTP only — no local process required.
+The `subtext` server runs at `https://api.fullstory.com/mcp/subtext`. It's HTTP only — no local process required.
 
 **3. Add the capture snippet to your app**
 

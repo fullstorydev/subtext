@@ -9,7 +9,7 @@ Foundation for all Subtext skills. Read this when a skill lists it in PREREQUISI
 
 ## MCP Servers
 
-All tools are served from the **subtext** MCP server. A **subtext-eu1** variant exists for EU1 data center sessions (`app.eu1.fullstory.com`). The agent framework resolves tool prefixes automatically based on the configured MCP servers — you do not need to hardcode prefixes.
+All tools are served from the **subtext** MCP server. The agent framework resolves tool prefixes automatically based on the configured MCP servers — you do not need to hardcode prefixes.
 
 ## Tool Name Prefixes
 
