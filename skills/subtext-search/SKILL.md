@@ -1,6 +1,6 @@
 ---
 name: subtext-search
-description: Find Subtext sessions by what happened in them — a predicate tree over page navigations, custom events, and failed network requests within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
+description: Find Subtext sessions by what happened in them — a predicate tree over page navigations, custom events, failed network requests, and client-side signals (clicks, frustration, console, all requests) within a time window — then hand a match off to session review. Use when you don't have a session URL and need sessions matching a behavior, not a specific user.
 ---
 
 # Search
@@ -25,13 +25,24 @@ Then hand off: `review-search` → `review-summary` to triage candidates → `re
 
 ## What's searchable
 
-The index holds three kinds of signal, and nothing else:
+The index holds three kinds of signal:
 
 - **Page navigations** — `navigate.url`
 - **Custom events** — `custom.event_name`
 - **Failed network requests** — `network.*`, but only status >= 400
 
-Successful requests, clicks, and console messages are not indexed and can never match. A predicate over a 2xx status matches nothing at all, and a `not_has` over one is vacuously true for every session — so build absence checks over navigations or custom events instead. A session that *did* something unindexed still has it in the replay; search just can't find the session by it.
+Successful requests, clicks, and console messages are not in the index. A `network` predicate over a 2xx status matches nothing at all, and a `not_has` over one is vacuously true for every session — so build absence checks over navigations or custom events instead. A session that *did* something unindexed still has it in the replay; search just can't find the session by it.
+
+### Client-side signals
+
+Where the page runs subtext-capture, `signal` matches the signals it generates, one item per signal, and every field you set must hold of the same signal. Unlike `network`, it sees successful requests too. The fields that matter most:
+
+- `kind`: lowercase and hyphenated: `click`, `rage-click`, `dead-click`, `error-click`, `frustrated-reload`, `form-abandon`, `exception`, `message` (console), `network`, `page-load`, `navigate`, and the rest listed in the schema.
+- `component`: any sightmap name the signal resolved to: a component in the clicked element's chain, or the request or message definition it matched.
+- `tag`: any tag, e.g. `error` (failed requests, exceptions) or `frustration`.
+- `text`, `selector`, `url`, `method`, `status`, `level`, `message`, `page_url`, `view`, `duration_ms`: the signal's own columns.
+
+Only some environments carry these signals. Where they're absent, any `signal` match fails with `signal matches aren't searchable in this environment`, so fall back to the three indexed kinds.
 
 ## Result ordering
 
@@ -60,6 +71,21 @@ Reached `/checkout`, never reached `/confirmation`, and either a failed `checkou
                                          "status": { "gte": 400 } } } } },
       { "has": { "match": { "custom":  { "event_name": { "eq": "payment_declined" } } } } }
     ] } }
+  ] } }
+}
+```
+
+Three or more rage clicks on the checkout button, in a session that also logged a console error:
+
+```json
+{
+  "since": "7d",
+  "where": { "and": { "operands": [
+    { "has": { "match": { "signal": { "kind": { "eq": "rage-click" },
+                                      "component": { "eq": "CheckoutButton" } } },
+               "count": { "gte": 3 } } },
+    { "has": { "match": { "signal": { "kind": { "eq": "message" },
+                                      "level": { "eq": "error" } } } } }
   ] } }
 }
 ```
