@@ -17,7 +17,7 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 | Detect PII or manage element-block, URL, or network privacy rules | `subtext-privacy` |
 | Log workflow milestones (e.g. onboarding progress) for analytics | `subtext-telemetry` |
 | The project has a `.sightmap/` corpus, or you want annotated component snapshots | `subtext-sightmap` |
-| A mobile app just got the SDK or a `.sightmap/` corpus, or mobile reviews show raw native elements | `subtext-mobile-audit` |
+| Check Subtext is set up correctly — after adding the snippet / SDK or a `.sightmap/` corpus, or when reviews name a container instead of the control used | `subtext-doctor` |
 | Author/maintain a `.sightmap/` corpus, or drive a live browser against it | `sightmap-authoring`, `sightmap-browser` |
 
 ## Sightmap
