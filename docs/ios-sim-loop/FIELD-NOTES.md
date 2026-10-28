@@ -1,0 +1,56 @@
+# subtext-ios-sim field notes
+
+A running record of what came up while building and testing the iOS Simulator loop: on the development Mac ("dev Mac") and in field tests on a second Mac against a real React Native app ("field Mac"). Newest entries at the top of each section. Add to it from either machine; keep it free of org IDs, credentials and internal-only details.
+
+Status values: **fixed** (commit noted), **in progress**, **open**, **upstream** (outside this skill), **won't fix**.
+
+## Skill, CLI and helper
+
+| Found | Where | Issue | Status |
+|---|---|---|---|
+| 2026-10-28 | field Mac | Empty accessibility tree while app accessibility was already on. The cause was an always-mounted view with `accessibilityViewIsModal = YES` hiding its siblings, but the error said to enable accessibility. | fixed 61a37a8: errors list modal/hidden-root views first and skip the accessibility advice when it's on; a `doctor --app` probe is still open |
+| 2026-10-28 | field Mac | `snapshot` crashes with `extract.startsWith is not a function`: sightmap 0.36 emits `extract` as an object, and the bridge only handled strings. | fixed 61a37a8: both forms accepted; npx pin is now sightmap 0.36.1; `doctor` reports the resolved version |
+| 2026-10-28 | field Mac | `session-url` missed the URL when React Native logged it as a multi-argument line. | fixed 61a37a8: any Fullstory session URL in any console entry, newest wins |
+| 2026-10-28 | field Mac | An existing corpus matched 0%: session corpora use `[testid=…]` while the simulator exposes `identifier`, and wrapper views aren't accessibility elements, so parent chains never match. A draft simulator corpus reached 56–100% per screen. | fixed 61a37a8: `testid` aliases `identifier`; descendant chains skip ancestors whose identifier nothing carries. sightmap's own `explain`/`coverage` don't apply that rule, so they can report fewer matches |
+| 2026-10-28 | field Mac | Skill YAML examples fail `sightmap validate` on 0.36 (`extract: text` is deprecated; native views have no route). | fixed 61a37a8: examples and fixtures pass 0.36 `validate`, which now runs in tests and the e2e. Views need a `route`, so native views use placeholder routes like `/login` |
+| 2026-10-28 | field Mac | `start --bundle-id` on a running session relaunched the previous app while printing "relaunched". | fixed 61a37a8: errors on a different app; reports what it installed and relaunched |
+| 2026-10-28 | field Mac | `tap-xy` accepted points far off the screen; units (points vs pixels) weren't stated. | fixed 61a37a8: off-screen points refused; units are points |
+| 2026-10-28 | field Mac | `--sightmap-dir` ties the corpus to the session, so a draft corpus can't be tried against a running session. | open: `--corpus DIR` idea |
+| 2026-10-28 | field Mac | The dev-menu floating button is its own window, and it's the only visible element when the tree is empty. | fixed 61a37a8: snapshot adds a `[Mostly empty]` note (size heuristic, untested against a real dev-menu tree) |
+| 2026-10-28 | field Mac | Producer and consumer ran one after the other: the test prompt told the consumer to wait for the producer, and the skill allowed either. | fixed e9fb6b3: the skill requires concurrent work and explains SDK delivery |
+| 2026-10-28 | both | macOS keychain prompt on the first helper build: SwiftPM offered a saved `github.com` credential while downloading idb's public frameworks. | fixed 4410044: `--disable-keychain --disable-netrc` |
+| 2026-10-28 | dev Mac | The SwiftUI fixture was assembled by hand with `swiftc`. It lacked the simulated entitlements Xcode embeds, so the Fullstory SDK's background uploads all failed and no session reached Fullstory. Looked like a server or org problem until device logs showed every `/rec/bundle` upload failing inside the simulator. | fixed c38b875: committed `SimSample.xcodeproj`, built with `xcodebuild` |
+| 2026-10-28 | dev Mac | iOS shows a "Save Password?" sheet after sign-in once the app has a real identity (Xcode build). It briefly swallowed taps. | documented; a fresh `snapshot` clears it |
+| 2026-10-28 | dev Mac | Mobile network capture is off by default and can't be set by API or the Subtext MCP; it's the main onboarding roadblock for network data. | fixed 0227741: `doctor` prints it as a manual check |
+| 2026-10-28 | dev Mac (clean-machine run) | The `owner/repo#ref` marketplace shorthand cloned over SSH, which fails without GitHub SSH keys. | fixed 19e7fb5: README leads with the HTTPS URL |
+| 2026-10-28 | dev Mac (clean-machine run) | The fixture build ignored `SUBTEXT_SIM_CACHE`; the helper build used the global SwiftPM cache. | fixed 19e7fb5 |
+| 2026-10-28 | dev Mac (clean-machine run) | `console list` was swamped by Apple framework errors. | fixed 19e7fb5: hidden by default, `--all` shows them |
+| 2026-10-28 | dev Mac | Enabling app accessibility only takes effect at boot, so the first `start` on a fresh simulator reboots it once. | documented |
+| 2026-10-28 | dev Mac | iOS 26 SwiftUI tab bars appear as one "Tab Bar" element with no tabs; switching tabs needs `tap-xy`. | open |
+| 2026-10-28 | dev Mac | Scrolling a long list to a far row takes ~3–4 s per screenful. | open |
+
+## Fullstory data and the Subtext MCP
+
+| Found | Where | Issue | Status |
+|---|---|---|---|
+| 2026-10-28 | field Mac | Every network request appears twice at the same millisecond in the session; the server's own logs show one. | upstream: capture or ingest |
+| 2026-10-28 | field Mac | `review-zoom` at `detail` returned response headers only: no request headers, bodies or query strings. Check against the org's header allowlists and body rules before calling it a bug. | upstream / open |
+| 2026-10-28 | field Mac | `review-zoom` at `standard` collapses network traffic into counts; endpoint names only show at `machine`. | fixed 61a37a8: skill recommends `machine` for naming endpoints |
+| 2026-10-28 | field Mac | Network data lagged 35 s to 2 min behind the app, longer than the ~20 s upload interval. | upstream / open |
+| 2026-10-28 | dev Mac | `review-open` reports "invalid session_url" when a session's IDs don't exist server-side, which reads like a bad link rather than "this session never arrived". | upstream: clearer error |
+
+## Setup friction
+
+| Found | Where | Issue | Status |
+|---|---|---|---|
+| 2026-10-28 | field Mac | `pod install` crashed without a UTF-8 locale. | fixed 61a37a8: README prerequisite (`export LANG=en_US.UTF-8`) |
+| 2026-10-28 | field Mac | `subtext-verify` installs disabled from the marketplace. | open |
+| 2026-10-28 | field Mac | Stale Metro modules in git worktrees made edits appear not to apply; `--clear` fixed it. | fixed 61a37a8: skill note |
+| 2026-10-28 | field Mac | Upgrading an existing install from the branch: `plugin update` says "already at latest", because the version doesn't change. | documented: `marketplace update`, then uninstall and install |
+
+## What worked (field Mac, React Native)
+
+- Every `testID` surfaced as `identifier`; `snapshot`, `click`, `fill` and `scroll --until` each took under a second.
+- A dev client with Metro worked as well as Release for the live loop, and was cheaper.
+- Recorded taps lined up with producer steps to within about 30 ms once the clock offset was known.
+- Network capture had zero errors across about 900 events, and every `/api/*` route got a `requests:` name.
