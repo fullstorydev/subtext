@@ -112,23 +112,38 @@ async function checkHelper() {
   return pass('helper', r.stdout.split('\n').at(-1) || 'built');
 }
 
+// TODO: read the org's mobile recording features (`GET /settings/recording/v1/features?platform=mobile`,
+// field `ajaxWatcher`) once the Subtext MCP or a configured API key can reach it, and turn this into a
+// real pass/fail. Network capture is off by default for mobile, which leaves consumer agents with no requests.
+function checkMobileNetworkCapture() {
+  return {
+    name: 'fs-network-capture',
+    ok: null,
+    todo: true,
+    detail: 'not checked automatically: Fullstory mobile network capture must be on for network data to reach agents',
+    fix: 'Fullstory app → Settings → Data Capture → Mobile → turn on network data capture (and add header allowlists / body rules if you need headers or bodies)',
+  };
+}
+
 const ICON = { true: 'ok  ', false: 'FAIL', null: 'PEND' };
 
 function report(checks) {
   const width = Math.max(...checks.map((c) => c.name.length));
   const lines = checks.map((c) => {
-    const head = `[${ICON[c.ok]}] ${c.name.padEnd(width)}  ${c.detail}`;
+    const head = `[${c.todo ? 'TODO' : ICON[c.ok]}] ${c.name.padEnd(width)}  ${c.detail}`;
     return c.fix ? `${head}\n       ${' '.repeat(width)}  fix: ${c.fix}` : head;
   });
   const failed = checks.filter((c) => c.ok === false).length;
-  const pending = checks.filter((c) => c.ok === null).length;
-  lines.push('', failed ? `${failed} check(s) failed.` : `All checks passed${pending ? ` (${pending} pending)` : ''}.`);
+  const pending = checks.filter((c) => c.ok === null && !c.todo).length;
+  const manual = checks.filter((c) => c.todo).length;
+  const notes = [pending && `${pending} pending`, manual && `${manual} to verify manually`].filter(Boolean).join(', ');
+  lines.push('', failed ? `${failed} check(s) failed.` : `All checks passed${notes ? ` (${notes})` : ''}.`);
   console.log(lines.join('\n'));
 }
 
 async function runChecks() {
   const prerequisites = await Promise.all([checkXcodeSelect(), checkXcodeVersion(), checkSimulators(), checkSwift(), checkArch(), checkMacOS(), checkNode(), checkSightmap()]);
-  return [...prerequisites.flat(), await checkHelper()];
+  return [...prerequisites.flat(), await checkHelper(), checkMobileNetworkCapture()];
 }
 
 /** Runs every check, prints a report, and returns `[{name, ok, detail, fix}]` (`ok: null` means pending). With `fix`, runs the unprivileged fixes once and re-checks. */
