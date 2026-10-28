@@ -8,6 +8,7 @@
 
 ## Sessions
 
+- **Upload lag:** not measured. Poll first after about 1½ minutes, as on React Native, and record what you see.
 - **Log:** `adb logcat`.
 - If iOS and Android share one app id, tell their sessions apart in `review-summary` before judging either.
 

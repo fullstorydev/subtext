@@ -8,6 +8,7 @@
 
 ## Sessions
 
+- **Upload lag:** not measured. Poll first after about 1½ minutes, as on React Native, and record what you see.
 - **Log:** Xcode's console, or `xcrun simctl spawn booted log stream` for a simulator.
 - **Build switch:** a native build can't change mid-session the way an over-the-air update can; a relaunch on a new build should start a new session. Confirm that when you first see it.
 

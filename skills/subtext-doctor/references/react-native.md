@@ -9,7 +9,7 @@ Field-tested on iOS with Fabric (Expo, October 2026): two runs, 38 of 40 and the
 
 ## Sessions
 
-- **What marks a session as this platform:** `review-summary` shows `Visual Context Update` / `safeAreaInsets` custom events and the corpus's screen-style component names. If iOS and Android share one app id, this is also how you tell the platforms apart.
+- **What marks a session as this platform:** `review-summary` shows `Visual Context Update` / `safeAreaInsets` custom events and the corpus's screen-style component names, with no `# tab A · https://…` page headers or `page-load` lines. An app can send the same custom events from its web build too, so check for the page headers before trusting the events. If iOS and Android share one app id, tell their sessions apart in `review-summary` before judging either.
 - **Build switch:** a session can start before an over-the-air update is published and switch to the new code when the tester checks for updates or relaunches. The switch is a `Visual Context Update` right after the update check or relaunch.
 - **Upload lag:** about 1½ minutes from the last tap. In the field test, the first summary with the last tap came at about 1½ minutes and `review-open` at about 2½.
 - **Log:** Xcode's console or `xcrun simctl spawn booted log stream` on iOS; `adb logcat` on Android. The capture error to search for is `terminating FullStory session`.
