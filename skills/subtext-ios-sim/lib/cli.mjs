@@ -12,7 +12,7 @@ import { latestRunPath, readRun, RUNS_DIR } from './runlog.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/subtext-sim', import.meta.url));
 
-const BOOLEAN_FLAGS = new Set(['detach', 'json', 'include-offscreen', 'clear', 'help', 'shutdown', 'fix', 'follow']);
+const BOOLEAN_FLAGS = new Set(['detach', 'json', 'include-offscreen', 'clear', 'help', 'shutdown', 'fix', 'follow', 'all']);
 const VALUE_FLAGS = new Set(['device', 'app', 'bundle-id', 'view', 'out', 'tree-out', 'in', 'until', 'max', 'limit', 'grep', 'level', 'duration', 'sightmap-dir', 'label', 'since', 'run']);
 
 export const USAGE = `subtext-sim: drive an app in the local iOS Simulator (sightmap-browser style)
@@ -28,7 +28,7 @@ Session
 Observe
   snapshot [--view V] [--include-offscreen] [--out F] [--tree-out F] [--json]
   screenshot --out F.png
-  console list [--limit N] [--grep S] [--level L[,L]]   levels: debug info default error fault stdout stderr
+  console list [--limit N] [--grep S] [--level L[,L]] [--all]   levels: debug info default error fault stdout stderr; --all includes Apple frameworks
   console get <index>
   session-url                                      Fullstory session URL from the app's logs
 
@@ -141,7 +141,7 @@ export function toRequest({ command, positionals: p, flags }, cwd = process.cwd(
       return { cmd: 'sessionUrl', args: {} };
     case 'console': {
       const [sub, index] = p;
-      if (sub === 'list') return { cmd: 'consoleList', args: { limit: flags.limit ? num(flags.limit, '--limit') : 50, grep: flags.grep, level: flags.level } };
+      if (sub === 'list') return { cmd: 'consoleList', args: { limit: flags.limit ? num(flags.limit, '--limit') : 50, grep: flags.grep, level: flags.level, all: !!flags.all } };
       if (sub === 'get') {
         need(p, 2, 'console get <index>');
         return { cmd: 'consoleGet', args: { index: num(index, 'index') } };

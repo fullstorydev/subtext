@@ -430,8 +430,8 @@ export class SimSession {
       return this.commands.relaunch.call(this);
     },
 
-    consoleList({ limit = 50, grep, level }) {
-      return this.buffer.list({ limit, grep, level });
+    consoleList({ limit = 50, grep, level, all }) {
+      return this.buffer.list({ limit, grep, level, all });
     },
 
     consoleGet({ index }) {

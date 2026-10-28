@@ -14,17 +14,11 @@ Drive and inspect an iOS app in the local iOS Simulator from a coding agent. The
 The plugin's marketplace (`subtext-marketplace`) is this repo, so add it pinned to the branch and install `subtext` from it:
 
 ```sh
-claude plugin marketplace add 'fullstorydev/subtext#chandler/ios-live-loop'
+claude plugin marketplace add 'https://github.com/fullstorydev/subtext.git#chandler/ios-live-loop'
 claude plugin install subtext@subtext-marketplace
 ```
 
-Or in one step:
-
-```sh
-claude plugin install subtext --marketplace 'fullstorydev/subtext#chandler/ios-live-loop'
-```
-
-`https://github.com/fullstorydev/subtext.git#chandler/ios-live-loop` works too. Restart Claude Code afterwards.
+Use the HTTPS URL as shown. The `fullstorydev/subtext#…` shorthand also works, but it may clone over SSH, which fails without GitHub SSH keys. Restart Claude Code afterwards.
 
 **Already have Subtext installed from `main`?** The marketplace name is already taken by the `main` source, and `add` refuses a different source for it. Remove it first (this uninstalls the plugin), then run the commands above:
 
@@ -91,7 +85,7 @@ test/e2e.sh --device "<simulator name or UDID>" # drives the sample app on that 
 
 Every control has an `accessibilityIdentifier` (`login-email`, `login-submit`, `tab-network`, `product-row-42`, `product-detail-add`, `network-send`…).
 
-`build.sh` needs only Xcode: it compiles with `swiftc` and assembles the bundle by hand, so there's no Xcode project. It writes to `~/Library/Caches/subtext-sim/SampleApp/` (set `OUT_DIR` to change that) and prints the `.app` path on stdout.
+`build.sh` needs only Xcode: it compiles with `swiftc` and assembles the bundle by hand, so there's no Xcode project. It writes to `$SUBTEXT_SIM_CACHE/SampleApp/`, default `~/Library/Caches/subtext-sim/SampleApp/` (set `OUT_DIR` to change just the app's location) and prints the `.app` path on stdout.
 
 To capture sessions with Fullstory, build with your org ID:
 

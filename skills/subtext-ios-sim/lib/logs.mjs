@@ -57,11 +57,12 @@ export class ConsoleBuffer {
     return full;
   }
 
-  list({ limit = 50, grep, level } = {}) {
+  list({ limit = 50, grep, level, all = false } = {}) {
     const levels = level ? new Set(String(level).split(',').map((l) => l.trim().toLowerCase())) : null;
     const needle = grep ? String(grep).toLowerCase() : null;
     const hits = this.entries.filter((e) =>
-      (!levels || levels.has(e.level)) && (!needle || e.message.toLowerCase().includes(needle)
+      (all || !(e.subsystem ?? '').startsWith('com.apple.'))
+      && (!levels || levels.has(e.level)) && (!needle || e.message.toLowerCase().includes(needle)
         || (e.subsystem ?? '').toLowerCase().includes(needle)));
     return { total: hits.length, entries: limit > 0 ? hits.slice(-limit) : hits };
   }

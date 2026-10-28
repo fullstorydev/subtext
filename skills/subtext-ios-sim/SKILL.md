@@ -62,7 +62,7 @@ subtext-sim stop                               # --shutdown also shuts the simul
 | `scroll <up\|down\|left\|right> [--in <target>] [--until <target>] [--max N]` | One page, or until a target is tappable. `--in` scrolls inside that element. |
 | `swipe x1 y1 x2 y2 [--duration S]`, `tap-xy x y`, `type <text>`, `key <name>`, `button <name>`, `openurl <url>` | Raw input in screen points. Keys: `return delete tab escape space` and arrows. Buttons: `home lock siri side`. |
 | `screenshot --out F.png` | PNG of the screen. |
-| `console list [--limit N] [--grep S] [--level L]` / `console get <i>` | The app's os_log/Logger output (Apple frameworks only at error/fault) and its stdout/stderr (levels `stdout`, `stderr`). |
+| `console list [--limit N] [--grep S] [--level L] [--all]` / `console get <i>` | The app's own os_log/Logger output and its stdout/stderr (levels `stdout`, `stderr`). `--all` adds Apple framework errors and faults, which are hidden by default as noise. |
 | `session-url` | The Fullstory session URL from the app's logs. |
 | `run new [--label L]` / `run current` | Start a new run log / print the current run's id and path. |
 | `run tail [--follow] [--since SEQ] [--run ID]` | Print `.sightmap/.sim-runs/<run>.jsonl` entries; `--follow` keeps streaming. |

@@ -5,12 +5,13 @@
 #   ./build.sh                    # plain build
 #   FS_ORG_ID=<org> ./build.sh    # embed the public Fullstory iOS SDK and record on start
 #
-# Env: OUT_DIR (default ~/Library/Caches/subtext-sim/SampleApp),
+# Env: SUBTEXT_SIM_CACHE (default ~/Library/Caches/subtext-sim), OUT_DIR (default $SUBTEXT_SIM_CACHE/SampleApp),
 #      FS_SDK_VERSION (tag of fullstorydev/fullstory-swift-package-ios, default 1.76.0).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-out_dir="${OUT_DIR:-$HOME/Library/Caches/subtext-sim/SampleApp}"
+cache_root="${SUBTEXT_SIM_CACHE:-$HOME/Library/Caches/subtext-sim}"
+out_dir="${OUT_DIR:-$cache_root/SampleApp}"
 fs_version="${FS_SDK_VERSION:-1.76.0}"
 app="$out_dir/SimSample.app"
 log() { echo "build.sh: $*" >&2; }
@@ -25,7 +26,7 @@ cp "$here/Info.plist" "$app/Info.plist"
 
 swift_flags=()
 if [[ -n "${FS_ORG_ID:-}" ]]; then
-  fs_cache="$HOME/Library/Caches/subtext-sim/fullstory-$fs_version"
+  fs_cache="$cache_root/fullstory-$fs_version"
   framework="$fs_cache/FullStory.xcframework/ios-arm64_x86_64-simulator/FullStory.framework"
   if [[ ! -d "$framework" ]]; then
     log "fetching Fullstory iOS SDK $fs_version"

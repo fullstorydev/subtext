@@ -32,7 +32,8 @@ test('toRequest maps commands onto daemon requests', () => {
   assert.deepEqual(req(['click', 'SignInButton']), { cmd: 'click', args: { target: 'SignInButton' } });
   assert.deepEqual(req(['tap-xy', '10', '20.5']), { cmd: 'tapXY', args: { x: 10, y: 20.5 } });
   assert.deepEqual(req(['screenshot', '--out', 'shots/a.png']), { cmd: 'screenshot', args: { out: '/proj/shots/a.png' } });
-  assert.deepEqual(req(['console', 'list', '--limit', '5', '--level', 'error']), { cmd: 'consoleList', args: { limit: 5, grep: undefined, level: 'error' } });
+  assert.deepEqual(req(['console', 'list', '--limit', '5', '--level', 'error']), { cmd: 'consoleList', args: { limit: 5, grep: undefined, level: 'error', all: false } });
+  assert.equal(req(['console', 'list', '--all']).args.all, true);
   assert.deepEqual(req(['console', 'get', '7']), { cmd: 'consoleGet', args: { index: 7 } });
   assert.deepEqual(req(['scroll', 'down', '--until', 'far', '--max', '3']), { cmd: 'scroll', args: { direction: 'down', within: undefined, until: 'far', max: 3 } });
   assert.deepEqual(req(['run', 'new', '--label', 'checkout']), { cmd: 'runNew', args: { label: 'checkout' } });
