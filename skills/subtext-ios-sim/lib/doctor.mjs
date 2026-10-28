@@ -2,10 +2,10 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveSightmap, SIGHTMAP_PACKAGE, sightmapVersionWarning } from './sightmap-cli.mjs';
 
 const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HELPER_BUILD = join(SKILL_DIR, 'helper', 'build.sh');
-const SIGHTMAP_PACKAGE = '@sightmap/sightmap@0.32.0';
 const MIN_XCODE = 26;
 const MIN_MACOS = 15;
 const MIN_NODE = 18;
@@ -95,11 +95,19 @@ async function checkNode() {
 }
 
 async function checkSightmap() {
-  const onPath = await run('sightmap', ['version']);
-  if (onPath.ok) return pass('sightmap', `${onPath.stdout} (on PATH)`);
-  const viaNpx = await run('npx', ['-y', SIGHTMAP_PACKAGE, 'version'], { timeout: 180_000 });
-  if (viaNpx.ok) return pass('sightmap', `${viaNpx.stdout} (via npx ${SIGHTMAP_PACKAGE})`);
-  return fail('sightmap', `sightmap not on PATH and npx ${SIGHTMAP_PACKAGE} failed: ${viaNpx.stderr.split('\n').at(-1)}`, `npm install -g ${SIGHTMAP_PACKAGE}`, ['npm', ['install', '-g', SIGHTMAP_PACKAGE]]);
+  let resolved;
+  try {
+    resolved = resolveSightmap();
+  } catch (err) {
+    return fail('sightmap', err.message, `npm install -g ${SIGHTMAP_PACKAGE}`, ['npm', ['install', '-g', SIGHTMAP_PACKAGE]]);
+  }
+  const detail = `sightmap ${resolved.version} (${resolved.source})`;
+  const warning = sightmapVersionWarning(resolved.version);
+  if (!warning) return pass('sightmap', detail);
+  const fix = resolved.source.startsWith('SIGHTMAP_BIN')
+    ? `point SIGHTMAP_BIN at a sightmap in the tested range, or unset it to use npx ${SIGHTMAP_PACKAGE}`
+    : `npm install -g ${SIGHTMAP_PACKAGE} (a sightmap on PATH wins over the npx pin)`;
+  return { ...pass('sightmap', `${detail}; ${warning}`), warn: true, fix };
 }
 
 async function checkHelper() {
@@ -126,17 +134,19 @@ function checkMobileNetworkCapture() {
 }
 
 const ICON = { true: 'ok  ', false: 'FAIL', null: 'PEND' };
+const iconOf = (c) => (c.todo ? 'TODO' : c.warn ? 'WARN' : ICON[c.ok]);
 
 function report(checks) {
   const width = Math.max(...checks.map((c) => c.name.length));
   const lines = checks.map((c) => {
-    const head = `[${c.todo ? 'TODO' : ICON[c.ok]}] ${c.name.padEnd(width)}  ${c.detail}`;
+    const head = `[${iconOf(c)}] ${c.name.padEnd(width)}  ${c.detail}`;
     return c.fix ? `${head}\n       ${' '.repeat(width)}  fix: ${c.fix}` : head;
   });
   const failed = checks.filter((c) => c.ok === false).length;
   const pending = checks.filter((c) => c.ok === null && !c.todo).length;
   const manual = checks.filter((c) => c.todo).length;
-  const notes = [pending && `${pending} pending`, manual && `${manual} to verify manually`].filter(Boolean).join(', ');
+  const warned = checks.filter((c) => c.warn).length;
+  const notes = [warned && `${warned} warning(s)`, pending && `${pending} pending`, manual && `${manual} to verify manually`].filter(Boolean).join(', ');
   lines.push('', failed ? `${failed} check(s) failed.` : `All checks passed${notes ? ` (${notes})` : ''}.`);
   console.log(lines.join('\n'));
 }

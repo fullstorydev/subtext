@@ -26,9 +26,16 @@ export function parseLogLine(line) {
   };
 }
 
+// Any Fullstory app host (app.fullstory.com, app.eu1.fullstory.com, …), anywhere
+// in the line: React Native logs it as one argument among several, often quoted.
+// A query or fragment (a replay position) is dropped.
+const FULLSTORY_SESSION = /https:\/\/app(?:\.[a-z0-9-]+)*\.fullstory\.com\/ui\/[^/\s"'`]+\/(?:client-)?session\/[^\s"'`<>()[\]{},?#]+/gi;
 const SESSION_URL = [/FULLSTORY_SESSION_URL\s+(\S+)/, /Beginning session:?\s*(https?:\/\/\S+)/i];
 
+/** The Fullstory session URL in a console message (the last one, if it has several), or null. */
 export function sessionUrlIn(message) {
+  const fullstory = String(message).match(FULLSTORY_SESSION);
+  if (fullstory) return fullstory.at(-1).replace(/[.;:!?]+$/, '');
   for (const re of SESSION_URL) {
     const m = re.exec(message);
     if (m) return m[1];

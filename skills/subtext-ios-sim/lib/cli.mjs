@@ -20,7 +20,8 @@ export const USAGE = `subtext-sim: drive an app in the local iOS Simulator (sigh
 Session
   doctor [--fix]                                   check prerequisites; builds the helper
   start [--device NAME|UDID] [--app PATH] [--bundle-id ID] [--detach] [--label L]
-                                                   boot, enable accessibility, install, launch, run the daemon
+                                                   boot, enable accessibility, install, launch, run the daemon;
+                                                   on a running session: reinstall (--app) and relaunch the same app
   status                                           session health
   stop [--shutdown]                                stop the daemon and the app (--shutdown: the simulator too)
   launch | relaunch                                foreground the app | restart it (re-enables accessibility)
@@ -41,8 +42,8 @@ Act (targets: snapshot id, accessibility identifier, or component query)
   click <target>
   fill <target> <text> [--clear]
   scroll <up|down|left|right> [--in <target>] [--until <target>] [--max N]
-  swipe <x1> <y1> <x2> <y2> [--duration S]
-  tap-xy <x> <y>
+  swipe <x1> <y1> <x2> <y2> [--duration S]       screen points (not pixels), origin top-left
+  tap-xy <x> <y>                                   screen points (not pixels); off-screen points are refused
   type <text>
   key <name>                                       return delete tab escape space up down left right …
   button <name>                                    home lock siri side apple_pay volume_up volume_down
@@ -116,7 +117,7 @@ export function toRequest({ command, positionals: p, flags }, cwd = process.cwd(
       need(p, 4, 'swipe <x1> <y1> <x2> <y2> [--duration S]');
       return { cmd: 'swipe', args: { x1: num(p[0], 'x1'), y1: num(p[1], 'y1'), x2: num(p[2], 'x2'), y2: num(p[3], 'y2'), ...(flags.duration ? { duration: num(flags.duration, '--duration') } : {}) } };
     case 'tap-xy':
-      need(p, 2, 'tap-xy <x> <y>');
+      need(p, 2, 'tap-xy <x> <y>  (screen points, not pixels)');
       return { cmd: 'tapXY', args: { x: num(p[0], 'x'), y: num(p[1], 'y') } };
     case 'type':
       need(p, 1, 'type <text>');
@@ -184,8 +185,11 @@ export function formatResult(cmd, r) {
     case 'openurl': return `✓ opened ${r.url}`;
     case 'screenshot': return `✓ wrote ${r.out}`;
     case 'launch': return `✓ launched ${r.bundleId} (pid ${r.pid})`;
-    case 'relaunch': case 'restart':
-      return `✓ relaunched ${r.bundleId} (pid ${r.pid})${r.ready === false ? '; accessibility tree not readable yet, snapshot again shortly' : ''}`;
+    case 'relaunch': case 'restart': {
+      const what = r.installed ? `installed ${r.installed} and relaunched` : 'relaunched';
+      const reuse = cmd === 'restart' ? ' in the running session' : '';
+      return `✓ ${what} ${r.bundleId} (pid ${r.pid})${reuse}${r.ready === false ? '; accessibility tree not readable yet, snapshot again shortly' : ''}`;
+    }
     case 'sessionUrl': return r.url;
     case 'runNew': case 'runCurrent':
       return r.run ? `${r.run}\n${r.path}` : '(no run yet)';
@@ -263,7 +267,14 @@ async function start(flags, sightmapDir, out) {
     if (flags.device && flags.device !== existing.udid && flags.device !== existing.deviceName) {
       throw new SimError('session_running', `a session is already running on ${existing.deviceName} (${existing.udid})`, 'run `subtext-sim stop` first');
     }
-    const r = await call(existing.socket, 'restart', { appPath: flags.app ? resolve(flags.app) : undefined });
+    const appPath = flags.app ? resolve(flags.app) : undefined;
+    if (appPath && !existsSync(appPath)) throw new SimError('bad_app', `${appPath} does not exist`, 'build the app for the simulator and pass the .app path');
+    const wanted = flags['bundle-id'] ?? (appPath ? await simctl.plistValue(appPath, 'CFBundleIdentifier') : existing.bundleId);
+    if (wanted !== existing.bundleId) {
+      throw new SimError('session_running', `a session for ${existing.bundleId} is already running on ${existing.deviceName ?? existing.udid}; it can't switch to ${wanted}`,
+        `run \`subtext-sim stop\`, then \`subtext-sim start ${appPath ? `--app ${JSON.stringify(appPath)}` : `--bundle-id ${wanted}`} --detach\``);
+    }
+    const r = await call(existing.socket, 'restart', { appPath });
     return { cmd: 'restart', result: r };
   }
 
@@ -297,7 +308,7 @@ function formatStart(r, cwd) {
   const lines = [
     `✓ simulator session started in ${r.seconds.toFixed(1)} s`,
     `  device:  ${r.deviceName} (${r.udid})`,
-    `  app:     ${r.bundleId}${r.appPath ? `  ${r.appPath}` : ''}`,
+    `  app:     ${r.appPath ? `installed ${r.appPath} and launched ${r.bundleId}` : `launched ${r.bundleId} (already installed)`}`,
     `  daemon:  pid ${r.pid}; session file ${relative(cwd, r.sessionFile) || r.sessionFile}`,
     `  run:     ${r.run} (\`subtext-sim run tail --follow\` to follow)`,
   ];

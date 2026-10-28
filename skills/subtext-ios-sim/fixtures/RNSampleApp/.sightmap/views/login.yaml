@@ -1,6 +1,9 @@
 version: 1
 views:
+  # sightmap requires a route on every view. Native screens have no URL, so this
+  # is a placeholder: subtext-sim ignores routes and infers the view from its components.
   - name: Login
+    route: /login
     components:
       - name: EmailField
         selector: '[identifier="login-email"]'

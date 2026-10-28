@@ -194,7 +194,7 @@ test('toComponentTree emits sightmap ComponentNode shape', () => {
     assert.equal(n.component, undefined);
   }
   const email = all.find((n) => n.element.attrs?.identifier === 'simple.email');
-  assert.deepEqual(email.element, { tag: 'textfield', attrs: { identifier: 'simple.email', value: 'Email' } });
+  assert.deepEqual(email.element, { tag: 'textfield', attrs: { identifier: 'simple.email', testid: 'simple.email', value: 'Email' } });
   const last = all.find((n) => n.element.attrs?.identifier === 'lastTapped');
   assert.equal(last.element.id, 'lastTapped');
   const annotated = toComponentTree(snap, { annotations: true });
@@ -258,4 +258,95 @@ test('sightmap coverage reads an iOS snap', needsSightmap, () => {
   const run = spawnSync(sightmapBin, ['coverage', '--sightmap-dir', join(here, 'fixtures', 'sightmap-parity'), path], { encoding: 'utf8' });
   assert.match(run.stdout, /9 interactive · \d+ direct T1/);
   assert.doesNotMatch(run.stdout + run.stderr, /parse tree JSON/);
+});
+
+const LEGACY_TO_OBJECT = {
+  text: { from: 'dom.text' },
+  'attr=value': { from: 'dom.attr', path: 'value' },
+  'attr=identifier': { from: 'dom.attr', path: 'identifier' },
+  'Title.text': { from: 'component', path: 'Title.text' },
+  'Price.text': { from: 'component', path: 'Price.text' },
+  'exists:FavoriteButton': { from: 'component.exists', path: 'FavoriteButton' },
+};
+
+test('extract objects (sightmap 0.34+) resolve like the legacy strings', () => {
+  const wire = JSON.parse(readFileSync(join(here, 'fixtures', 'corpus.json'), 'utf8'));
+  const asObjects = JSON.parse(JSON.stringify(wire, (key, value) => (key === 'extract' ? LEGACY_TO_OBJECT[value] : value)));
+  assert.deepEqual(parseCorpus(asObjects), corpus);
+  for (const name of ['simple', 'heavy', 'eager']) {
+    const legacy = snapshot(fixture(name), corpus);
+    const objects = snapshot(fixture(name), parseCorpus(asObjects));
+    assert.deepEqual(objects.nodes.map((n) => n.props), legacy.nodes.map((n) => n.props));
+  }
+});
+
+test('extract objects support pattern, join over Name[], and dom.state', () => {
+  const row = 'button:has(> button[identifier$=".buy"])';
+  const objectCorpus = parseCorpus({
+    globals: [
+      {
+        name: 'ProductRow', selectors: [row], properties: [
+          { name: 'cents', extract: { from: 'component', path: 'Price.text', pattern: '\\.(\\d+)$' } },
+          { name: 'buttons', extract: { from: 'component', path: 'RowButton[].text', join: '|' } },
+          { name: 'number', extract: { from: 'dom.attr', path: 'identifier', pattern: 'row\\.(\\d+)\\.buy' } },
+        ],
+      },
+      { name: 'Price', selectors: [`${row} text[text^="$"]`], parentChain: ['ProductRow'], properties: [{ name: 'text', extract: { from: 'dom.text' } }] },
+      { name: 'RowButton', selectors: [`${row} button`], parentChain: ['ProductRow'], properties: [{ name: 'text', extract: { from: 'dom.text' } }] },
+    ],
+    views: [],
+  });
+  const snap = snapshot(fixture('heavy'), objectCorpus);
+  const row3 = snap.nodes.filter((n) => n.component === 'ProductRow')[3];
+  assert.deepEqual(row3.props, { cents: '00', buttons: 'Buy|Favorite 3', number: '3' });
+
+  const toggleCorpus = parseCorpus({
+    globals: [{
+      name: 'Toggle', selectors: ['switch'], properties: [
+        { name: 'on', extract: { from: 'dom.state', path: 'checked' } },
+        { name: 'disabled', extract: { from: 'dom.state', path: 'disabled' } },
+      ],
+    }],
+  });
+  assert.deepEqual(byIdentifier(snapshot(fixture('simple'), toggleCorpus), 'simple.toggle').props, { on: 'true', disabled: 'false' });
+});
+
+const node = (type, frame, extra = {}) => ({ role: `AX${type}`, type, label: null, identifier: null, value: null, frame, enabled: true, children: [], ...extra });
+
+/** A React Native screen whose testID'd wrapper views never reach the accessibility tree. */
+const rnScreen = () => normalize({
+  screen: { w: 390, h: 844 },
+  root: node('Application', { x: 0, y: 0, w: 390, h: 844 }, {
+    label: 'App',
+    children: [
+      node('Group', { x: 0, y: 0, w: 390, h: 844 }, {
+        children: [
+          node('Button', { x: 20, y: 100, w: 200, h: 44 }, { label: 'Sign In', identifier: 'login-submit' }),
+          node('Button', { x: 20, y: 160, w: 200, h: 44 }, { label: 'Help' }),
+          node('GenericElement', { x: 20, y: 220, w: 200, h: 44 }, { label: 'Card', identifier: 'promo-card',
+            children: [node('Button', { x: 30, y: 230, w: 60, h: 20 }, { label: 'Close', identifier: 'promo-close' })] }),
+        ],
+      }),
+    ],
+  }),
+});
+
+test('selectors treat testid as the accessibility identifier', () => {
+  const { nodes } = rnScreen();
+  const count = (sel) => nodes.filter((n) => matches(n, sel)).length;
+  assert.equal(count('[testid="login-submit"]'), 1);
+  assert.equal(count('button[testid^="login-"]'), 1);
+  assert.equal(count('[testid="nope"]'), 0);
+});
+
+test('descendant selectors skip ancestors whose exact identifier is absent from the tree', () => {
+  const { nodes } = rnScreen();
+  const count = (sel) => nodes.filter((n) => matches(n, sel)).length;
+  assert.equal(count('[testid="login-form"] [testid="login-submit"]'), 1, 'absent wrapper is skipped');
+  assert.equal(count('[testid="screen"] [testid="login-form"] [testid="login-submit"]'), 1, 'several absent wrappers are skipped');
+  assert.equal(count('[testid="promo-card"] [testid="promo-close"]'), 1, 'present ancestors still match');
+  assert.equal(count('[testid="promo-card"] [testid="login-submit"]'), 0, 'a present identifier is never skipped');
+  assert.equal(count('[testid="login-form"] button'), 0, 'a subject without its own attribute is not widened');
+  assert.equal(count('[testid^="login-form"] [testid="login-submit"]'), 0, 'only exact identifiers are skippable');
+  assert.equal(count('[testid="login-form"] > [testid="login-submit"]'), 0, 'the child combinator is never skipped');
 });

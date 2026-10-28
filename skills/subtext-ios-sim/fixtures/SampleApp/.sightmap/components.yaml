@@ -6,4 +6,4 @@ components:
     selector: 'tab'
     properties:
       - name: title
-        extract: text
+        extract: { from: dom.text }

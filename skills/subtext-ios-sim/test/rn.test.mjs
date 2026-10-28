@@ -7,6 +7,7 @@ import { normalize } from '../lib/normalize.mjs';
 import { annotate, resolve } from '../lib/sightmap-bridge.mjs';
 import { parseCorpus } from '../lib/corpus.mjs';
 import { assertActionable } from '../lib/daemon.mjs';
+import { ConsoleBuffer, parseLogLine, sessionUrlIn } from '../lib/logs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const describeRN = () => JSON.parse(readFileSync(join(here, 'fixtures', 'describe-rn.json'), 'utf8'));
@@ -70,4 +71,38 @@ test('a LogBox toast is reported with its ✕ and refuses taps underneath', () =
   assert.match(snap.text, /\[LogBox\]\n.*\nDismiss it with `tap-xy 368 812`/);
   assert.throws(() => assertActionable(snap, byIdentifier(snap, 'product-row-15'), 'product-row-15'),
     (err) => err.code === 'covered' && /LogBox/.test(err.message) && /tap-xy 368 812/.test(err.hint));
+});
+
+const URL_NA = 'https://app.fullstory.com/ui/o-TEST01-na1/session/5d3f1a2b-0c4e-4f6a-9b8d-7e6f5a4b3c2d%3A1234567890123456789';
+const URL_EU = 'https://app.eu1.fullstory.com/ui/o-TEST02-eu1/client-session/6105678901234567890%3A5432109876543210987';
+
+test('session URLs are found anywhere in React Native console lines', () => {
+  const cases = [
+    [`Fullstory session URL: ${URL_NA}`, URL_NA],
+    [`'[fullstory]', 'session ready', '${URL_NA}'`, URL_NA],
+    [`{ sessionUrl: '${URL_EU}', isNew: true }`, URL_EU],
+    [`{"sessionUrl":"${URL_EU}"}`, URL_EU],
+    [`onReady (${URL_NA}).`, URL_NA],
+    [`FULLSTORY_SESSION_URL ${URL_EU}`, URL_EU],
+    ['FULLSTORY_SESSION_URL https://app.example/s/1', 'https://app.example/s/1'],
+    ['Loaded https://app.fullstory.com/ui/o-TEST01-na1/home', null],
+    ['nothing here', null],
+  ];
+  for (const [message, expected] of cases) assert.equal(sessionUrlIn(message), expected, message);
+});
+
+test('the newest session URL wins, from any console source or level', () => {
+  const buf = new ConsoleBuffer();
+  const seen = [];
+  buf.onSessionUrl = (url) => seen.push(url);
+  const rnLine = JSON.stringify({
+    eventType: 'logEvent', messageType: 'Info', subsystem: 'com.facebook.react.log', category: 'javascript',
+    eventMessage: `'FullStory.onReady', { replayStartUrl: '${URL_NA}', replayNowUrl: '${URL_NA}?playerState=x' }`, timestamp: 't',
+  });
+  buf.push(parseLogLine(rnLine));
+  assert.equal(buf.sessionUrl, URL_NA);
+  buf.push({ level: 'stderr', source: 'stderr', message: `relaunch: ${URL_EU}` });
+  buf.push({ level: 'debug', source: 'os_log', message: 'unrelated' });
+  assert.equal(buf.sessionUrl, URL_EU);
+  assert.deepEqual(seen, [URL_NA, URL_EU]);
 });

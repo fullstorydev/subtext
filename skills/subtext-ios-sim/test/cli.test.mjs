@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatResult, parseArgs, toRequest } from '../lib/cli.mjs';
 import { call, readSession } from '../lib/client.mjs';
-import { runDaemon } from '../lib/daemon.mjs';
+import { runDaemon, SimSession } from '../lib/daemon.mjs';
 import { HelperClient } from '../lib/helper-client.mjs';
 import { ConsoleBuffer, parseLogLine } from '../lib/logs.mjs';
 import { pickDevice } from '../lib/simctl.mjs';
@@ -149,6 +149,8 @@ test('daemon serves the protocol over its socket', async () => {
   await assert.rejects(call(sock, 'scroll', { direction: 'down', until: 'far', max: 2 }), { code: 'not_found' });
 
   await call(sock, 'tapXY', { x: 1, y: 2 });
+  await assert.rejects(call(sock, 'tapXY', { x: 230, y: 1450 }), (err) => err.code === 'off_screen_point' && /400x800 pt screen/.test(err.message) && /not pixels/.test(err.message));
+  await assert.rejects(call(sock, 'swipe', { x1: 10, y1: 10, x2: 10, y2: 900 }), { code: 'off_screen_point' });
   await call(sock, 'key', { key: 'return' });
   await call(sock, 'openurl', { url: 'app://x' });
   assert.deepEqual(simctl.calls.at(-1), ['openUrl', 'FAKE-UDID', 'app://x']);
@@ -177,10 +179,52 @@ test('daemon serves the protocol over its socket', async () => {
   assert.notEqual(fresh.path, current.path);
 
   assert.equal(formatResult('click', { target: '2 button "Go"', x: 1, y: 2 }), '✓ clicked 2 button "Go" at (1, 2)');
+  assert.equal(formatResult('restart', { bundleId: 'dev.x', pid: 7, installed: '/b/X.app', ready: true }), '✓ installed /b/X.app and relaunched dev.x (pid 7) in the running session');
+  assert.equal(formatResult('restart', { bundleId: 'dev.x', pid: 7, installed: null, ready: true }), '✓ relaunched dev.x (pid 7) in the running session');
+  assert.equal(formatResult('relaunch', { bundleId: 'dev.x', pid: 7 }), '✓ relaunched dev.x (pid 7)');
 
   await call(sock, 'stop', { shutdown: true });
   for (let i = 0; i < 50 && !stopped; i++) await new Promise((r) => setTimeout(r, 20));
   assert.ok(stopped);
   assert.ok(!existsSync(join(sightmapDir, '.sim-session')));
   assert.deepEqual(simctl.calls.slice(-2).map((c) => c[0]), ['terminate', 'shutdown']);
+});
+
+function stubSession({ describe, accessibilityEnabled }) {
+  const helper = { request: async () => describe(), close() {}, alive: true, restarts: 0 };
+  const simctl = accessibilityEnabled === undefined ? {} : { accessibilityEnabled: async () => accessibilityEnabled };
+  return new SimSession({ udid: 'U-1', bundleId: 'dev.x', processName: 'X', sightmapDir: join(dir, 'stub', '.sightmap'), helper, simctl, timing: { overlaySettleMs: 0 } });
+}
+
+const axDisabled = () => { throw Object.assign(new Error('no elements'), { code: 'ax_disabled' }); };
+
+test('an empty tree lists the likely causes, dropping app accessibility when it is on', async () => {
+  const off = stubSession({ describe: axDisabled, accessibilityEnabled: false });
+  await assert.rejects(off.handle('snapshot', {}), (err) => {
+    assert.equal(err.code, 'ax_disabled');
+    const lines = err.message.split('\n');
+    assert.match(lines[1], /^ {2}1\. .*accessibilityViewIsModal.*no-hide-descendants/);
+    assert.match(lines[2], /^ {2}2\. App accessibility is off.*xcrun simctl spawn U-1 defaults write/);
+    assert.match(lines[3], /^ {2}3\. A system sheet/);
+    return true;
+  });
+  const on = stubSession({ describe: axDisabled, accessibilityEnabled: true });
+  await assert.rejects(on.handle('snapshot', {}), (err) => {
+    assert.match(err.message, /App accessibility is enabled on this simulator, so that is not the cause/);
+    assert.doesNotMatch(err.message, /defaults write/);
+    assert.equal(err.message.split('\n').length, 3);
+    return true;
+  });
+});
+
+test('a snapshot showing only a small floating element says the app window is hidden', async () => {
+  const el = (type, frame, extra = {}) => ({ role: `AX${type}`, type, label: null, identifier: null, value: null, frame, enabled: true, children: [], ...extra });
+  const describe = () => ({
+    screen: { w: 390, h: 844 },
+    root: el('Application', { x: 0, y: 0, w: 390, h: 844 }, { label: 'App', children: [el('Button', { x: 330, y: 700, w: 48, h: 48 }, { label: 'Dev menu' })] }),
+  });
+  const snap = await stubSession({ describe, accessibilityEnabled: true }).handle('snapshot', {});
+  assert.match(snap.text, /\[Mostly empty\]\nOnly a small floating element is exposed \(button "Dev menu"\)/);
+  assert.match(snap.text, /no-hide-descendants/);
+  assert.doesNotMatch(snap.text, /defaults write/);
 });

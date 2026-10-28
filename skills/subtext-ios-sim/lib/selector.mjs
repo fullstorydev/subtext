@@ -238,6 +238,53 @@ function hasMatch(scope, list) {
   return false;
 }
 
+const IDENTIFIER_ATTRS = new Set(['identifier', 'testid', 'id']);
+const namesIdentifier = (c) => c.ids.length > 0 || c.attrs.some((a) => IDENTIFIER_ATTRS.has(a.name) && a.op === '=');
+const discriminates = (c) => c.ids.length > 0 || c.attrs.some((a) => a.op !== null);
+
+function rootOf(node) {
+  let r = node;
+  while (r.parent) r = r.parent;
+  return r;
+}
+
+const absentCache = new WeakMap();
+
+/** True when no element of the tree that `node` belongs to matches the compound on its own. */
+function absentFromTree(node, compound) {
+  const root = rootOf(node);
+  let perRoot = absentCache.get(root);
+  if (!perRoot) absentCache.set(root, (perRoot = new Map()));
+  if (!perRoot.has(compound)) {
+    let found = matchCompound(root, compound);
+    for (const d of descendants(root)) if (found || (found = matchCompound(d, compound))) break;
+    perRoot.set(compound, !found);
+  }
+  return perRoot.get(compound);
+}
+
+/**
+ * Ancestor step `k` of a descendant chain may be skipped when it names an exact
+ * identifier that no element of the tree carries, and the subject step has an
+ * attribute of its own: a testID on a plain wrapper view never reaches the iOS
+ * accessibility tree, so its descendants would otherwise never match, while a
+ * bare `[testid="list"] button` would match every button.
+ */
+function skippable(node, parts, k, scope) {
+  return !scope && k < parts.length - 1 && parts[k + 1].combinator === ' '
+    && discriminates(parts.at(-1).compound)
+    && namesIdentifier(parts[k].compound) && absentFromTree(node, parts[k].compound);
+}
+
+function matchAncestors(node, parts, k, scope) {
+  for (let a = node.parent; a; a = a.parent) {
+    if (scope && a === scope) return false;
+    if (matchFrom(a, parts, k, scope)) return true;
+  }
+  if (!skippable(node, parts, k, scope)) return false;
+  return k === 0 || matchAncestors(node, parts, k - 1, scope);
+}
+
 function matchFrom(node, parts, k, scope) {
   if (!matchCompound(node, parts[k].compound)) return false;
   const { combinator } = parts[k];
@@ -248,11 +295,7 @@ function matchFrom(node, parts, k, scope) {
     return false;
   }
   if (combinator === '>') return !!node.parent && matchFrom(node.parent, parts, k - 1, scope);
-  for (let a = node.parent; a; a = a.parent) {
-    if (scope && a === scope) return false;
-    if (matchFrom(a, parts, k - 1, scope)) return true;
-  }
-  return false;
+  return matchAncestors(node, parts, k - 1, scope);
 }
 
 function matchesList(node, list, scope = null) {

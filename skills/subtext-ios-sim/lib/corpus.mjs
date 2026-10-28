@@ -32,11 +32,31 @@ export function loadCorpusFile(path) {
   return parseCorpus(JSON.parse(readFileSync(path, 'utf8')));
 }
 
+const EXTRACT_KEYS = ['from', 'path', 'pattern', 'join'];
+
+/**
+ * sightmap 0.34+ exports every `extract` as `{from, path, pattern, join}`;
+ * older releases (and legacy YAML) use the strings `text`, `attr=NAME`,
+ * `Child.prop` and `exists:Child`. Both become the object form.
+ */
+export function normalizeExtract(extract) {
+  if (extract == null || extract === '') return { from: 'dom.text' };
+  if (typeof extract === 'object') {
+    return Object.fromEntries(EXTRACT_KEYS.filter((k) => extract[k] !== undefined && extract[k] !== null).map((k) => [k, extract[k]]));
+  }
+  const s = String(extract);
+  if (s === 'text') return { from: 'dom.text' };
+  if (s === 'raw_text') return { from: 'dom.raw_text' };
+  if (s.startsWith('attr=')) return { from: 'dom.attr', path: s.slice(5) };
+  if (s.startsWith('exists:')) return { from: 'component.exists', path: s.slice(7) };
+  return { from: 'component', path: s };
+}
+
 export function parseCorpus(wire) {
   const component = (c) => ({
     name: c.name,
     selectors: c.selectors ?? [],
-    properties: c.properties ?? [],
+    properties: (c.properties ?? []).map((p) => ({ ...p, extract: normalizeExtract(p.extract) })),
     parentChain: c.parentChain ?? [],
     memory: c.memory ?? [],
   });

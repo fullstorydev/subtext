@@ -132,6 +132,7 @@ export function normalize(describeResult) {
       identifier: present(raw.identifier),
       value: present(raw.value),
       enabled: raw.enabled !== false,
+      traits: Array.isArray(raw.traits) ? raw.traits : [],
       frame,
       visible: intersects(frame, screen),
       onScreen: centerOnScreen(frame, screen),
@@ -165,15 +166,36 @@ export function logBoxToast({ nodes, screen }) {
   return { node: toast, dismiss: { x: Math.round(x + w - 24), y: Math.round(y + h / 2) } };
 }
 
+/**
+ * When everything visible fits in a small box (e.g. only the React Native / Expo
+ * dev-menu button, which lives in a separate window), the app's own window is
+ * most likely hidden from accessibility. Returns the visible nodes, or null.
+ */
+export function floatingOnly({ nodes, root, screen, overlay }) {
+  if (overlay) return null;
+  const shown = nodes.filter((n) => n !== root && n.visible && n.tag !== 'window' && !n.ignored);
+  if (!shown.length) return null;
+  const x0 = Math.min(...shown.map((n) => n.frame.x));
+  const y0 = Math.min(...shown.map((n) => n.frame.y));
+  const x1 = Math.max(...shown.map((n) => n.frame.x + n.frame.w));
+  const y1 = Math.max(...shown.map((n) => n.frame.y + n.frame.h));
+  return (x1 - x0) * (y1 - y0) < 0.1 * screen.w * screen.h ? shown : null;
+}
+
 const CSS_IDENT = /^-?[A-Za-z_][A-Za-z0-9_-]*$/;
 
 export function cssId(node) {
   return node.identifier && CSS_IDENT.test(node.identifier) ? node.identifier : null;
 }
 
+// Web and React Native session corpora select on `testid`; in the simulator the
+// same testID arrives as the accessibility identifier.
 export function attrsOf(node) {
   const attrs = {};
-  if (node.identifier) attrs.identifier = node.identifier;
+  if (node.identifier) {
+    attrs.identifier = node.identifier;
+    attrs.testid = node.identifier;
+  }
   if (cssId(node)) attrs.id = node.identifier;
   if (node.label) attrs.text = node.label;
   if (node.value) attrs.value = node.value;

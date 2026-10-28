@@ -50,6 +50,12 @@ took
 
 # The sample app's .sightmap/ lives next to it, so run from there.
 cd "$skill/fixtures/$fixture"
+
+step "sightmap validate"
+sightmap_bin="$(node --input-type=module -e "const { resolveSightmap } = await import('$skill/lib/sightmap-cli.mjs'); const s = resolveSightmap(); console.error('   sightmap ' + s.version + ' (' + s.source + ')'); console.log(s.bin)")"
+"$sightmap_bin" validate --sightmap-dir .sightmap || fail "sightmap validate rejected fixtures/$fixture/.sightmap"
+took
+
 trap cleanup EXIT
 
 step "start --detach"
@@ -150,6 +156,16 @@ grep -q '"text":"<redacted>"' "$(ls -t .sightmap/.sim-runs/*.jsonl | head -1)" |
 
 step "status"
 "${sim[@]}" status
+
+step "start on the running session: same app relaunches, another app is refused"
+again="$("${sim[@]}" start --app "$app" --detach)"
+echo "$again"
+expect "installed $app and relaunched" "$again"
+if "${sim[@]}" start --bundle-id com.apple.Preferences --detach 2>"$out/switch.txt"; then fail "start with another bundle id was not refused"; fi
+cat "$out/switch.txt"
+expect 'subtext-sim stop' "$(cat "$out/switch.txt")"
+expect 'not pixels' "$("${sim[@]}" tap-xy 230 5000 2>&1 || true)"
+took
 
 step "stop"
 trap - EXIT

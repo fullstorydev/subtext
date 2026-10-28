@@ -1,13 +1,16 @@
 version: 1
 views:
+  # Placeholder routes (native screens have no URL); see login.yaml.
   - name: Products
+    route: /products
     components:
       - name: ProductRow
         selector: '[identifier^="product-row-"]'
         properties:
           - name: title
-            extract: text
+            extract: { from: dom.text }
   - name: ProductDetail
+    route: /products/detail
     components:
       - name: ProductName
         selector: '[identifier="product-detail-name"]'

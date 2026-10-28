@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { attrsOf, cssId, logBoxToast, normalize } from './normalize.mjs';
+import { attrsOf, cssId, floatingOnly, logBoxToast, normalize } from './normalize.mjs';
+import { emptyTreeMessage } from './errors.mjs';
 import { compareValue, matches } from './selector.mjs';
 import { loadCorpus } from './corpus.mjs';
 
@@ -24,6 +25,10 @@ function* descendants(node) {
 function firstDescendant(node, componentName) {
   for (const d of descendants(node)) if (d.component === componentName) return d;
   return null;
+}
+
+function allDescendants(node, componentName) {
+  return [...descendants(node)].filter((d) => d.component === componentName);
 }
 
 function matchedNodes(nodes, def) {
@@ -50,24 +55,63 @@ function extractProps(node, memo) {
   const props = {};
   memo.set(node, props);
   for (const { name, extract } of node.componentDef.properties) {
-    const value = extractOne(node, extract ?? 'text', memo);
+    const value = extractOne(node, extract ?? { from: 'dom.text' }, memo);
     if (value !== undefined && value !== null && value !== '') props[name] = String(value);
   }
   return props;
 }
 
-function extractOne(node, extract, memo) {
-  if (extract === 'text') return node.label ?? node.text;
-  if (extract.startsWith('attr=')) return attrsOf(node)[extract.slice(5).toLowerCase()];
-  if (extract.startsWith('exists:')) return firstDescendant(node, extract.slice(7)) ? 'true' : undefined;
-  const path = extract.split('.');
-  const prop = path.pop();
-  let cur = node;
-  for (const name of path) {
-    cur = firstDescendant(cur, name);
-    if (!cur) return undefined;
+/** Follows `Child.Grandchild` (a `Name[]` step takes every match) from a node to the components it names. */
+function componentsAt(node, names) {
+  let current = [node];
+  for (const step of names) {
+    const every = step.endsWith('[]');
+    const name = every ? step.slice(0, -2) : step;
+    current = current.flatMap((n) => (every ? allDescendants(n, name) : [firstDescendant(n, name)].filter(Boolean)));
   }
-  return extractProps(cur, memo)[prop];
+  return current;
+}
+
+const SWITCH_STATE = { 1: 'true', 0: 'false' };
+
+function stateOf(node, state) {
+  switch (state) {
+    case 'disabled': return node.enabled ? 'false' : 'true';
+    case 'selected': return node.traits.includes('Selected') ? 'true' : 'false';
+    case 'checked': return ['switch', 'checkbox'].includes(node.tag) ? SWITCH_STATE[node.value] : undefined;
+    default: return undefined;
+  }
+}
+
+function readSource(node, { from, path, join }, memo) {
+  switch (from) {
+    case 'dom.text':
+    case 'dom.raw_text':
+      return node.label ?? node.text;
+    case 'dom.attr':
+      return path ? attrsOf(node)[path.toLowerCase()] : undefined;
+    case 'dom.state':
+      return stateOf(node, path);
+    case 'component.exists':
+      return path && componentsAt(node, path.split('.')).length ? 'true' : undefined;
+    case 'component': {
+      if (!path) return undefined;
+      const names = path.split('.');
+      const prop = names.pop();
+      const values = componentsAt(node, names).map((n) => extractProps(n, memo)[prop]).filter((v) => v !== undefined && v !== '');
+      if (join !== undefined) return values.length ? values.join(join) : undefined;
+      return values[0];
+    }
+    default:
+      return undefined;
+  }
+}
+
+function extractOne(node, extract, memo) {
+  const value = readSource(node, extract, memo);
+  if (value === undefined || value === null || !extract.pattern) return value;
+  const m = new RegExp(extract.pattern).exec(String(value));
+  return m ? (m[1] ?? m[0]) : undefined;
 }
 
 function computeCoverage(nodes) {
@@ -189,6 +233,13 @@ export function render(annotated, { includeOffscreen = false, showIdentifiers = 
     const owner = annotated.root.label ? ` (${quote(annotated.root.label)})` : '';
     lines.push('[Overlay]', `A system sheet from another process${owner} is in front of the app; the tree below is that sheet.`,
       'Dismiss it with one of its buttons, e.g. `click \'button[text="Not Now"]\'`, then snapshot again.', '');
+  }
+
+  const floating = floatingOnly(annotated);
+  if (floating) {
+    const desc = floating.slice(0, 3).map((n) => `${n.tag}${n.label ? ` ${quote(n.label)}` : ''}`).join(', ');
+    lines.push('[Mostly empty]', `Only a small floating element is exposed (${desc}). It is probably a separate window, such as the React Native / Expo dev-menu button, and the app's own window shows nothing to accessibility.`,
+      emptyTreeMessage({ udid: annotated.udid ?? '<udid>', accessibilityEnabled: annotated.accessibilityEnabled ?? null }).split('\n').slice(1).join('\n'), '');
   }
 
   const logBox = logBoxToast(annotated);

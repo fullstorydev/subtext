@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { createInterface } from 'node:readline';
 import { BridgeError, annotate, centerOf, render, resolve as resolveQuery, toComponentTree, writeSnap } from './sightmap-bridge.mjs';
-import { logBoxToast, normalize } from './normalize.mjs';
-import { SimError, toWire } from './errors.mjs';
+import { floatingOnly, logBoxToast, normalize } from './normalize.mjs';
+import { emptyTreeMessage, SimError, toWire } from './errors.mjs';
 import { ConsoleBuffer, LogCollector } from './logs.mjs';
 import { HelperClient } from './helper-client.mjs';
 import { CorpusCache } from './sightmap-cli.mjs';
@@ -203,13 +203,32 @@ export class SimSession {
   }
 
   async fresh({ view } = {}) {
+    let described;
     try {
-      const snap = annotate(normalize(await this.describeSettled()), this.corpus.get(), { view });
+      described = await this.describeSettled();
+    } catch (err) {
+      if (err.code === 'ax_disabled') throw await this.emptyTreeError();
+      throw err;
+    }
+    try {
+      const snap = annotate(normalize(described), this.corpus.get(), { view });
       this.lastView = snap.view;
+      this.screen = snap.screen;
       return snap;
     } catch (err) {
       throw bridgeToSim(err);
     }
+  }
+
+  async accessibilityEnabled() {
+    if (this.axEnabled === undefined) {
+      this.axEnabled = this.simctl.accessibilityEnabled ? await this.simctl.accessibilityEnabled(this.udid).catch(() => null) : null;
+    }
+    return this.axEnabled;
+  }
+
+  async emptyTreeError() {
+    return new SimError('ax_disabled', emptyTreeMessage({ udid: this.udid, accessibilityEnabled: await this.accessibilityEnabled() }));
   }
 
   /** Re-describes until two reads agree on every element's frame, so a list's momentum has stopped. */
@@ -233,6 +252,7 @@ export class SimSession {
   async launchApp({ terminate = true } = {}) {
     if (terminate) await this.simctl.enableAccessibility(this.udid);
     this.appPid = await this.simctl.launch(this.udid, this.bundleId, { stdout: this.stdoutPath, stderr: this.stderrPath, terminate });
+    this.axEnabled = undefined;
     this.readable = false;
     this.last = null;
     return { bundleId: this.bundleId, pid: this.appPid };
@@ -326,6 +346,10 @@ export class SimSession {
 
     async snapshot({ view, includeOffscreen = false, out, treeOut, json = false }) {
       const snap = await this.fresh({ view });
+      if (floatingOnly(snap)) {
+        Object.assign(snap, { udid: this.udid, accessibilityEnabled: await this.accessibilityEnabled() });
+        snap.text = render(snap);
+      }
       this.last = snap;
       const text = includeOffscreen ? render(snap, { includeOffscreen: true }) : snap.text;
       if (out) writeSnap({ ...snap, text }, out);
@@ -417,12 +441,14 @@ export class SimSession {
     },
 
     async swipe({ x1, y1, x2, y2, duration }) {
+      await this.assertOnScreen([[x1, y1], [x2, y2]], 'swipe');
       await this.input('swipe', { x1, y1, x2, y2, ...(duration ? { duration } : {}) });
       this.last = null;
       return { x1, y1, x2, y2 };
     },
 
     async tapXY({ x, y }) {
+      await this.assertOnScreen([[x, y]], 'tap-xy');
       await this.input('tap', { x, y });
       return { x, y };
     },
@@ -467,7 +493,7 @@ export class SimSession {
         await this.simctl.install(this.udid, appPath);
         this.appPath = appPath;
       }
-      return this.commands.relaunch.call(this);
+      return { ...(await this.commands.relaunch.call(this)), installed: appPath ?? null };
     },
 
     consoleList({ limit = 50, grep, level, all }) {
@@ -488,6 +514,17 @@ export class SimSession {
       return { url: this.buffer.sessionUrl };
     },
   };
+
+  /** Rejects points outside the screen, in points as `describe` reports it. Without a readable tree, the last known size applies. */
+  async assertOnScreen(points, cmd) {
+    const screen = this.screen ?? (await this.fresh().catch(() => null))?.screen;
+    if (!screen?.w || !screen?.h) return;
+    const outside = points.find(([x, y]) => x < 0 || y < 0 || x > screen.w || y > screen.h);
+    if (outside) {
+      throw new SimError('off_screen_point', `(${outside[0]}, ${outside[1]}) is outside the ${screen.w}x${screen.h} pt screen; ${cmd} takes screen points (origin top-left), not pixels`,
+        `pick a point within 0–${screen.w} x 0–${screen.h}; divide screenshot pixel coordinates by the device scale (2 or 3)`);
+    }
+  }
 
   /** Re-describes, re-resolves the target, checks it is tappable, and taps its center. */
   async tap(target) {
