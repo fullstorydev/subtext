@@ -1,0 +1,305 @@
+{
+ "screen": {
+  "h": 874,
+  "w": 402
+ },
+ "root": {
+  "frame": {
+   "y": 0,
+   "w": 402,
+   "h": 874,
+   "x": 0
+  },
+  "type": "Application",
+  "enabled": true,
+  "value": null,
+  "traits": [
+   "None"
+  ],
+  "children": [
+   {
+    "identifier": null,
+    "frame": {
+     "w": 100.66666666666666,
+     "h": 40.66666666666667,
+     "x": 15.999999999999993,
+     "y": 119.66666666666667
+    },
+    "value": null,
+    "traits": [
+     "Header",
+     "Scrollable"
+    ],
+    "enabled": true,
+    "label": "Heavy",
+    "type": "Heading",
+    "children": [],
+    "subrole": null,
+    "role": "AXHeading"
+   },
+   {
+    "frame": {
+     "w": 402,
+     "x": 0,
+     "y": 0,
+     "h": 874
+    },
+    "subrole": null,
+    "role": "AXGroup",
+    "label": null,
+    "type": "Group",
+    "enabled": true,
+    "children": [
+     {
+      "subrole": null,
+      "role": "AXStaticText",
+      "enabled": true,
+      "label": "last:none n:0",
+      "type": "StaticText",
+      "identifier": "lastTapped",
+      "traits": [
+       "StaticText",
+       "Scrollable"
+      ],
+      "children": [],
+      "value": null,
+      "frame": {
+       "x": 16,
+       "h": 52,
+       "y": 168,
+       "w": 370
+      }
+     },
+     {
+      "role": "AXButton",
+      "value": null,
+      "children": [],
+      "type": "Button",
+      "frame": {
+       "w": 370,
+       "h": 66.66666666666669,
+       "x": 16,
+       "y": 255
+      },
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "label": "Row 0, Subtitle 0, $0.00",
+      "subrole": null,
+      "enabled": true,
+      "identifier": "row.0.buy-row.0.fav"
+     },
+     {
+      "subrole": null,
+      "label": "Row 1, Subtitle 1, $1.00",
+      "identifier": "row.1.buy-row.1.fav",
+      "enabled": true,
+      "role": "AXButton",
+      "type": "Button",
+      "value": null,
+      "frame": {
+       "y": 321.66666666666663,
+       "w": 370,
+       "h": 66.66666666666669,
+       "x": 16
+      },
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "children": []
+     },
+     {
+      "type": "Button",
+      "enabled": true,
+      "children": [],
+      "frame": {
+       "y": 388.33333333333337,
+       "w": 370,
+       "h": 66.66666666666669,
+       "x": 16
+      },
+      "role": "AXButton",
+      "identifier": "row.2.buy-row.2.fav",
+      "subrole": null,
+      "label": "Row 2, Subtitle 2, $2.00",
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "value": null
+     },
+     {
+      "enabled": true,
+      "subrole": null,
+      "identifier": "row.3.buy-row.3.fav",
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "label": "Row 3, Subtitle 3, $3.00",
+      "frame": {
+       "y": 455,
+       "w": 370,
+       "h": 66.66666666666663,
+       "x": 16
+      },
+      "value": null,
+      "children": [],
+      "role": "AXButton",
+      "type": "Button"
+     },
+     {
+      "value": null,
+      "identifier": "row.4.buy-row.4.fav",
+      "children": [],
+      "role": "AXButton",
+      "label": "Row 4, Subtitle 4, $4.00",
+      "frame": {
+       "x": 16,
+       "y": 521.6666666666667,
+       "w": 370,
+       "h": 66.66666666666663
+      },
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "subrole": null,
+      "type": "Button",
+      "enabled": true
+     },
+     {
+      "type": "Button",
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "subrole": null,
+      "value": null,
+      "frame": {
+       "h": 66.66666666666663,
+       "x": 16,
+       "w": 370,
+       "y": 588.3333333333333
+      },
+      "enabled": true,
+      "label": "Row 5, Subtitle 5, $5.00",
+      "children": [],
+      "role": "AXButton",
+      "identifier": "row.5.buy-row.5.fav"
+     },
+     {
+      "value": null,
+      "subrole": null,
+      "role": "AXButton",
+      "label": "Row 6, Subtitle 6, $6.00",
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "type": "Button",
+      "children": [],
+      "identifier": "row.6.buy-row.6.fav",
+      "frame": {
+       "y": 655,
+       "x": 16,
+       "h": 66.66666666666663,
+       "w": 370
+      },
+      "enabled": true
+     },
+     {
+      "enabled": true,
+      "subrole": null,
+      "value": null,
+      "type": "Button",
+      "children": [],
+      "identifier": "row.7.buy-row.7.fav",
+      "label": "Row 7, Subtitle 7, $7.00",
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "frame": {
+       "w": 370,
+       "h": 66.66666666666663,
+       "y": 721.6666666666666,
+       "x": 16
+      },
+      "role": "AXButton"
+     },
+     {
+      "frame": {
+       "w": 370,
+       "y": 788.3333333333334,
+       "x": 16,
+       "h": 66.66666666666663
+      },
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "children": [],
+      "role": "AXButton",
+      "value": null,
+      "enabled": true,
+      "type": "Button",
+      "label": "Row 8, Subtitle 8, $8.00",
+      "identifier": "row.8.buy-row.8.fav",
+      "subrole": null
+     },
+     {
+      "children": [],
+      "role": "AXButton",
+      "frame": {
+       "y": 855,
+       "h": 66.66666666666663,
+       "w": 370,
+       "x": 16
+      },
+      "traits": [
+       "Button",
+       "Scrollable"
+      ],
+      "subrole": null,
+      "type": "Button",
+      "identifier": "row.9.buy-row.9.fav",
+      "enabled": true,
+      "label": "Row 9, Subtitle 9, $9.00",
+      "value": null
+     }
+    ],
+    "value": null,
+    "identifier": null,
+    "traits": [
+     "Scrollable"
+    ]
+   },
+   {
+    "enabled": true,
+    "value": null,
+    "frame": {
+     "x": 0,
+     "h": 83,
+     "y": 791,
+     "w": 402
+    },
+    "role": "AXGroup",
+    "subrole": null,
+    "type": "Group",
+    "identifier": null,
+    "traits": [
+     "Scrollable"
+    ],
+    "label": "Tab Bar",
+    "children": []
+   }
+  ],
+  "role": "AXApplication",
+  "identifier": null,
+  "subrole": null,
+  "label": "Bench"
+ }
+}

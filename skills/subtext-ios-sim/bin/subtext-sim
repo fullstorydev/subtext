@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+import('../lib/cli.mjs').then(async ({ main }) => {
+  process.exitCode = await main();
+});

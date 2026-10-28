@@ -1,0 +1,33 @@
+version: 1
+components:
+  - name: Row
+    selector: 'button:has(> button[identifier$=".buy"])'
+    children:
+      - name: Buy
+        selector: 'button[identifier$=".buy"]'
+      - name: RowText
+        selector: 'text:not([text^="$"])'
+  - name: TabItem
+    selector: 'other[text="Tab Bar"] tab:not([text="Deep"])'
+  - name: DeepTab
+    selector: 'tab[text="Deep"]'
+  - name: EagerTeen
+    selector: '[identifier^="eager.1"]'
+  - name: ChildText
+    selector: 'scrollview > text'
+  - name: ScrollOrHeading
+    selector: ':is(slider, heading)'
+  - name: LastTapped
+    selector: '#lastTapped'
+  - name: NamedImage
+    selector: 'image[identifier]'
+  - name: OnSwitch
+    selector: 'switch[value="1"]'
+  - name: DeepLeaf
+    selector: '[identifier^="deepc."] [identifier^="deepc."] button'
+  - name: DeepLabel
+    selector: 'other:where([identifier$=".3"]) > text, [identifier*="ep.1"]'
+  - name: Field
+    selector: 'textfield[identifier="simple.email"]'
+  - name: CatchAllButton
+    selector: 'button'

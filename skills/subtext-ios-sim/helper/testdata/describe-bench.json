@@ -1,0 +1,167 @@
+{
+ "screen": {
+  "h": 874,
+  "w": 402
+ },
+ "root": {
+  "children": [
+   {
+    "label": "Simple screen",
+    "identifier": null,
+    "frame": {
+     "h": 33.666666666666686,
+     "w": 169.66666666666663,
+     "y": 314.1666666666667,
+     "x": 116.16666666666667
+    },
+    "role": "AXStaticText",
+    "subrole": null,
+    "type": "StaticText",
+    "children": [],
+    "value": null,
+    "enabled": true,
+    "traits": [
+     "StaticText",
+     "Scrollable"
+    ]
+   },
+   {
+    "frame": {
+     "y": 363.83333333333337,
+     "x": 151.83333333333334,
+     "h": 20.333333333333314,
+     "w": 98.33333333333334
+    },
+    "role": "AXStaticText",
+    "subrole": null,
+    "identifier": "lastTapped",
+    "type": "StaticText",
+    "label": "last:none n:0",
+    "value": null,
+    "traits": [
+     "StaticText",
+     "Scrollable"
+    ],
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXButton",
+    "type": "Button",
+    "traits": [
+     "Button",
+     "Scrollable"
+    ],
+    "subrole": null,
+    "value": null,
+    "identifier": "simple.primary",
+    "frame": {
+     "w": 58.66666666666666,
+     "h": 20.333333333333314,
+     "y": 400.3333333333333,
+     "x": 171.66666666666666
+    },
+    "enabled": true,
+    "label": "Primary",
+    "children": []
+   },
+   {
+    "frame": {
+     "w": 82,
+     "x": 160,
+     "h": 20.333333333333314,
+     "y": 436.66666666666663
+    },
+    "enabled": true,
+    "children": [],
+    "type": "Button",
+    "value": null,
+    "traits": [
+     "Button",
+     "Scrollable"
+    ],
+    "subrole": null,
+    "label": "Secondary",
+    "identifier": "simple.secondary",
+    "role": "AXButton"
+   },
+   {
+    "role": "AXTextField",
+    "subrole": null,
+    "identifier": "simple.email",
+    "type": "TextField",
+    "value": "Email",
+    "frame": {
+     "y": 473,
+     "h": 22,
+     "w": 370,
+     "x": 16
+    },
+    "traits": [
+     "TextEntry",
+     "Scrollable",
+     "TextOperationsAvailable"
+    ],
+    "children": [],
+    "enabled": true,
+    "label": null
+   },
+   {
+    "value": "1",
+    "subrole": "AXSwitch",
+    "role": "AXCheckBox",
+    "traits": [
+     "Button",
+     "Scrollable",
+     "Toggle"
+    ],
+    "enabled": true,
+    "children": [],
+    "frame": {
+     "x": 16,
+     "y": 511,
+     "h": 27.66668701171875,
+     "w": 370
+    },
+    "type": "CheckBox",
+    "label": "Notifications",
+    "identifier": "simple.toggle"
+   },
+   {
+    "frame": {
+     "x": 0,
+     "h": 83,
+     "y": 791,
+     "w": 402
+    },
+    "value": null,
+    "children": [],
+    "label": "Tab Bar",
+    "identifier": null,
+    "traits": [
+     "Scrollable"
+    ],
+    "role": "AXGroup",
+    "subrole": null,
+    "type": "Group",
+    "enabled": true
+   }
+  ],
+  "value": null,
+  "role": "AXApplication",
+  "identifier": null,
+  "enabled": true,
+  "subrole": null,
+  "type": "Application",
+  "label": "Bench",
+  "frame": {
+   "x": 0,
+   "w": 402,
+   "h": 874,
+   "y": 0
+  },
+  "traits": [
+   "None"
+  ]
+ }
+}

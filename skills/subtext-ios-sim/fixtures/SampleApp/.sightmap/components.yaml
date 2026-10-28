@@ -1,0 +1,9 @@
+version: 1
+memory:
+  - Any email containing "@" and any non-empty password signs in.
+components:
+  - name: TabBarItem
+    selector: 'tab'
+    properties:
+      - name: title
+        extract: text

@@ -1,0 +1,101 @@
+{
+  "globals": [
+    {
+      "name": "Row",
+      "selectors": [
+        "button:has(\u003e button[identifier$=\".buy\"])"
+      ]
+    },
+    {
+      "name": "Buy",
+      "selectors": [
+        "button:has(\u003e button[identifier$=\".buy\"]) button[identifier$=\".buy\"]"
+      ],
+      "parentChain": [
+        "Row"
+      ]
+    },
+    {
+      "name": "RowText",
+      "selectors": [
+        "button:has(\u003e button[identifier$=\".buy\"]) text:not([text^=\"$\"])"
+      ],
+      "parentChain": [
+        "Row"
+      ]
+    },
+    {
+      "name": "TabItem",
+      "selectors": [
+        "other[text=\"Tab Bar\"] tab:not([text=\"Deep\"])"
+      ]
+    },
+    {
+      "name": "DeepTab",
+      "selectors": [
+        "tab[text=\"Deep\"]"
+      ]
+    },
+    {
+      "name": "EagerTeen",
+      "selectors": [
+        "[identifier^=\"eager.1\"]"
+      ]
+    },
+    {
+      "name": "ChildText",
+      "selectors": [
+        "scrollview \u003e text"
+      ]
+    },
+    {
+      "name": "ScrollOrHeading",
+      "selectors": [
+        ":is(slider, heading)"
+      ]
+    },
+    {
+      "name": "LastTapped",
+      "selectors": [
+        "#lastTapped"
+      ]
+    },
+    {
+      "name": "NamedImage",
+      "selectors": [
+        "image[identifier]"
+      ]
+    },
+    {
+      "name": "OnSwitch",
+      "selectors": [
+        "switch[value=\"1\"]"
+      ]
+    },
+    {
+      "name": "DeepLeaf",
+      "selectors": [
+        "[identifier^=\"deepc.\"] [identifier^=\"deepc.\"] button"
+      ]
+    },
+    {
+      "name": "DeepLabel",
+      "selectors": [
+        "other:where([identifier$=\".3\"]) \u003e text",
+        "[identifier*=\"ep.1\"]"
+      ]
+    },
+    {
+      "name": "Field",
+      "selectors": [
+        "textfield[identifier=\"simple.email\"]"
+      ]
+    },
+    {
+      "name": "CatchAllButton",
+      "selectors": [
+        "button"
+      ]
+    }
+  ]
+}

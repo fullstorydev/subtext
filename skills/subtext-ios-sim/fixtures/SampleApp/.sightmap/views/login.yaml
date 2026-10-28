@@ -1,0 +1,12 @@
+version: 1
+views:
+  - name: Login
+    components:
+      - name: EmailField
+        selector: '[identifier="login-email"]'
+      - name: PasswordField
+        selector: '[identifier="login-password"]'
+      - name: SignInButton
+        selector: 'button[identifier="login-submit"]'
+      - name: LoginError
+        selector: '[identifier="login-error"]'

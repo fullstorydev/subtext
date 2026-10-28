@@ -1,0 +1,214 @@
+{
+  "memory": [
+    "The tab bar is present on every screen."
+  ],
+  "globals": [
+    {
+      "name": "TabBar",
+      "selectors": [
+        "other[text=\"Tab Bar\"]"
+      ]
+    },
+    {
+      "name": "Tab",
+      "selectors": [
+        "other[text=\"Tab Bar\"] tab"
+      ],
+      "properties": [
+        {
+          "name": "title",
+          "extract": "text"
+        },
+        {
+          "name": "selected",
+          "extract": "attr=value"
+        }
+      ],
+      "parentChain": [
+        "TabBar"
+      ]
+    },
+    {
+      "name": "LastTapped",
+      "selectors": [
+        "[identifier=\"lastTapped\"]"
+      ],
+      "properties": [
+        {
+          "name": "text",
+          "extract": "text"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "name": "Eager",
+      "route": "/eager",
+      "components": [
+        {
+          "name": "EagerButton",
+          "selectors": [
+            "button[identifier^=\"eager.\"]"
+          ],
+          "properties": [
+            {
+              "name": "key",
+              "extract": "attr=identifier"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Heavy",
+      "route": "/heavy",
+      "memory": [
+        "Rows lazy-load; scroll to reach rows past the first screen."
+      ],
+      "components": [
+        {
+          "name": "ScreenTitle",
+          "selectors": [
+            "heading"
+          ]
+        },
+        {
+          "name": "ProductRow",
+          "selectors": [
+            "button:has(\u003e button[identifier$=\".buy\"])"
+          ],
+          "properties": [
+            {
+              "name": "title",
+              "extract": "Title.text"
+            },
+            {
+              "name": "price",
+              "extract": "Price.text"
+            },
+            {
+              "name": "favoritable",
+              "extract": "exists:FavoriteButton"
+            }
+          ]
+        },
+        {
+          "name": "Title",
+          "selectors": [
+            "button:has(\u003e button[identifier$=\".buy\"]) text[text^=\"Row\"]"
+          ],
+          "properties": [
+            {
+              "name": "text",
+              "extract": "text"
+            }
+          ],
+          "parentChain": [
+            "ProductRow"
+          ]
+        },
+        {
+          "name": "Price",
+          "selectors": [
+            "button:has(\u003e button[identifier$=\".buy\"]) text[text^=\"$\"]"
+          ],
+          "properties": [
+            {
+              "name": "text",
+              "extract": "text"
+            }
+          ],
+          "parentChain": [
+            "ProductRow"
+          ]
+        },
+        {
+          "name": "BuyButton",
+          "selectors": [
+            "button:has(\u003e button[identifier$=\".buy\"]) button[identifier$=\".buy\"]"
+          ],
+          "parentChain": [
+            "ProductRow"
+          ]
+        },
+        {
+          "name": "FavoriteButton",
+          "selectors": [
+            "button:has(\u003e button[identifier$=\".buy\"]) button[identifier$=\".fav\"]"
+          ],
+          "parentChain": [
+            "ProductRow"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Simple",
+      "route": "/simple",
+      "components": [
+        {
+          "name": "TabBar",
+          "selectors": [
+            "other[text=\"Tab Bar\"]"
+          ]
+        },
+        {
+          "name": "Tab",
+          "selectors": [
+            "other[text=\"Tab Bar\"] tab"
+          ],
+          "properties": [
+            {
+              "name": "title",
+              "extract": "text"
+            },
+            {
+              "name": "selected",
+              "extract": "attr=value"
+            }
+          ],
+          "parentChain": [
+            "TabBar"
+          ]
+        },
+        {
+          "name": "PrimaryButton",
+          "selectors": [
+            "button[identifier=\"simple.primary\"]"
+          ]
+        },
+        {
+          "name": "SecondaryButton",
+          "selectors": [
+            "[text=\"Secondary\"]"
+          ]
+        },
+        {
+          "name": "EmailField",
+          "selectors": [
+            "textfield[identifier=\"simple.email\"]"
+          ],
+          "properties": [
+            {
+              "name": "value",
+              "extract": "attr=value"
+            }
+          ]
+        },
+        {
+          "name": "NotificationsToggle",
+          "selectors": [
+            "switch[identifier=\"simple.toggle\"]"
+          ],
+          "properties": [
+            {
+              "name": "on",
+              "extract": "attr=value"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

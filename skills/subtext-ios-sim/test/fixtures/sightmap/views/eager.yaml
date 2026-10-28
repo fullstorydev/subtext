@@ -1,0 +1,10 @@
+version: 1
+views:
+  - name: Eager
+    route: "/eager"
+    components:
+      - name: EagerButton
+        selector: 'button[identifier^="eager."]'
+        properties:
+          - name: key
+            extract: attr=identifier

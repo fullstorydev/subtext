@@ -1,0 +1,19 @@
+version: 1
+memory:
+  - The tab bar is present on every screen.
+components:
+  - name: TabBar
+    selector: 'other[text="Tab Bar"]'
+    children:
+      - name: Tab
+        selector: 'tab'
+        properties:
+          - name: title
+            extract: text
+          - name: selected
+            extract: attr=value
+  - name: LastTapped
+    selector: '[identifier="lastTapped"]'
+    properties:
+      - name: text
+        extract: text

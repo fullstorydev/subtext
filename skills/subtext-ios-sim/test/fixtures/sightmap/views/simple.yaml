@@ -1,0 +1,20 @@
+version: 1
+views:
+  - name: Simple
+    route: "/simple"
+    components:
+      - $ref: TabBar
+      - name: PrimaryButton
+        selector: 'button[identifier="simple.primary"]'
+      - name: SecondaryButton
+        selector: '[text="Secondary"]'
+      - name: EmailField
+        selector: 'textfield[identifier="simple.email"]'
+        properties:
+          - name: value
+            extract: attr=value
+      - name: NotificationsToggle
+        selector: 'switch[identifier="simple.toggle"]'
+        properties:
+          - name: on
+            extract: attr=value
