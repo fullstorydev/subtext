@@ -136,6 +136,8 @@ The loop is the same; RN maps onto the iOS accessibility tree like this:
 
 `<skill-dir>/fixtures/SampleApp/build.sh` builds a small SwiftUI app (login form, 200-row product list, tab bar, a JSON POST button) and prints the `.app` path. Set `FS_ORG_ID=<org>` to build it with the Fullstory SDK, which enables `session-url` and network.
 
+**Apps you build yourself must be built by Xcode** (`xcodebuild` or the Xcode app), not assembled by hand. Without the simulated entitlements Xcode embeds, the Fullstory SDK's uploads fail in the simulator, and the consumer sees no session. After signing in, iOS may show a "Save Password?" sheet over the app for a moment; if a snapshot reports a system sheet, snapshot again.
+
 `<skill-dir>/fixtures/RNSampleApp/build.sh` builds the same app in React Native (React Navigation tabs and stack, a `FlatList`, the same `testID`s) with its JS bundle embedded. It needs Node 22.11+ and CocoaPods, and takes several minutes the first time. `FS_ORG_ID` adds the Fullstory React Native SDK; `CONFIGURATION=Debug` builds for Metro instead.
 
 ## Known limits

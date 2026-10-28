@@ -86,12 +86,12 @@ test/e2e.sh --device "<simulator name or UDID>" --fixture RNSampleApp   # the Re
 
 Every control has an `accessibilityIdentifier` (`login-email`, `login-submit`, `tab-network`, `product-row-42`, `product-detail-add`, `network-send`…).
 
-`build.sh` needs only Xcode: it compiles with `swiftc` and assembles the bundle by hand, so there's no Xcode project. It writes to `$SUBTEXT_SIM_CACHE/SampleApp/`, default `~/Library/Caches/subtext-sim/SampleApp/` (set `OUT_DIR` to change just the app's location) and prints the `.app` path on stdout.
+`build.sh` needs only Xcode: it builds `SimSample.xcodeproj` with `xcodebuild` (a target build for the simulator SDK). It must be a real Xcode build: Xcode embeds simulated entitlements in simulator apps, and without them the Fullstory SDK's background uploads fail, so no session data reaches Fullstory. Apply the same rule to your own app. It writes to `$SUBTEXT_SIM_CACHE/SampleApp/`, default `~/Library/Caches/subtext-sim/SampleApp/` (set `OUT_DIR` to change just the app's location) and prints the `.app` path on stdout.
 
 To capture sessions with Fullstory, build with your org ID:
 
 ```sh
-FS_ORG_ID=<your-org-id> fixtures/SampleApp/build.sh
+FS_ORG_ID=<your-org-id> fixtures/SampleApp/build.sh   # also sets Fullstory VerboseLogging=2 (FS_VERBOSE_LOGGING to change)
 ```
 
 This downloads the public Fullstory iOS SDK (the binary from [`fullstorydev/fullstory-swift-package-ios`](https://github.com/fullstorydev/fullstory-swift-package-ios), checksum-verified; set `FS_SDK_VERSION` to pick a release), embeds it, adds a `Fullstory` dictionary with `OrgId` and `RecordOnStart` to `Info.plist`, and logs `FULLSTORY_SESSION_URL <url>` when a session starts. That line is what `subtext-sim session-url` reads.
