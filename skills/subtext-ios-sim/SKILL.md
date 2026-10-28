@@ -69,29 +69,53 @@ subtext-sim stop                               # --shutdown also shuts the simul
 
 Every command takes `--json`. Errors are one line with a `Next:` step.
 
-## Network, and the producer / consumer split
+## Network, and the producer / consumer collaboration
 
-Network and Fullstory-captured console data come from the app's Fullstory SDK session, read through the Subtext MCP. It needs an app built with the Fullstory iOS SDK and network capture enabled for the org. That data arrives on the SDK's upload interval, about **20 s** behind the app. So don't make one agent tap and then wait; split the work into two subagents.
+### How the Fullstory SDK delivers data
 
-**Producer:** drives the app and never waits on network data.
-- `start` (opens a run), then work through flows with `snapshot` / `click` / `fill` / `scroll` / `openurl`.
-- Every action is appended to the run log `.sightmap/.sim-runs/<run>.jsonl` with its timestamp, target component and view. The session URL is logged as a `session` entry once the SDK reports it.
-- It also fixes UI-side gaps as it goes: elements it can't target cleanly are candidates for new `components:`.
-- When done, it reports the run id.
+Network and Fullstory-captured console data come from the app's own Fullstory SDK session, read back through the Subtext MCP. Nothing is read from the device directly, so know how the data moves:
 
-**Consumer:** turns captured traffic into sightmap.
-1. `run tail --follow` (or `--since SEQ`) to follow the producer's steps and pick up the `session` URL.
-2. `review-open` with that URL, then `review-zoom` with `resolution={"network": "standard", "console": "standard"}`. Use `"detail"` on specific requests for headers and bodies.
-3. Line up each request and log with the producer step just before it (by timestamp), then author or clean up:
+- **Capture is in the app.** The SDK records interactions, navigation, network requests (method, URL, status, timing) and `FS.log` messages as they happen. Headers and bodies are captured only when the org's network header allowlists and body rules ask for them.
+- **Upload is batched.** The SDK uploads a bundle about every **20 s**, and also when the app goes to the background or relaunches. Fullstory makes a bundle readable within seconds of receiving it, so any given request is visible roughly 5–30 s after it happens.
+- **Reads are point-in-time.** Each `review-open` returns the session as uploaded so far and costs **10 credits**. `review-zoom` on the same client is free but never shows newer data. To see what arrived since, open the session again.
+- **Requirements:**
+  - the Fullstory SDK in the app, and an app **built by Xcode** (hand-assembled apps can't upload from the simulator);
+  - **mobile network capture turned on** for the org (Settings → Data Capture → Mobile; `doctor` reminds you);
+  - the Subtext MCP authenticated to the same org.
+- **Console:** only `FS.log` reaches Fullstory. `print` / `os_log` output is local only; read it live with `subtext-sim console list`.
+- **Session URL:** `subtext-sim session-url` returns it, and the run log records it as a `session` entry. A relaunch can start a new session; when the run log gets a new `session` entry, follow the newest one.
+
+### Two agents, working at the same time
+
+Because data lags the app by up to ~30 s, one agent that taps, then waits, then reads would spend most of its time waiting. Split the work into two subagents that **run concurrently** for the whole run: the producer keeps driving while the consumer keeps reading.
+
+**Orchestrating agent:**
+1. Start the **producer** as a background subagent.
+2. Poll `subtext-sim session-url` every few seconds until it returns a URL, which is usually within seconds of `start`. Then start the **consumer** as a second background subagent, **without waiting for the producer to finish**.
+3. Give both the run id and a credit budget for the consumer (default: at most 10 `review-open` calls, i.e. 100 credits, unless the user says otherwise).
+4. When the producer reports it's done, tell the consumer, wait for its final pass, then reconcile and report.
+
+**Producer** drives the app and never waits on network data:
+- It works through flows with `snapshot` / `click` / `fill` / `scroll` / `openurl`. Every action lands in the run log `.sightmap/.sim-runs/<run>.jsonl` with its timestamp, target component and view.
+- It owns `components:` and `views:` in `.sightmap/`: elements it can't target cleanly become new components.
+- Between flows, it reads `.sightmap/.sim-runs/<run>.consumer.md` for the consumer's requests (e.g. "re-run checkout; a POST /orders fired with no step that explains it") and works them into its next flows.
+- When finished, it reports to the orchestrator: the run id, the flows it covered, and any consumer requests it couldn't do. It leaves the app running, so the last bundle uploads and the consumer can still re-check a screen.
+
+**Consumer** reads captured data while the producer is still working:
+1. Follow the producer with `subtext-sim run tail --follow` (or poll with `--since SEQ`).
+2. About every 30 s while new producer steps are appearing, read the newest data: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "standard", "console": "standard"}`. Use `"detail"` only on the specific requests whose headers or bodies matter. Close each client with `review-close` before opening the next.
+3. Match each request and `FS.log` message to the producer step just before it (by timestamp), then author:
    - `requests:` (route glob + method) for endpoints that mean something;
    - `properties:` for outcomes hidden in bodies;
-   - `messages:` for meaningful logs and errors;
-   - corrections to components and views the producer flagged.
-4. Re-read about every 20 s, or once after the producer finishes. Each `review-open` costs credits, so don't poll faster than data can arrive.
+   - `messages:` for meaningful logs and errors.
 
-The orchestrating agent starts the producer, then the consumer once the run has a `session` entry. Run the producer alone when only UI or components work is needed.
+   It owns those sections of `.sightmap/`. Component and view problems it notices go to the producer, not into the YAML.
+4. When it needs more coverage (an endpoint it can't place, a flow that never fired a request, an error worth reproducing), it appends a short line to `.sightmap/.sim-runs/<run>.consumer.md`.
+5. When the producer is done, wait ~30 s for the last bundle, do one final read to cover the tail of the session, then report what it authored and what remains unmapped.
 
-Local, live alternatives that need no SDK: `console list` (the app's os_log / print output) and `snapshot`.
+**Budget and pacing:** never re-open faster than every ~30 s, since newer data can't arrive sooner. Stop at the credit budget and say so. If the producer goes idle, stop polling until new steps appear.
+
+Run the producer alone when only UI or components work is needed. For quick local signals that need no SDK and no credits, use `console list` and `snapshot`.
 
 ## Authoring `.sightmap/` for iOS
 
