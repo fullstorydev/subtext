@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { attrsOf, cssId, normalize } from './normalize.mjs';
+import { attrsOf, cssId, logBoxToast, normalize } from './normalize.mjs';
 import { compareValue, matches } from './selector.mjs';
 import { loadCorpus } from './corpus.mjs';
 
@@ -185,7 +185,17 @@ export function render(annotated, { includeOffscreen = false, showIdentifiers = 
   if (annotated.view) lines.push(`[View: ${annotated.view}]${annotated.viewInferred ? ' (inferred)' : ''}${where}`);
   else lines.push(`[No view matched]${where}`);
   lines.push('');
+  if (annotated.overlay) {
+    const owner = annotated.root.label ? ` (${quote(annotated.root.label)})` : '';
+    lines.push('[Overlay]', `A system sheet from another process${owner} is in front of the app; the tree below is that sheet.`,
+      'Dismiss it with one of its buttons, e.g. `click \'button[text="Not Now"]\'`, then snapshot again.', '');
+  }
 
+  const logBox = logBoxToast(annotated);
+  if (logBox) {
+    lines.push('[LogBox]', `A React Native LogBox toast (#${logBox.node.id}) covers the bottom of the screen; tapping it opens the LogBox inspector.`,
+      `Dismiss it with \`tap-xy ${logBox.dismiss.x} ${logBox.dismiss.y}\` (its ✕), or call LogBox.ignoreAllLogs() in the app.`, '');
+  }
   if (annotated.guide.size) {
     lines.push('[Guide]');
     const entries = [...annotated.guide].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
