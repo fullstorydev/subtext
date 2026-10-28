@@ -60,10 +60,10 @@ fi
 SCRATCH="$CACHE_ROOT/.build"
 echo "build.sh: building subtext-sim-helper $VERSION (first build downloads idb v1.7.7 frameworks, ~10 MB)" >&2
 started=$SECONDS
-xcrun swift build -c release --package-path "$HELPER_DIR" --scratch-path "$SCRATCH" --cache-path "$CACHE_ROOT/.swiftpm" >&2 \
+xcrun swift build -c release --package-path "$HELPER_DIR" --scratch-path "$SCRATCH" --cache-path "$CACHE_ROOT/.swiftpm" --disable-keychain --disable-netrc >&2 \
   || fail "swift build failed; see the output above"
 
-BUILT="$(xcrun swift build -c release --package-path "$HELPER_DIR" --scratch-path "$SCRATCH" --cache-path "$CACHE_ROOT/.swiftpm" --show-bin-path)/subtext-sim-helper"
+BUILT="$(xcrun swift build -c release --package-path "$HELPER_DIR" --scratch-path "$SCRATCH" --cache-path "$CACHE_ROOT/.swiftpm" --disable-keychain --disable-netrc --show-bin-path)/subtext-sim-helper"
 [[ -x "$BUILT" ]] || fail "build finished but $BUILT is missing"
 
 mkdir -p "$OUT_DIR"
