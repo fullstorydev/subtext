@@ -114,9 +114,29 @@ Prefer `[identifier=…]`; fall back to `[text=…]` only for copy that won't ch
 
 **SwiftUI gotcha:** `.accessibilityIdentifier` on a container overwrites the identifiers of its children. Put identifiers on the leaf controls (buttons, fields, rows), not on the stack around them. If every child of a view shows the same identifier, that's why. Tab bar items take the identifier set on the `Label` inside `.tabItem`.
 
-## Sample app
+## React Native apps
+
+The loop is the same; RN maps onto the iOS accessibility tree like this:
+
+- **`testID` is the identifier.** Target it directly (`click login-submit`) and select on it (`[identifier="login-submit"]`).
+- **Role-less `Pressable`s show up as `other`**, not `button`; only `accessibilityRole="button"` makes a `button`. Write role-free selectors (`'[identifier^="product-row-"]'`), not `button[identifier=…]`. Accessible elements with a `testID` count as interactive.
+- **`<Text testID>` doesn't reach the tree** on the New Architecture: the text shows up, its identifier doesn't. Put the `testID` on an `accessible` `View` around the `Text`, or select on `[text=…]`.
+- **React Navigation tabs** become `tab "Products"` (the "tab, 1 of 3" suffix is stripped), so `tab` selectors and `TabBarItem[title="Network"]` work. Rows behind its JS tab bar are refused as covered, like a native one.
+- **Labels join child texts with ", "**: a row with "Product 1" and "$6.37" reads `"Product 1, $6.37"`.
+
+**Embedded bundle vs Metro.** A Release build embeds `main.jsbundle` and runs without Metro; that's the most predictable for driving. A Debug build loads JS from Metro, so start Metro (`npx react-native start` in the app's directory) before `subtext-sim start`; without it the snapshot shows a red "No script URL provided" box. If port 8081 is taken, run Metro with `--port N` and point the app at it: `xcrun simctl spawn <udid> defaults write <bundle-id> RCT_jsLocation localhost:N`, then `relaunch`. Release builds drop `console.log` below error unless the app calls `RCTSetLogThreshold(.info)` natively.
+
+**Overlays.**
+- In Debug, a `console.error` or `console.warn` raises a LogBox toast over the bottom of the screen. The snapshot gets a `[LogBox]` section with the `tap-xy` that hits the toast's ✕ (the ✕ has no element of its own), and `click` refuses targets under it. Tapping the toast itself opens the full-screen LogBox inspector. To keep toasts away entirely, call `LogBox.ignoreAllLogs()` in the app.
+- A system sheet from another process (e.g. iOS's "Save Password?" a moment after a login form goes away) replaces the snapshot with an `[Overlay]` section listing the sheet's buttons; `click 'button[text="Not Now"]'` dismisses it.
+
+**`console.log`** reaches `console list` as `info` lines from subsystem `com.facebook.react.log` (`console list --grep <text>`).
+
+## Sample apps
 
 `<skill-dir>/fixtures/SampleApp/build.sh` builds a small SwiftUI app (login form, 200-row product list, tab bar, a JSON POST button) and prints the `.app` path. Set `FS_ORG_ID=<org>` to build it with the Fullstory SDK, which enables `session-url` and network.
+
+`<skill-dir>/fixtures/RNSampleApp/build.sh` builds the same app in React Native (React Navigation tabs and stack, a `FlatList`, the same `testID`s) with its JS bundle embedded. It needs Node 22.11+ and CocoaPods, and takes several minutes the first time. `FS_ORG_ID` adds the Fullstory React Native SDK; `CONFIGURATION=Debug` builds for Metro instead.
 
 ## Known limits
 
@@ -125,4 +145,4 @@ Prefer `[identifier=…]`; fall back to `[text=…]` only for copy that won't ch
 - Network isn't live, and needs the Fullstory SDK in the app plus network capture enabled for the org.
 - The helper uses Apple private frameworks; a new Xcode release may need a plugin update. `doctor` says so when the helper fails to build.
 - On iOS 26 a SwiftUI tab bar shows up as one `other "Tab Bar"` element without its tabs; switch tabs with `tap-xy` from a screenshot.
-- Scrolling a long list to a far row takes about 3 s per screenful.
+- Scrolling a long list to a far row takes about 3 s per screenful (4–5 s for a React Native `FlatList`, whose tree is larger).

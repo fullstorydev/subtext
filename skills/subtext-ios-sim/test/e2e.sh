@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# End-to-end run of subtext-sim against the sample app on a real simulator.
+# End-to-end run of subtext-sim against a sample app on a real simulator.
 #
-#   test/e2e.sh --device <UDID|name>     # required; the device is shut down at the end
+#   test/e2e.sh --device <UDID|name>                        # SwiftUI fixtures/SampleApp; the device is shut down at the end
+#   test/e2e.sh --device <UDID|name> --fixture RNSampleApp  # the React Native fixture (needs Node and CocoaPods)
 #
 # Env: E2E_KEEP_BOOTED=1 leaves the simulator running; OUT (default: a temp dir) collects artifacts.
 set -euo pipefail
@@ -10,13 +11,16 @@ here="$(cd "$(dirname "$0")" && pwd)"
 skill="$(cd "$here/.." && pwd)"
 sim=(node "$skill/bin/subtext-sim")
 device=""
+fixture=SampleApp
+usage() { echo "usage: $0 --device <UDID|name> [--fixture SampleApp|RNSampleApp]" >&2; exit 2; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --device) device="$2"; shift 2 ;;
-    *) echo "usage: $0 --device <UDID|name>" >&2; exit 2 ;;
+    --fixture) fixture="$2"; shift 2 ;;
+    *) usage ;;
   esac
 done
-[[ -n "$device" ]] || { echo "usage: $0 --device <UDID|name>" >&2; exit 2; }
+[[ -n "$device" && -x "$skill/fixtures/$fixture/build.sh" ]] || usage
 out="${OUT:-$(mktemp -d "${TMPDIR:-/tmp}/subtext-sim-e2e.XXXXXX")}"
 mkdir -p "$out"
 
@@ -38,13 +42,14 @@ step "build helper"
 bash "$skill/helper/build.sh" >/dev/null
 took
 
-step "build sample app"
-app="$(bash "$skill/fixtures/SampleApp/build.sh" 2>/dev/null | tail -1)"
+step "build $fixture"
+app="$(bash "$skill/fixtures/$fixture/build.sh" 2>/dev/null | tail -1)"
+[[ -d "$app" ]] || fail "$fixture/build.sh did not produce an app; run it directly to see why"
 echo "   $app"
 took
 
 # The sample app's .sightmap/ lives next to it, so run from there.
-cd "$skill/fixtures/SampleApp"
+cd "$skill/fixtures/$fixture"
 trap cleanup EXIT
 
 step "start --detach"
@@ -77,6 +82,21 @@ sleep 1
 step "snapshot (products)"
 snap="$("${sim[@]}" snapshot)"
 took
+# iOS may offer to save the password a moment after the login form goes away.
+for _ in 1 2 3; do
+  grep -qF '[Overlay]' <<<"$snap" && break
+  sleep 1
+  snap="$("${sim[@]}" snapshot)"
+done
+if grep -qF '[Overlay]' <<<"$snap"; then
+  echo "$snap" | head -8
+  "${sim[@]}" click 'button[text="Not Now"]'
+  for _ in 1 2 3 4 5; do
+    sleep 1
+    snap="$("${sim[@]}" snapshot)"
+    grep -qF '[Overlay]' <<<"$snap" || break
+  done
+fi
 echo "$snap" | head -12
 expect '[View: Products]' "$snap"
 
@@ -106,6 +126,16 @@ logs="$("${sim[@]}" console list --grep 'Product 150')"
 echo "$logs"
 expect 'added Product 150 to cart' "$logs"
 expect 'signed in as agent@example.com' "$("${sim[@]}" console list --grep 'signed in')"
+
+if [[ "$fixture" == RNSampleApp ]]; then
+  step "switch tabs by TabBarItem and send a request"
+  "${sim[@]}" click 'TabBarItem[title="Network"]'
+  sleep 1
+  "${sim[@]}" click network-send
+  sleep 1
+  expect 'POST /anything/subtext-sim/order-1' "$("${sim[@]}" console list --grep 'POST')"
+  took
+fi
 
 step "screenshot"
 "${sim[@]}" screenshot --out "$out/product-150.png"

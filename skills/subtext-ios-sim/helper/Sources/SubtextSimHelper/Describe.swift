@@ -13,17 +13,33 @@ enum Describe {
   static func run(_ connection: SimulatorConnection, udid: String) async throws -> [String: Any] {
     let options = AccessibilityRequestOptions(format: .nested, keys: keys)
     let response = try await connection.automation.describe(.frontmost, options: options)
-    let elements = response.elements.elements
-    let root: [String: Any]
-    if elements.count == 1 {
-      root = node(elements[0])
-    } else {
-      root = syntheticRoot(children: elements.map(node))
+    let root = tree(response.elements.elements)
+    if hasChildren(root) {
+      return ["screen": screen(connection.simulator, root: root), "root": root]
     }
-    if (root["children"] as? [Any])?.isEmpty ?? true {
-      throw HelperError(code: "ax_disabled", message: String(format: accessibilityDisabledMessage, udid))
+    // A system sheet from another process (e.g. "Save Password?") leaves the
+    // frontmost app's tree empty; describe the process owning the screen's center.
+    let size = screen(connection.simulator, root: root)
+    let center = CGPoint(x: (size["w"] as? Double ?? 0) / 2, y: (size["h"] as? Double ?? 0) / 2)
+    let probe = AccessibilityRequestOptions(format: .nested, keys: [.pid])
+    if let hit = try? await connection.automation.describe(.point(center), options: probe).elements.elements.first,
+      let pid = hit.pid.flatMap({ $0 }),
+      let overlay = try? await connection.automation.describe(.application(pid: pid_t(pid)), options: options)
+    {
+      let overlayRoot = tree(overlay.elements.elements)
+      if hasChildren(overlayRoot) {
+        return ["screen": size, "root": overlayRoot, "overlay": true]
+      }
     }
-    return ["screen": screen(connection.simulator, root: root), "root": root]
+    throw HelperError(code: "ax_disabled", message: String(format: accessibilityDisabledMessage, udid))
+  }
+
+  private static func tree(_ elements: [AccessibilityDocumentElement]) -> [String: Any] {
+    elements.count == 1 ? node(elements[0]) : syntheticRoot(children: elements.map(node))
+  }
+
+  private static func hasChildren(_ root: [String: Any]) -> Bool {
+    !((root["children"] as? [Any])?.isEmpty ?? true)
   }
 
   private static func node(_ element: AccessibilityDocumentElement) -> [String: Any] {

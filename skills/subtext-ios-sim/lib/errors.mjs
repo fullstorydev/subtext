@@ -11,7 +11,7 @@ const HINTS = {
   daemon_unreachable: 'run `subtext-sim start --detach` to start a new session',
   device_not_found: 'list devices with `xcrun simctl list devices available`, then pass --device',
   not_booted: 'run `subtext-sim start` to boot the simulator',
-  ax_disabled: 'run `subtext-sim relaunch` (it re-enables app accessibility before launching)',
+  ax_disabled: 'snapshot again in a moment (a system sheet such as "Save Password?" may be animating in); if it persists, run `subtext-sim relaunch` (it re-enables app accessibility before launching)',
   ax_unavailable: 'the app may still be launching; retry, or run `subtext-sim relaunch`',
   ax_error: 'the app may not be in the foreground; run `subtext-sim launch`, or `subtext-sim relaunch`',
   hid_error: 'retry; if it keeps failing, run `subtext-sim stop` then `subtext-sim start`',

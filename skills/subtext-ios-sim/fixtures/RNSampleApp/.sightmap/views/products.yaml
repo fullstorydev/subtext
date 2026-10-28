@@ -1,0 +1,15 @@
+version: 1
+views:
+  - name: Products
+    components:
+      - name: ProductRow
+        selector: '[identifier^="product-row-"]'
+        properties:
+          - name: title
+            extract: text
+  - name: ProductDetail
+    components:
+      - name: ProductName
+        selector: '[identifier="product-detail-name"]'
+      - name: AddToCartButton
+        selector: '[identifier="product-detail-add"]'

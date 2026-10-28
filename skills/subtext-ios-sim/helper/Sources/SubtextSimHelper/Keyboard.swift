@@ -1,8 +1,13 @@
 import FBSimulatorControl
+import Foundation
 
 /// USB HID usage IDs (keyboard page 0x07) for a US keyboard layout.
 enum Keyboard {
   static let leftShift: UInt32 = 225
+
+  /// Controlled React Native TextInputs echo every keystroke through JS and drop
+  /// keys that arrive while an echo is in flight; this pause lets each one land.
+  static let interKeyDelay: TimeInterval = 0.05
 
   static let namedKeys: [String: UInt32] = [
     "return": 40, "enter": 40,
@@ -41,6 +46,9 @@ enum Keyboard {
   static func events(typing text: String) throws -> [SimulatorHIDEvent] {
     var events: [SimulatorHIDEvent] = []
     for character in text {
+      if !events.isEmpty {
+        events.append(.delay(interKeyDelay))
+      }
       if let code = unshifted[character] {
         events.append(.keyboard(direction: .down, keyCode: code))
         events.append(.keyboard(direction: .up, keyCode: code))

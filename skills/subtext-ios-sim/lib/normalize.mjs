@@ -2,6 +2,7 @@ const TAG_BY_TYPE = {
   application: 'application',
   window: 'window',
   group: 'other',
+  genericelement: 'other',
   other: 'other',
   button: 'button',
   statictext: 'text',
@@ -73,8 +74,23 @@ function isWrapper(raw, tag) {
   return tag === 'other' && !present(raw.label) && !present(raw.identifier) && !present(raw.value);
 }
 
+// React Native reports accessibilityRole="tab" (React Navigation's tab buttons)
+// as a button whose label carries VoiceOver's "tab, N of M" suffix.
+const RN_TAB_LABEL = /^(.*), tab, \d+ of \d+$/;
+
+function rnTabTitle(raw) {
+  return typeof raw.label === 'string' ? RN_TAB_LABEL.exec(raw.label)?.[1] ?? null : null;
+}
+
+// React Native's accessible Views (role-less Pressables included) are
+// GenericElements; with a testID they are as likely to be tappable as not.
+function isIdentifiedGeneric(raw) {
+  const type = String(raw.type || raw.role || '').replace(/^AX/, '').toLowerCase();
+  return type === 'genericelement' && !!present(raw.identifier);
+}
+
 function collapse(raw, isRoot) {
-  const tag = tagFor(raw.type, raw.role, raw.subrole);
+  const tag = rnTabTitle(raw) !== null ? 'tab' : tagFor(raw.type, raw.role, raw.subrole);
   let children = (raw.children ?? []).flatMap((c) => collapse(c, false));
   if (!isRoot && isWrapper(raw, tag)) {
     if (children.length <= 1) return children;
@@ -112,14 +128,14 @@ export function normalize(describeResult) {
       tag,
       type: raw.type ?? null,
       role: raw.role ?? null,
-      label: present(raw.label),
+      label: present(rnTabTitle(raw) ?? raw.label),
       identifier: present(raw.identifier),
       value: present(raw.value),
       enabled: raw.enabled !== false,
       frame,
       visible: intersects(frame, screen),
       onScreen: centerOnScreen(frame, screen),
-      interactive: INTERACTIVE_TAGS.has(tag),
+      interactive: INTERACTIVE_TAGS.has(tag) || isIdentifiedGeneric(raw),
       ignored: isWrapper(raw, tag),
       nthChild,
       text: '',
@@ -133,7 +149,20 @@ export function normalize(describeResult) {
   };
   const [top] = collapse(rawRoot, true);
   const root = build(top, null, 1);
-  return { screen, root, nodes, byId: new Map(nodes.map((n) => [n.id, n])) };
+  return { screen, root, nodes, byId: new Map(nodes.map((n) => [n.id, n])), overlay: !!describeResult.overlay };
+}
+
+// A React Native LogBox toast (Debug builds) is one accessible element labeled
+// with its icon or count first; its ✕ has no element of its own.
+const LOGBOX_LABEL = /^(!|\d+), /;
+
+/** The LogBox toast at the bottom of the screen and the point of its ✕, or null. */
+export function logBoxToast({ nodes, screen }) {
+  const toast = nodes.find((n) => n.tag === 'other' && !n.identifier && n.visible && n.frame.y > screen.h / 2
+    && LOGBOX_LABEL.test(n.label ?? ''));
+  if (!toast) return null;
+  const { x, y, w, h } = toast.frame;
+  return { node: toast, dismiss: { x: Math.round(x + w - 24), y: Math.round(y + h / 2) } };
 }
 
 const CSS_IDENT = /^-?[A-Za-z_][A-Za-z0-9_-]*$/;

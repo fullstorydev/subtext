@@ -75,12 +75,13 @@ node ../../bin/subtext-sim stop
 
 ```sh
 node --test test/*.test.mjs                    # unit tests; a fake helper stands in for the simulator
-test/e2e.sh --device "<simulator name or UDID>" # drives the sample app on that simulator, then shuts it down
+test/e2e.sh --device "<simulator name or UDID>" # drives the SwiftUI sample app on that simulator, then shuts it down
+test/e2e.sh --device "<simulator name or UDID>" --fixture RNSampleApp   # the React Native sample app
 ```
 
-`e2e.sh` boots the simulator if needed, signs in, scrolls to Product 150, adds it to the cart, and checks the console, a screenshot and the run log. Set `E2E_KEEP_BOOTED=1` to leave the simulator running.
+`e2e.sh` boots the simulator if needed, signs in (dismissing iOS's "Save Password?" sheet if it appears), scrolls to Product 150, adds it to the cart, and checks the console, a screenshot and the run log. The React Native run also switches tabs and sends a request. Set `E2E_KEEP_BOOTED=1` to leave the simulator running. Set `SIGHTMAP_BIN` to a sightmap CLI to run the unit tests that need one.
 
-## Sample app
+## Sample apps
 
 `fixtures/SampleApp/` is a small SwiftUI app, "Subtext Sim Sample" (`dev.subtext.SimSample`), with:
 
@@ -100,3 +101,16 @@ FS_ORG_ID=<your-org-id> fixtures/SampleApp/build.sh
 ```
 
 This downloads the public Fullstory iOS SDK (the binary from [`fullstorydev/fullstory-swift-package-ios`](https://github.com/fullstorydev/fullstory-swift-package-ios), checksum-verified; set `FS_SDK_VERSION` to pick a release), embeds it, adds a `Fullstory` dictionary with `OrgId` and `RecordOnStart` to `Info.plist`, and logs `FULLSTORY_SESSION_URL <url>` when a session starts. That line is what `subtext-sim session-url` reads.
+
+### React Native
+
+`fixtures/RNSampleApp/` is the same app in React Native 0.88 ("Subtext RN Sample", `dev.subtext.RNSample`): React Navigation bottom tabs with a native stack inside the Products tab, a 200-row `FlatList`, and the same `testID`s, so its `.sightmap/` differs from the SwiftUI one only in role-free selectors. Product rows and Add to Cart are `Pressable`s without `accessibilityRole`, like most RN code, so they show up as `other`.
+
+Requirements on top of Xcode: Node 22.11+, npm, CocoaPods, and network access the first time. Only the JS sources are checked in. `build.sh` generates the native iOS project from the React Native template for the pinned version, then runs `npm install`, `pod install` and `xcodebuild` in `~/Library/Caches/subtext-sim/RNSampleApp/` (set `OUT_DIR` to change that). It prints the `.app` path on stdout. The first build takes several minutes; after a JS change, a rebuild takes about 15 s.
+
+- `./build.sh` builds Release with the JS bundle embedded, so `subtext-sim start --app` works without Metro. `ios/SceneDelegate.swift` replaces the template's to keep `console.log` in Release builds (`RCTSetLogThreshold`).
+- `CONFIGURATION=Debug ./build.sh` builds for Metro. Start Metro from the generated project (the build prints the command) before launching.
+- `FS_ORG_ID=<your-org-id> ./build.sh` adds `@fullstory/react-native` (its Babel plugins, the `FullStory` pod and a `FullStory` `Info.plist` dictionary) and logs `FULLSTORY_SESSION_URL <url>` from `FullStory.onReady()`. `FS_RN_VERSION` and `FS_SDK_VERSION` pick the plugin and iOS SDK versions.
+
+`build.sh` uses target builds rather than `xcodebuild -scheme`, and drops the template's launch storyboard and asset catalog. Both need Xcode's iOS platform component for the SDK version, which a machine with only a Simulator runtime installed doesn't have.
+

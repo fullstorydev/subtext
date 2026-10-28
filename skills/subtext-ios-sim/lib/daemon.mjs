@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { createInterface } from 'node:readline';
 import { BridgeError, annotate, centerOf, render, resolve as resolveQuery, toComponentTree, writeSnap } from './sightmap-bridge.mjs';
-import { normalize } from './normalize.mjs';
+import { logBoxToast, normalize } from './normalize.mjs';
 import { SimError, toWire } from './errors.mjs';
 import { ConsoleBuffer, LogCollector } from './logs.mjs';
 import { HelperClient } from './helper-client.mjs';
@@ -76,6 +76,24 @@ const OBSTRUCTING_LABELS = new Set(['Tab Bar', 'Toolbar']);
 const obstructs = (o) => OBSTRUCTING.has(o.tag) || (o.tag === 'other' && OBSTRUCTING_LABELS.has(o.label));
 const barName = (o) => (OBSTRUCTING.has(o.tag) ? o.tag : o.label.toLowerCase());
 
+/**
+ * A JS tab bar (React Navigation) has no container element, only its tabs; the
+ * band from the top of a bottom row of tabs to the screen's bottom stands in.
+ */
+function tabBand({ nodes, screen }) {
+  const tabs = nodes.filter((n) => n.tag === 'tab' && n.visible && !hasAncestorTag(n, 'tabbar'));
+  if (!tabs.length) return null;
+  const y = Math.min(...tabs.map((t) => t.frame.y));
+  if (y < screen.h / 2) return null;
+  return { tag: 'tabbar', label: null, identifier: null, value: null, enabled: true, visible: true, children: [],
+    frame: { x: 0, y, w: screen.w, h: screen.h - y } };
+}
+
+function hasAncestorTag(node, tag) {
+  for (let p = node.parent; p; p = p.parent) if (p.tag === tag) return true;
+  return false;
+}
+
 /** Throws unless the node's center is on screen, uncovered by bars or the keyboard, and enabled. */
 export function assertActionable(annotated, node, target) {
   const { screen } = annotated;
@@ -87,8 +105,15 @@ export function assertActionable(annotated, node, target) {
       `run \`subtext-sim scroll ${dir} --until ${quote(target)}\`, then retry`);
   }
   const c = centerOf(node);
-  const cover = annotated.nodes.find((o) => obstructs(o) && o.visible && o !== node && !isAncestor(o, node) && !isAncestor(node, o)
-    && c.x >= o.frame.x && c.x <= o.frame.x + o.frame.w && c.y >= o.frame.y && c.y <= o.frame.y + o.frame.h);
+  const band = node.tag === 'tab' ? null : tabBand(annotated);
+  const logBox = logBoxToast(annotated);
+  const covers = (o) => c.x >= o.frame.x && c.x <= o.frame.x + o.frame.w && c.y >= o.frame.y && c.y <= o.frame.y + o.frame.h;
+  if (logBox && logBox.node !== node && covers(logBox.node)) {
+    throw new SimError('covered', `${desc} is covered by a React Native LogBox toast (${describeNode(logBox.node)})`,
+      `dismiss it with \`subtext-sim tap-xy ${logBox.dismiss.x} ${logBox.dismiss.y}\` (its ✕), then retry`);
+  }
+  const cover = [...annotated.nodes, ...(band ? [band] : [])].find((o) => obstructs(o) && o.visible && o !== node && !isAncestor(o, node) && !isAncestor(node, o)
+    && covers(o));
   if (cover) {
     const hint = cover.tag === 'keyboard'
       ? 'dismiss the keyboard (`subtext-sim key return`) or scroll, then retry'
@@ -142,7 +167,7 @@ const ACTION_BY_CMD = {
 export class SimSession {
   constructor({ udid, deviceName = null, bundleId, appPath = null, processName, sightmapDir, runDir, helper, simctl = realSimctl, logs = null, buffer = new ConsoleBuffer(), corpus = new CorpusCache(sightmapDir), log = () => {}, timing = {} }) {
     Object.assign(this, { udid, deviceName, bundleId, appPath, processName, sightmapDir, runDir, helper, simctl, logs, buffer, corpus, log });
-    this.timing = { settleMs: 350, scrollSettleMs: 150, fillReadbackMs: 2000, readyTimeoutMs: 20_000, ...timing };
+    this.timing = { settleMs: 350, scrollSettleMs: 150, overlaySettleMs: 800, fillReadbackMs: 2000, readyTimeoutMs: 20_000, ...timing };
     this.last = null;
     this.lastView = null;
     this.lastTarget = null;
@@ -164,9 +189,22 @@ export class SimSession {
     return this.helper.request('describe', { udid: this.udid });
   }
 
+  /** A system sheet animating in leaves no readable tree for a moment; once it settles, describe shows it. */
+  async describeSettled() {
+    try {
+      const result = await this.describe();
+      this.readable = true;
+      return result;
+    } catch (err) {
+      if (err.code !== 'ax_disabled' || !this.readable) throw err;
+      await sleep(this.timing.overlaySettleMs);
+      return this.describe();
+    }
+  }
+
   async fresh({ view } = {}) {
     try {
-      const snap = annotate(normalize(await this.describe()), this.corpus.get(), { view });
+      const snap = annotate(normalize(await this.describeSettled()), this.corpus.get(), { view });
       this.lastView = snap.view;
       return snap;
     } catch (err) {
@@ -195,6 +233,7 @@ export class SimSession {
   async launchApp({ terminate = true } = {}) {
     if (terminate) await this.simctl.enableAccessibility(this.udid);
     this.appPid = await this.simctl.launch(this.udid, this.bundleId, { stdout: this.stdoutPath, stderr: this.stderrPath, terminate });
+    this.readable = false;
     this.last = null;
     return { bundleId: this.bundleId, pid: this.appPid };
   }
@@ -313,6 +352,7 @@ export class SimSession {
         const count = (field.value ?? '').length;
         for (let i = 0; i < count; i++) await this.input('key', { key: 'forward_delete' });
         for (let i = 0; i < count; i++) await this.input('key', { key: 'delete' });
+        if (count) await sleep(this.timing.settleMs);
       }
       if (text) await this.input('type', { text });
       const stuck = (n) => SECURE.has(n.tag) || !text || (n.value ?? '').toLowerCase().includes(text.toLowerCase());
