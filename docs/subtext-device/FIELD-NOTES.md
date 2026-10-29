@@ -6,6 +6,21 @@ A running record of what came up while building and testing the iOS Simulator lo
 
 Status values: **fixed** (commit noted), **in progress**, **open**, **upstream** (outside this skill), **won't fix**.
 
+## Network sources for native iOS, ranked (2026-10-29)
+
+Spikes on the dev Mac (Xcode 26.6, iOS 26.2 simulator) against SwiftUI and React Native sample apps, ranked by how much each helps author `requests:` and `properties:`:
+
+| Rank | Source | What it gives | Limits |
+|---|---|---|---|
+| 1 | Fullstory SDK session, via Subtext | Requests tied to the tap and screen that caused them, plus navigation and `FS.log`, all in one timeline; all of the app's networking; matches production review | ~20 s upload lag; bodies only per org rules; duplicate events; 206 cut-offs on very large view trees |
+| 2 | CFNetwork HAR log, read from the simulator's log (what Instruments' HTTP Traffic uses underneath) | Full URL, status, timing, unredacted request and response headers, bodies up to 1 MiB; live within ~5 ms; no app changes | App must be signed with `get-task-allow` (normal Xcode Debug builds); undocumented switch that a future iOS could change; URLSession traffic only; captures secrets, so output must redact |
+| 3 | React Native DevTools protocol via Metro | Live (~35 ms): method, URL, JS-set headers, request and response bodies, JS call stacks; coexists with the user's DevTools | React Native Debug only; JS traffic only (no images, native modules or native SDKs); mostly redundant with rank 2 |
+| 4 | CFNetwork `Summary` log | Zero setup, live: host, status, timing, protocol | Paths, queries and header values are redacted by CFNetwork itself; can't name routes |
+| — | `xctrace` / Instruments CLI | Works on the host Mac only; recordings against the simulator hung (0/7) | Not usable here |
+| — | HTTPS proxy (mitmproxy) | Everything | Needs a network extension that managed Macs block; breaks certificate pinning |
+
+Decision: `subtext-device` uses ranks 1 and 2 together (the Fullstory session for attribution, the HAR log for exact routes and bodies) and degrades down the list. `sightmap device` gets a vendor-neutral `network` command that tries 2, then 3, then 4, in a follow-up PR to sightmap/sightmap#522.
+
 ## Acceptance run: `sightmap device` (2026-10-29)
 
 Run on the field Mac against a real Expo/React Native app (iPhone 16e, iOS 26.2, Xcode 27.1, Go 1.27.1), commit `f920a78` of sightmap/sightmap#522, scored against the MVP criteria.
