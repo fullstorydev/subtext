@@ -8,6 +8,14 @@ Status values: **fixed** (commit noted), **in progress**, **open**, **upstream**
 
 | Found | Where | Issue | Status |
 |---|---|---|---|
+| 2026-10-28 | field Mac (retest, 7fa7aef) | The Fullstory session ended mid-run (SDK: `Received HTTP Status Code: 206, terminating FullStory session`), and nothing in subtext-sim noticed: `session-url` and `status` kept returning the dead URL. | open: detect session end, log `session-ended`, report it from `session-url`/`status`, make relaunch the producer's standard response |
+| 2026-10-28 | field Mac (retest) | The selector skip rule merged three components onto the same `[testid*="-option-"]` match, and the wrong one won. | open: don't skip into substring-only selectors, or flag skip-induced conflicts |
+| 2026-10-28 | field Mac (retest) | `click MobileTopBarAvatar` reported success but opened the Expo dev menu: the dev-menu window's touch area is larger than its accessibility frame. | open: treat dev-menu windows as covering; document hiding the floating button |
+| 2026-10-28 | field Mac (retest) | The empty-tree diagnosis was only fixed in `snapshot`; `click`, `fill` and `scroll` still give the "long lists" advice. | open |
+| 2026-10-28 | field Mac (retest) | Coverage misses labelled, tappable `other` elements (e.g. tournament cards) and counts keyboard keys while the keyboard is up. | open |
+| 2026-10-28 | field Mac (retest) | `console list --grep -i 206` took `-i` as the pattern; `fill "" --clear` reported the placeholder as the value; clicks right after a sheet closes or a back navigation fail until retried. | open |
+| 2026-10-28 | field Mac (retest) | `doctor` used sightmap 0.36.0 from PATH rather than the pinned 0.36.1. | open: decide whether PATH should win |
+| 2026-10-28 | field Mac (retest) | Metro in a nested git worktree ignores edits: Watchman roots at the parent checkout, and `--clear` doesn't help; restarting Metro does. | open: skill note |
 | 2026-10-28 | field Mac | Empty accessibility tree while app accessibility was already on. The cause was an always-mounted view with `accessibilityViewIsModal = YES` hiding its siblings, but the error said to enable accessibility. | fixed 61a37a8: errors list modal/hidden-root views first and skip the accessibility advice when it's on; a `doctor --app` probe is still open |
 | 2026-10-28 | field Mac | `snapshot` crashes with `extract.startsWith is not a function`: sightmap 0.36 emits `extract` as an object, and the bridge only handled strings. | fixed 61a37a8: both forms accepted; npx pin is now sightmap 0.36.1; `doctor` reports the resolved version |
 | 2026-10-28 | field Mac | `session-url` missed the URL when React Native logged it as a multi-argument line. | fixed 61a37a8: any Fullstory session URL in any console entry, newest wins |
@@ -33,6 +41,8 @@ Status values: **fixed** (commit noted), **in progress**, **open**, **upstream**
 
 | Found | Where | Issue | Status |
 |---|---|---|---|
+| 2026-10-28 | field Mac (retest) | Sessions ended with HTTP 206, which the ingest server returns for a bad request it won't accept, mainly a bundle that's too large; the SDK then terminates the session. The SDK also logged "Maximum number of views reached". Only the first 26 s of one session arrived, and none of the run's own requests were ingested. Sessions lived 51 s to 5.5 min. | upstream / app: bundle size on large React Native trees |
+| 2026-10-28 | field Mac (retest) | Duplicate network events are unchanged (65 unique requests appeared as 130 events), and `detail` still shows response headers only. | upstream |
 | 2026-10-28 | field Mac | Every network request appears twice at the same millisecond in the session; the server's own logs show one. | upstream: capture or ingest |
 | 2026-10-28 | field Mac | `review-zoom` at `detail` returned response headers only: no request headers, bodies or query strings. Check against the org's header allowlists and body rules before calling it a bug. | upstream / open |
 | 2026-10-28 | field Mac | `review-zoom` at `standard` collapses network traffic into counts; endpoint names only show at `machine`. | fixed 61a37a8: skill recommends `machine` for naming endpoints |
@@ -54,3 +64,9 @@ Status values: **fixed** (commit noted), **in progress**, **open**, **upstream**
 - A dev client with Metro worked as well as Release for the live loop, and was cheaper.
 - Recorded taps lined up with producer steps to within about 30 ms once the clock offset was known.
 - Network capture had zero errors across about 900 events, and every `/api/*` route got a `requests:` name.
+
+## What worked (field Mac retest, 7fa7aef)
+
+- 8 of 9 re-checks pass: properties no longer crash, `session-url` works, the existing corpus matches every screen (it matched 0% before), `validate` passes, bundle-id switching, off-screen taps and `machine` grain all work. The empty-tree fix is partial.
+- The producer and consumer ran concurrently. The consumer started 25 s after the producer and sent four coverage requests; the producer acted on two (45 s and 2m42s later). One wasn't acted on because the producer's brief limited relaunches.
+- Timings: `doctor` 9.2 s, `start` 23.8 s, `snapshot` 0.26 s average, `click` 0.32 s average, `relaunch` to a new session URL 10 s.
