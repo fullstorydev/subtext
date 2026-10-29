@@ -6,6 +6,10 @@ A running record of what came up while building and testing the iOS Simulator lo
 
 Status values: **fixed** (commit noted), **in progress**, **open**, **upstream** (outside this skill), **won't fix**.
 
+## Local-only runs (2026-10-29)
+
+`subtext-device` now asks before a run whether to record to Fullstory, and defaults to no. For a local-only run it installs a copy of the built app with `RecordOnStart = false` and `ServerUrl` pointed at an unreachable local address, re-signed with its entitlements kept. Verified on the dev Mac with the SwiftUI sample built with the SDK: after launch and a full upload interval, the SDK only registered and removed its background upload session. It created no session and no upload tasks, and nothing contacted `fullstory.com`. The `ServerUrl` backstop (for apps that start recording themselves) is untested.
+
 ## Network sources for native iOS, ranked (2026-10-29)
 
 Spikes on the dev Mac (Xcode 26.6, iOS 26.2 simulator) against SwiftUI and React Native sample apps, ranked by how much each helps author `requests:` and `properties:`:

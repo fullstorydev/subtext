@@ -1,6 +1,6 @@
 ---
 name: subtext-device
-description: Read Fullstory data from a native iOS or React Native app while driving it in the local iOS Simulator with `sightmap device` — combine the app's Fullstory session (which tap and screen caused each request) with `sightmap device network` (exact routes, headers and bodies, live), find the session URL, notice when the SDK ends a session, and split the work into a producer that drives and a consumer that reads, running at the same time. Use when an agent drives an iOS app on the Simulator and needs its captured network or console data, or authors `.sightmap/` requests and messages from it.
+description: Read Fullstory data from a native iOS or React Native app while driving it in the local iOS Simulator with `sightmap device`. Asks before recording anything to Fullstory (default: local only). When the user opts in, combine the app's Fullstory session (which tap and screen caused each request) with `sightmap device network` (exact routes, headers and bodies, live), find the session URL, notice when the SDK ends a session, and split the work into a producer that drives and a consumer that reads, running at the same time. Use when an agent drives an iOS app on the Simulator and needs its captured network or console data, or authors `.sightmap/` requests and messages from it.
 ---
 
 # Subtext × sightmap device
@@ -10,6 +10,31 @@ description: Read Fullstory data from a native iOS or React Native app while dri
 **Type:** Workflow — drive the app locally, read what its Fullstory SDK captured.
 
 `sightmap device` drives the app, reads its accessibility tree and console, and captures its network traffic locally with no vendor SDK (`sightmap device network`). The app's Fullstory SDK session adds what local capture can't: which tap and screen caused each request, in the same timeline as navigation and `FS.log`. This skill combines the two, and covers getting from a simulator run to its session and reading it while the run is still going.
+
+## First: ask whether to record to Fullstory
+
+**Before installing the app, ask the user:** "Should this simulator run record a session to Fullstory? (default: no)". Only an explicit yes counts. Unless they say yes, the run stays on this Mac: the app's Fullstory SDK must not record or upload anything.
+
+**No (the default): install a local-only copy of the app.** Don't edit the user's project; change a copy of the built `.app`:
+
+```bash
+cp -R path/to/MyApp.app /tmp/local-only/ && app=/tmp/local-only/MyApp.app
+key=$(/usr/libexec/PlistBuddy -c "Print :Fullstory" "$app/Info.plist" >/dev/null 2>&1 && echo Fullstory || echo FullStory)
+for k in RecordOnStart ServerUrl; do /usr/libexec/PlistBuddy -c "Delete :$key:$k" "$app/Info.plist" 2>/dev/null; done
+/usr/libexec/PlistBuddy -c "Add :$key:RecordOnStart bool false" -c "Add :$key:ServerUrl string https://127.0.0.1:9" "$app/Info.plist"
+codesign --force --sign - --preserve-metadata=entitlements "$app"
+sightmap device start --app "$app" --detach
+```
+
+- `RecordOnStart = false` keeps the SDK from starting a session at launch. Pointing `ServerUrl` at an unreachable local address is the backstop for apps that start recording themselves (e.g. after a consent check): even then, nothing can leave the Mac.
+- Re-signing with `--preserve-metadata=entitlements` keeps the simulated entitlements and `get-task-allow`, so local network capture still works.
+- If the `.app` has neither a `Fullstory` nor a `FullStory` dictionary (the `Add` lines fail), it has no SDK; install the original as is.
+- **Check it held:** about 30 s after launch, `sightmap device console list --grep fullstory.com/ui/ --limit 0` must show no session URL. If one appears, stop the run and tell the user.
+- Work from `sightmap device network` alone (degrade level 3 below): no session URL, no `review-*` calls, no credits.
+
+**Yes:** install the app as built, and record to a **dev org** if the app has one (see Requirements). Say which org the session will land in before starting.
+
+Ask again for every run; a yes doesn't carry over.
 
 ## How the SDK delivers data
 

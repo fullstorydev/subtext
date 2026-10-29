@@ -6,8 +6,8 @@ Paths below use `<run>`, the run id from `sightmap device run current`. The run 
 
 ## Orchestrating agent
 
-1. `sightmap device start --detach`, then start the **producer** as a background subagent.
-2. Poll `sightmap device console list --grep fullstory.com/ui/ --limit 0` every few seconds until it shows a session URL, usually within seconds of `start`. Then start the **consumer** as a second background subagent, **without waiting for the producer to finish**.
+1. Ask the user whether this run should record to Fullstory (default: no), and install the app as `SKILL.md` describes for the answer. Then `sightmap device start --detach`, and start the **producer** as a background subagent.
+2. **Local-only run (the default):** start the **consumer** right away; it uses `sightmap device network` alone and makes no `review-*` calls. **Recording run:** poll `sightmap device console list --grep fullstory.com/ui/ --limit 0` every few seconds until it shows a session URL, usually within seconds of `start`. Then start the **consumer** as a second background subagent, **without waiting for the producer to finish**.
 3. Give both the run id, the session URL, and a credit budget for the consumer (default: at most 10 `review-open` calls, i.e. 100 credits, unless the user says otherwise).
 4. When the producer reports it's done, tell the consumer, wait for its final pass, then reconcile and report.
 
