@@ -23,24 +23,25 @@ Drives the app and never waits on network data.
 
 ## Consumer
 
-Reads captured data while the producer is still working.
+Reads captured data while the producer is still working, from two sources: `sightmap device network` locally (live, free, exact routes and bodies) and the Fullstory session (lagged, credits, attribution).
 
-1. Follow the producer with `sightmap device run tail --follow --json` (or poll with `--since SEQ`). The run log has no session entries: a `launch` entry is a relaunch, and may start a new session. On each poll, re-check the console for session URLs and termination lines; when a newer URL appears, switch to it, and note the gap: steps between a termination line and the next session's start were never recorded, so don't expect their requests.
-2. About every 30 s while new producer steps are appearing, read the newest data: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "machine", "console": "standard"}`. Close each client with `review-close` before opening the next. Run `review-open`, `review-zoom` and `review-close` **one after another**, never in parallel: a close that lands first makes the zoom fail with "session not found".
-3. Match each request and `FS.log` message to the producer step just before it (by timestamp), then author:
+1. Follow the producer with `sightmap device run tail --follow --json` (or poll with `--since SEQ`). A `relaunch` entry may start a new session. Record each session URL you find with `sightmap device run note <url> --kind session`, and each termination with `--kind session-ended`, so the run log carries both. On each poll, re-check the console for session URLs and termination lines; when a newer URL appears, switch to it, and note the gap: steps between a termination line and the next session's start were never recorded, so don't expect their requests.
+2. **Local capture, continuously:** `sightmap device network list --since <index> --json` (or `--follow`) for each new request; `network get <index> --json` when its headers or body matter for `properties:`. This works even without the SDK.
+3. **Fullstory session, about every 30 s** while new producer steps are appearing, to attribute requests to taps and screens: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "machine", "console": "standard"}`. Close each client with `review-close` before opening the next. Run `review-open`, `review-zoom` and `review-close` **one after another**, never in parallel: a close that lands first makes the zoom fail with "session not found".
+4. Join each local request to its Fullstory network event by time, method and URL, and to the producer step and screen the session shows for it. Without a matching Fullstory event (no SDK, a session gap, budget spent), use the run-log step just before it. Then author:
    - `requests:` (route glob + method) for endpoints that mean something;
-   - `properties:` for outcomes hidden in bodies;
+   - `properties:` for outcomes hidden in bodies, using field paths only, never captured values;
    - `messages:` for meaningful logs and errors.
 
    It owns those sections of `.sightmap/`. Component and view problems it notices go to the producer, not into the YAML.
-4. When it needs more coverage (an endpoint it can't place, a flow that never fired a request, an error worth reproducing), it appends a short line to `<run>.consumer.md`.
-5. When the producer is done, wait ~30 s for the last bundle, do one final read to cover the tail of the session, then report what it authored and what remains unmapped.
+5. When it needs more coverage (an endpoint it can't place, a flow that never fired a request, an error worth reproducing), it appends a short line to `<run>.consumer.md`.
+6. When the producer is done, wait ~30 s for the last bundle, do one final read to cover the tail of the session, then report what it authored and what remains unmapped.
 
 ## Budget and pacing
 
-Never re-open faster than every ~30 s, since newer data can't arrive sooner. Stop at the credit budget and say so. If the producer goes idle, stop polling until new steps appear.
+Local capture costs nothing, so lean on it for routes and bodies and spend `review-open` calls on attribution. Never re-open faster than every ~30 s, since newer data can't arrive sooner. Stop at the credit budget and say so. If the producer goes idle, stop polling until new steps appear.
 
 ## Known data quirks
 
-- A network request can appear twice at the same millisecond; count unique requests.
+- A network request can appear twice at the same millisecond in the Fullstory session; count unique requests. Local capture lists each request once.
 - Network data has lagged the app by 35 s to 2 min in field runs, longer than the upload interval.

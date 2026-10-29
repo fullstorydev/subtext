@@ -1,15 +1,15 @@
 ---
 name: subtext-device
-description: Read Fullstory data from a native iOS or React Native app while driving it in the local iOS Simulator with `sightmap device` — find the session URL in the app's console, notice when the SDK ends a session, read network and FS.log data through the review tools, and split the work into a producer that drives and a consumer that reads, running at the same time. Use when an agent drives an iOS app on the Simulator and needs its captured network or console data, or authors `.sightmap/` requests and messages from it.
+description: Read Fullstory data from a native iOS or React Native app while driving it in the local iOS Simulator with `sightmap device` — combine the app's Fullstory session (which tap and screen caused each request) with `sightmap device network` (exact routes, headers and bodies, live), find the session URL, notice when the SDK ends a session, and split the work into a producer that drives and a consumer that reads, running at the same time. Use when an agent drives an iOS app on the Simulator and needs its captured network or console data, or authors `.sightmap/` requests and messages from it.
 ---
 
 # Subtext × sightmap device
 
-> **PREREQUISITE:** Read `sightmap-device` for driving the Simulator, `subtext-session` for the `review-*` tools, and `subtext-sightmap` for corpus upload. Needs a `sightmap` CLI that has the `device` command (`sightmap device doctor` answers).
+> **PREREQUISITE:** Read `sightmap-device` for driving the Simulator, `subtext-session` for the `review-*` tools, and `subtext-sightmap` for corpus upload. Needs a `sightmap` CLI that has `device` and `device network` (`sightmap device network list --help` answers).
 
 **Type:** Workflow — drive the app locally, read what its Fullstory SDK captured.
 
-`sightmap device` drives the app and reads its accessibility tree and local console. It sees nothing the app sends over the network. That data comes from the app's own Fullstory SDK session, read back through the Subtext MCP. This skill covers that half: getting from a simulator run to its session, and reading the session while the run is still going.
+`sightmap device` drives the app, reads its accessibility tree and console, and captures its network traffic locally with no vendor SDK (`sightmap device network`). The app's Fullstory SDK session adds what local capture can't: which tap and screen caused each request, in the same timeline as navigation and `FS.log`. This skill combines the two, and covers getting from a simulator run to its session and reading it while the run is still going.
 
 ## How the SDK delivers data
 
@@ -21,8 +21,28 @@ description: Read Fullstory data from a native iOS or React Native app while dri
 - **Recording isn't reading.** Fullstory records views from inside the app; `sightmap device` reads the accessibility tree from outside. A healthy replay doesn't mean `snapshot` can see the screen, and an empty snapshot doesn't mean recording broke.
 - **Wrapper `testID`s don't reach the simulator.** Fullstory captures a `testID` on a plain wrapper view, so a corpus built from sessions often nests components under those wrappers. iOS accessibility exposes only the leaf elements, so nested selectors match little in `sightmap device`. Write the device corpus with leaf selectors (the control's own `testID`); in a field test, that took every screen from 14–83% to 100% coverage.
 
+## Two network sources, used together
+
+| | Fullstory session (`review-*`) | `sightmap device network` |
+|---|---|---|
+| Best for | **Attribution:** the tap and screen behind each request, navigation, `FS.log` | **Detail:** full URL and query, headers, request and response bodies |
+| Timing | ~20 s upload lag; each `review-open` costs 10 credits | Live, within milliseconds; free |
+| Coverage | All of the app's networking; matches production review | URLSession traffic (React Native `fetch` included) |
+| Needs | The SDK, network capture on, the MCP on the same org | A Debug build signed with `get-task-allow` (normal Xcode Debug builds) for full detail |
+
+Use both on every run: start with `sightmap device start … --network auto` (the default), and check `sightmap device status --json` → `network.sources` to see which local source is active. Author `requests:` routes, methods and `properties:` field paths from `network list` / `network get`; decide each request's name and the view it belongs to from the Fullstory session. Join the two by **time, method and URL**: both use the Mac's clock, typically within a second.
+
+**When a source is missing, degrade in this order:**
+1. **Fullstory session + local `har` capture:** the full picture.
+2. **Fullstory session only** (`network` reports only `summary`, e.g. a Release build without `get-task-allow`): names and attribution, with bodies only where the org's rules capture them.
+3. **Local capture only** (no SDK, a session that ended with a 206, or the consumer is out of credits): `network list` for routes and bodies; attribute each request to the producer's run-log step just before it.
+4. **`summary` source only:** hosts, status and timing; no routes. Note in the report that `requests:` couldn't be authored.
+
+**Privacy:** local capture sees unmasked traffic. Output is redacted by default (auth headers, cookies, and any key matching token, password, secret or key); leave `--unredacted` off. Use bodies only to find **field paths** for `properties:`, and never copy captured values into `.sightmap/`, the run log or a report.
+
 ## Requirements
 
+- For full local capture, a **Debug** build (signed with `get-task-allow`, as Xcode Debug builds are). A Release build falls back to the `summary` source.
 - The Fullstory SDK in the app, and an app **built by Xcode** (`xcodebuild` or the Xcode app). A hand-assembled app lacks the simulated entitlements, and every SDK upload fails inside the simulator.
 - **Mobile network capture turned on** for the org (Settings → Data Capture → Mobile). It's off by default, and nothing but the settings page can turn it on.
 - The Subtext MCP authenticated to the **same org** the app records to.
@@ -58,9 +78,9 @@ Nothing after that point is recorded. `sightmap device relaunch` starts a new se
 
 ## Producer and consumer
 
-Because data lags the app by up to ~30 s, one agent that taps, waits and reads spends most of its time waiting. Split the work into two subagents that **run concurrently** for the whole run: a producer that drives with `sightmap device`, and a consumer that reads the session and lines it up against the producer's run log. See [references/producer-consumer.md](references/producer-consumer.md) for the roles, the ownership split in `.sightmap/`, the feedback file and the credit budget.
+Because data lags the app by up to ~30 s, one agent that taps, waits and reads spends most of its time waiting. Split the work into two subagents that **run concurrently** for the whole run: a producer that drives with `sightmap device`, and a consumer that follows local network capture live, reads the session for attribution, and lines both up against the producer's run log. See [references/producer-consumer.md](references/producer-consumer.md) for the roles, the ownership split in `.sightmap/`, the feedback file and the credit budget.
 
-Run the producer alone when only UI or component work is needed. For quick local signals that need no SDK and no credits, use `console list` and `snapshot`.
+Run the producer alone when only UI or component work is needed. For quick local signals that need no SDK and no credits, use `network list`, `console list` and `snapshot`.
 
 ## See also
 
