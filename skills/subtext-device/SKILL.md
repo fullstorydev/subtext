@@ -68,7 +68,7 @@ Use both on every run: start with `sightmap device start … --network auto` (th
 ## Requirements
 
 - For full local capture, a **Debug** build (signed with `get-task-allow`, as Xcode Debug builds are). A Release build falls back to the `summary` source.
-- The Fullstory SDK in the app, and an app **built by Xcode** (`xcodebuild` or the Xcode app). A hand-assembled app lacks the simulated entitlements, and every SDK upload fails inside the simulator.
+- The Fullstory SDK in the app, and an app **built by Xcode with signing allowed** (`xcodebuild` or the Xcode app, never `CODE_SIGNING_ALLOWED=NO`). Without signing, the executable lacks the simulated entitlements Xcode links in as `__TEXT,__entitlements`, and every SDK upload fails inside the simulator with `NSURLErrorDomain -1`. Check with `otool -s __TEXT __entitlements <App>.app/<App>` (it must print a section; `codesign -d --entitlements -` can't tell). Fix by rebuilding without the flag, which needs no team, certificate or Apple ID; re-signing a built app with entitlements makes it fail to launch.
 - **Mobile network capture turned on** for the org (Settings → Data Capture → Mobile). It's off by default, and nothing but the settings page can turn it on.
 - The Subtext MCP authenticated to the **same org** the app records to.
 - Debug builds record to a **separate dev org**, so simulator runs stay out of production data. Authenticate the MCP to that org for the run.
