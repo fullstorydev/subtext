@@ -6,6 +6,24 @@ A running record of what came up while building and testing the iOS Simulator lo
 
 Status values: **fixed** (commit noted), **in progress**, **open**, **upstream** (outside this skill), **won't fix**.
 
+## Acceptance run: `sightmap device` (2026-10-29)
+
+Run on the field Mac against a real Expo/React Native app (iPhone 16e, iOS 26.2, Xcode 27.1, Go 1.27.1), commit `f920a78` of sightmap/sightmap#522, scored against the MVP criteria.
+
+| Criterion | Result |
+|---|---|
+| Install (Go build from the branch) | Pass; ~10 s. Skill doc bug: `.watchmanconfig` must contain `{}` |
+| Doctor | Pass; 19.9 s cold, 2.7 s cached, no keychain prompt |
+| Start | Pass |
+| Snapshot | Plain output passes on every screen; `snapshot --json` panics under Go 1.27. Fix sent to #522 |
+| Act | Fails in three cases: rows under a custom tab bar count as uncovered, the settle window is too short after a Debug back navigation, and the Expo gear (`gearshape.fill`) slips past the dev-menu guard. Fixes sent to #522 |
+| Corpus | Pass with a leaf-selector device corpus: 100% on all 12 screens (the session-derived corpus nests under wrapper `testID`s and matched 14–83%). Placeholder routes validate; SEP-0024 `screen:` isn't implemented yet |
+| Producer / consumer | Pass: concurrent, one continuous session, 6 of 8 `review-open` calls used. Parallel `review-zoom`/`review-close` caused one "session not found"; the skill now says to run them in sequence |
+| Network | Pass: 641 events; requests named in a device corpus. Every request still captured twice (upstream) |
+| Clean exit | Pass |
+
+**Backlog after the MVP:** SEP-0024 `screen:` support; a warning when a corpus fails validation; `snapshot --until-changed`; a session-url helper and relaunch handshake in the run log (planned with the pin bump); a modal-aware not-found hint; `value=` in plain snapshots; the contradictory empty-tree line; the `start` warning during bundle load; escaped icon glyphs; whether `sightmap device` should get the prototype's wrapper-skip rule.
+
 ## Skill, CLI and helper
 
 | Found | Where | Issue | Status |

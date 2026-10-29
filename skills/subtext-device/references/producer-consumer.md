@@ -26,7 +26,7 @@ Drives the app and never waits on network data.
 Reads captured data while the producer is still working.
 
 1. Follow the producer with `sightmap device run tail --follow --json` (or poll with `--since SEQ`). The run log has no session entries: a `launch` entry is a relaunch, and may start a new session. On each poll, re-check the console for session URLs and termination lines; when a newer URL appears, switch to it, and note the gap: steps between a termination line and the next session's start were never recorded, so don't expect their requests.
-2. About every 30 s while new producer steps are appearing, read the newest data: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "machine", "console": "standard"}`. Close each client with `review-close` before opening the next.
+2. About every 30 s while new producer steps are appearing, read the newest data: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "machine", "console": "standard"}`. Close each client with `review-close` before opening the next. Run `review-open`, `review-zoom` and `review-close` **one after another**, never in parallel: a close that lands first makes the zoom fail with "session not found".
 3. Match each request and `FS.log` message to the producer step just before it (by timestamp), then author:
    - `requests:` (route glob + method) for endpoints that mean something;
    - `properties:` for outcomes hidden in bodies;

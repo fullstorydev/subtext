@@ -19,6 +19,7 @@ description: Read Fullstory data from a native iOS or React Native app while dri
 - **Grains.** Endpoint names (method + URL) show at `machine`; `standard` collapses traffic into counts. `detail` adds response headers only, unless the org's capture rules record more. Use `resolution={"network": "machine", "console": "standard"}`, and `detail` only on the requests whose headers matter.
 - **Console:** only `FS.log` reaches Fullstory. `print` / `os_log` / `console.log` output is local only; read it live with `sightmap device console list`.
 - **Recording isn't reading.** Fullstory records views from inside the app; `sightmap device` reads the accessibility tree from outside. A healthy replay doesn't mean `snapshot` can see the screen, and an empty snapshot doesn't mean recording broke.
+- **Wrapper `testID`s don't reach the simulator.** Fullstory captures a `testID` on a plain wrapper view, so a corpus built from sessions often nests components under those wrappers. iOS accessibility exposes only the leaf elements, so nested selectors match little in `sightmap device`. Write the device corpus with leaf selectors (the control's own `testID`); in a field test, that took every screen from 14–83% to 100% coverage.
 
 ## Requirements
 
