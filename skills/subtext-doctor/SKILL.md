@@ -9,7 +9,7 @@ description: Check that Subtext is set up correctly for an app, on any platform 
 
 **Type:** Workflow — a loop you repeat until coverage clears the bar.
 
-The doctor measures resolution on sessions recorded with real user input. Agent-driven sessions, such as Subtext Verify's on web, can check capture and view naming, but their clicks may not be recorded; the platform reference says. That makes setup quality the whole game: a session that was cut short or dropped its interactions looks exactly like a sightmap gap, and Subtext won't tell you which one you're looking at. So the doctor checks three layers in order, and stops at the first one that fails:
+The doctor measures resolution on sessions recorded with real user input. Agent-driven sessions, such as Subtext Verify's on web, can check capture and view naming, but their clicks may not be recorded; the platform reference says. On the iOS Simulator, taps an agent drives through the accessibility layer are recorded like real input, so a local run can stand in for the tester in Step 6. That makes setup quality the whole game: a session that was cut short or dropped its interactions looks exactly like a sightmap gap, and Subtext won't tell you which one you're looking at. So the doctor checks three layers in order, and stops at the first one that fails:
 
 1. **Connection** — the plugin's MCP server answers.
 2. **Capture health** — sessions arrive and contain what the tester did.
@@ -22,7 +22,7 @@ Most of this loop is the same everywhere. What changes per platform — how to d
 | Platform | Reference | Status |
 |---|---|---|
 | React Native (iOS; Android partly) | [references/react-native.md](references/react-native.md) | Field-tested on iOS with Fabric, October 2026 |
-| Native iOS (Swift / UIKit / SwiftUI) | [references/ios.md](references/ios.md) | Unverified |
+| Native iOS (Swift / UIKit / SwiftUI) | [references/ios.md](references/ios.md) | Partly verified: simulator run on a SwiftUI sample, October 2026 |
 | Native Android (Kotlin / Java / Compose) | [references/android.md](references/android.md) | Unverified |
 | Web | [references/web.md](references/web.md) | Field-tested on Next.js + MUI, October 2026 |
 
@@ -137,7 +137,7 @@ Match each unresolved interaction, and each failed health check, to a row in the
 
 ### Step 6: Repeat
 
-Ship the fixes, record a new session over the same flows, and run Steps 3–5 again. Agree the bar with the user. A reasonable one is every interaction on a control resolving, with only known, reported gaps left. Then run Steps 3–4 on the first real production sessions, since real users reach places the tester didn't.
+Ship the fixes, record a new session over the same flows, and run Steps 3–5 again. On iOS, an agent can record that session itself on the simulator (see the platform reference), which is much faster than waiting for a tester. Agree the bar with the user. A reasonable one is every interaction on a control resolving, with only known, reported gaps left. Then run Steps 3–4 on the first real production sessions, since real users reach places the tester didn't.
 
 <a id="shared-fixes"></a>
 ## Shared fixes
