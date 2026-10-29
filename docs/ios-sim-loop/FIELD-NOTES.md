@@ -8,14 +8,14 @@ Status values: **fixed** (commit noted), **in progress**, **open**, **upstream**
 
 | Found | Where | Issue | Status |
 |---|---|---|---|
-| 2026-10-28 | field Mac (retest, 7fa7aef) | The Fullstory session ended mid-run (SDK: `Received HTTP Status Code: 206, terminating FullStory session`), and nothing in subtext-sim noticed: `session-url` and `status` kept returning the dead URL. | open: detect session end, log `session-ended`, report it from `session-url`/`status`, make relaunch the producer's standard response |
-| 2026-10-28 | field Mac (retest) | The selector skip rule merged three components onto the same `[testid*="-option-"]` match, and the wrong one won. | open: don't skip into substring-only selectors, or flag skip-induced conflicts |
-| 2026-10-28 | field Mac (retest) | `click MobileTopBarAvatar` reported success but opened the Expo dev menu: the dev-menu window's touch area is larger than its accessibility frame. | open: treat dev-menu windows as covering; document hiding the floating button |
-| 2026-10-28 | field Mac (retest) | The empty-tree diagnosis was only fixed in `snapshot`; `click`, `fill` and `scroll` still give the "long lists" advice. | open |
-| 2026-10-28 | field Mac (retest) | Coverage misses labelled, tappable `other` elements (e.g. tournament cards) and counts keyboard keys while the keyboard is up. | open |
-| 2026-10-28 | field Mac (retest) | `console list --grep -i 206` took `-i` as the pattern; `fill "" --clear` reported the placeholder as the value; clicks right after a sheet closes or a back navigation fail until retried. | open |
-| 2026-10-28 | field Mac (retest) | `doctor` used sightmap 0.36.0 from PATH rather than the pinned 0.36.1. | open: decide whether PATH should win |
-| 2026-10-28 | field Mac (retest) | Metro in a nested git worktree ignores edits: Watchman roots at the parent checkout, and `--clear` doesn't help; restarting Metro does. | open: skill note |
+| 2026-10-28 | field Mac (retest, 7fa7aef) | The Fullstory session ended mid-run (SDK: `Received HTTP Status Code: 206, terminating FullStory session`), and nothing in subtext-sim noticed: `session-url` and `status` kept returning the dead URL. | fixed 701aa25: `session-ended` run-log entry; `session-url`/`status` report it; the skill has the producer relaunch. Matched on the SDK's log text, which hasn't been checked against a real 206 run yet |
+| 2026-10-28 | field Mac (retest) | The selector skip rule merged three components onto the same `[testid*="-option-"]` match, and the wrong one won. | fixed 701aa25: skipping needs an exact leaf; full-chain matches win; leftover conflicts labelled `(ancestor skipped)`. Cost: `[testid="list"] [testid^="row-"]` no longer matches when the list isn't on screen |
+| 2026-10-28 | field Mac (retest) | `click MobileTopBarAvatar` reported success but opened the Expo dev menu: the dev-menu window's touch area is larger than its accessibility frame. | fixed 701aa25: 24 pt cover zone around a dev-menu-like floating element (heuristic; the helper doesn't report windows; untested on a real Expo tree) |
+| 2026-10-28 | field Mac (retest) | The empty-tree diagnosis was only fixed in `snapshot`; `click`, `fill` and `scroll` still give the "long lists" advice. | fixed 701aa25: one shared diagnosis |
+| 2026-10-28 | field Mac (retest) | Coverage misses labelled, tappable `other` elements (e.g. cards) and counts keyboard keys while the keyboard is up. | fixed 701aa25 |
+| 2026-10-28 | field Mac (retest) | `console list --grep -i 206` took `-i` as the pattern; `fill "" --clear` reported the placeholder as the value; clicks right after a sheet closes or a back navigation fail until retried. | fixed 701aa25: `-i` flag; placeholder vs value; click/fill retry for up to 1.5 s |
+| 2026-10-28 | field Mac (retest) | `doctor` used sightmap 0.36.0 from PATH rather than the pinned 0.36.1. | fixed 701aa25: PATH still wins; doctor says so and names the pinned fallback |
+| 2026-10-28 | field Mac (retest) | Metro in a nested git worktree ignores edits: Watchman roots at the parent checkout, and `--clear` doesn't help; restarting Metro does. | fixed 701aa25: skill note |
 | 2026-10-28 | field Mac | Empty accessibility tree while app accessibility was already on. The cause was an always-mounted view with `accessibilityViewIsModal = YES` hiding its siblings, but the error said to enable accessibility. | fixed 61a37a8: errors list modal/hidden-root views first and skip the accessibility advice when it's on; a `doctor --app` probe is still open |
 | 2026-10-28 | field Mac | `snapshot` crashes with `extract.startsWith is not a function`: sightmap 0.36 emits `extract` as an object, and the bridge only handled strings. | fixed 61a37a8: both forms accepted; npx pin is now sightmap 0.36.1; `doctor` reports the resolved version |
 | 2026-10-28 | field Mac | `session-url` missed the URL when React Native logged it as a multi-argument line. | fixed 61a37a8: any Fullstory session URL in any console entry, newest wins |
@@ -47,7 +47,7 @@ Status values: **fixed** (commit noted), **in progress**, **open**, **upstream**
 | 2026-10-28 | field Mac | `review-zoom` at `detail` returned response headers only: no request headers, bodies or query strings. Check against the org's header allowlists and body rules before calling it a bug. | upstream / open |
 | 2026-10-28 | field Mac | `review-zoom` at `standard` collapses network traffic into counts; endpoint names only show at `machine`. | fixed 61a37a8: skill recommends `machine` for naming endpoints |
 | 2026-10-28 | field Mac | Network data lagged 35 s to 2 min behind the app, longer than the ~20 s upload interval. | upstream / open |
-| 2026-10-28 | dev Mac | `review-open` reports "invalid session_url" when a session's IDs don't exist server-side, which reads like a bad link rather than "this session never arrived". | upstream: clearer error |
+| 2026-10-28 | dev Mac | `review-open` reports "invalid session_url" when a session's IDs don't exist server-side, which reads like a bad link rather than "this session never arrived". | upstream: clearer error; skill explains it (701aa25) |
 
 ## Setup friction
 
