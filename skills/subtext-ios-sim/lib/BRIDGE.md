@@ -28,7 +28,9 @@ with an optional `i`, descendant and `>` combinators, selector lists, `:not`,
 `:is`, `:where`, `:has`). We extract properties and apply the live snapshot's
 rules: view components before globals, first match wins, and conflicts are
 reported. Live `sightmap snapshot` behaves the same way, which we verified with
-a probe page.
+a probe page. One addition of ours: a component whose whole chain matched beats
+one that matched only by skipping an absent ancestor (`matchKind`, see below),
+and conflicts left between skipped matches render as `(ancestor skipped)`.
 
 ## Export shape across sightmap versions
 
@@ -67,12 +69,15 @@ match the simulator's tree:
   step *k* (followed by whitespace, not `>`) may be skipped when its compound
   names an exact identifier (`#x`, `[identifier="x"]`, `[testid="x"]`, `[id="x"]`)
   and **no element in the whole tree** matches that compound, provided the
-  subject step has an attribute or `#id` of its own. A testID on a plain
+  subject step matches an attribute exactly (`=`, `~=`, `|=`, or `#id`). A testID on a plain
   wrapper view (not an accessibility element) never reaches the iOS tree, so
   `[testid="login-form"] [testid="login-submit"]` would otherwise never match.
   An identifier present anywhere on screen is never skipped (so a
   `[testid="card"] [testid="close"]` selector doesn't leak to another card's
-  close button outside it), prefix and substring matches are never skipped, and
+  close button outside it), prefix and substring ancestors are never skipped, a
+  subject that matches only by prefix or substring (`^=`, `$=`, `*=`) is never
+  reached by skipping (sibling components like `[testid="menu"] [testid*="-option-"]`
+  would otherwise all collapse onto every option on screen), and
   `[testid="list"] button` doesn't match (it would match every button). The rule
   doesn't apply to relative selectors inside `:has()`.
   `sightmap explain` / `coverage` don't apply this rule, so they can report
@@ -98,6 +103,7 @@ differ.
 | `text` | `label`, or the children's text joined (innerText analog) |
 | `bounds` | `frame`, rounded to integers (sightmap requires ints) |
 | `isVisible` / `inViewport` | frame intersects the screen / its center is on screen |
+| `isInteractive` | an interactive role; or an `other` with an identifier (RN `GenericElement`), or with a label or identifier and a `Button` / `Link` / `Adjustable` trait. Keyboard elements (`keyboard`, `key`, the `KeyboardKey` trait, and their descendants) are marked `system`: left out of coverage and component matching |
 | `isIgnored` | label-, identifier- and value-less `other` groups with 2+ children |
 
 Unlabeled single-child and empty `other` wrappers are removed during

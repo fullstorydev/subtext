@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { resolveSightmap, SIGHTMAP_PACKAGE, sightmapVersionWarning } from './sightmap-cli.mjs';
+import { resolveSightmap, SIGHTMAP_PACKAGE, SIGHTMAP_VERSION, sightmapVersionWarning } from './sightmap-cli.mjs';
 
 const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HELPER_BUILD = join(SKILL_DIR, 'helper', 'build.sh');
@@ -94,6 +94,13 @@ async function checkNode() {
   return pass('node', `Node ${version}`);
 }
 
+/** Which sightmap resolves and why: SIGHTMAP_BIN, then PATH (so users can pin their own), then the npx pin. */
+export function sightmapDetail({ version, source }) {
+  if (source.startsWith('npx')) return `using the pinned sightmap ${version} (${source})`;
+  const where = source.startsWith('SIGHTMAP_BIN') ? 'SIGHTMAP_BIN' : 'PATH';
+  return `using ${where} sightmap ${version} (${source.replace(/^on PATH: |^SIGHTMAP_BIN=/, '')}; pinned fallback is ${SIGHTMAP_VERSION})`;
+}
+
 async function checkSightmap() {
   let resolved;
   try {
@@ -101,7 +108,7 @@ async function checkSightmap() {
   } catch (err) {
     return fail('sightmap', err.message, `npm install -g ${SIGHTMAP_PACKAGE}`, ['npm', ['install', '-g', SIGHTMAP_PACKAGE]]);
   }
-  const detail = `sightmap ${resolved.version} (${resolved.source})`;
+  const detail = sightmapDetail(resolved);
   const warning = sightmapVersionWarning(resolved.version);
   if (!warning) return pass('sightmap', detail);
   const fix = resolved.source.startsWith('SIGHTMAP_BIN')

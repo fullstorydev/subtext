@@ -1,0 +1,422 @@
+{
+ "screen": {
+  "w": 402,
+  "h": 874
+ },
+ "root": {
+  "role": "AXApplication",
+  "subrole": null,
+  "type": "Application",
+  "label": "Subtext RN Sample",
+  "identifier": null,
+  "value": null,
+  "traits": [
+   "None"
+  ],
+  "frame": {
+   "x": 0,
+   "y": 0,
+   "w": 402,
+   "h": 874
+  },
+  "enabled": true,
+  "children": [
+   {
+    "role": "AXHeading",
+    "subrole": null,
+    "type": "Heading",
+    "label": "Events",
+    "identifier": null,
+    "value": null,
+    "traits": [
+     "Header"
+    ],
+    "frame": {
+     "x": 150,
+     "y": 74,
+     "w": 102,
+     "h": 21
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXGenericElement",
+    "subrole": null,
+    "type": "GenericElement",
+    "label": "Spring Meetup, 64 members",
+    "identifier": null,
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 16,
+     "y": 116,
+     "w": 370,
+     "h": 120
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXGenericElement",
+    "subrole": null,
+    "type": "GenericElement",
+    "label": "Summer Meetup, 32 members",
+    "identifier": null,
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 16,
+     "y": 248,
+     "w": 370,
+     "h": 120
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXGenericElement",
+    "subrole": null,
+    "type": "GenericElement",
+    "label": "Season ends in 3 days",
+    "identifier": null,
+    "value": null,
+    "traits": [],
+    "frame": {
+     "x": 16,
+     "y": 380,
+     "w": 370,
+     "h": 40
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXGenericElement",
+    "subrole": null,
+    "type": "GenericElement",
+    "label": null,
+    "identifier": null,
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 16,
+     "y": 430,
+     "w": 370,
+     "h": 40
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXTextField",
+    "subrole": null,
+    "type": "TextField",
+    "label": null,
+    "identifier": "search",
+    "value": "Search events",
+    "traits": [
+     "TextEntry"
+    ],
+    "frame": {
+     "x": 16,
+     "y": 480,
+     "w": 370,
+     "h": 44
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXButton",
+    "subrole": null,
+    "type": "Button",
+    "label": "Join",
+    "identifier": "join-button",
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 300,
+     "y": 760,
+     "w": 90,
+     "h": 44
+    },
+    "enabled": true,
+    "children": []
+   },
+   {
+    "role": "AXKeyboard",
+    "subrole": null,
+    "type": "Keyboard",
+    "label": null,
+    "identifier": null,
+    "value": null,
+    "traits": [],
+    "frame": {
+     "x": 0,
+     "y": 590,
+     "w": 402,
+     "h": 284
+    },
+    "enabled": true,
+    "children": [
+     {
+      "role": "AXGroup",
+      "subrole": null,
+      "type": "Group",
+      "label": null,
+      "identifier": null,
+      "value": null,
+      "traits": [],
+      "frame": {
+       "x": 0,
+       "y": 590,
+       "w": 402,
+       "h": 230
+      },
+      "enabled": true,
+      "children": [
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "q",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 3,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "w",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 42.6,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "e",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 82.2,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "r",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 121.80000000000001,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "t",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 161.4,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "y",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 201,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "u",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 240.60000000000002,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "i",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 280.2,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "o",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 319.8,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       },
+       {
+        "role": "AXKey",
+        "subrole": null,
+        "type": "Key",
+        "label": "p",
+        "identifier": null,
+        "value": null,
+        "traits": [
+         "KeyboardKey"
+        ],
+        "frame": {
+         "x": 359.40000000000003,
+         "y": 600,
+         "w": 36,
+         "h": 46
+        },
+        "enabled": true,
+        "children": []
+       }
+      ]
+     },
+     {
+      "role": "AXButton",
+      "subrole": null,
+      "type": "Button",
+      "label": "return",
+      "identifier": null,
+      "value": null,
+      "traits": [
+       "Button",
+       "KeyboardKey"
+      ],
+      "frame": {
+       "x": 300,
+       "y": 820,
+       "w": 98,
+       "h": 46
+      },
+      "enabled": true,
+      "children": []
+     }
+    ]
+   },
+   {
+    "role": "AXButton",
+    "subrole": null,
+    "type": "Button",
+    "label": null,
+    "identifier": null,
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 324,
+     "y": 784,
+     "w": 60,
+     "h": 60
+    },
+    "enabled": true,
+    "children": []
+   }
+  ]
+ }
+}

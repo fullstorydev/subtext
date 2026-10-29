@@ -4,11 +4,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { formatResult, parseArgs, toRequest } from '../lib/cli.mjs';
+import { formatResult, formatRunEntry, parseArgs, toRequest } from '../lib/cli.mjs';
 import { call, readSession } from '../lib/client.mjs';
 import { runDaemon, SimSession } from '../lib/daemon.mjs';
 import { HelperClient } from '../lib/helper-client.mjs';
-import { ConsoleBuffer, parseLogLine } from '../lib/logs.mjs';
+import { ConsoleBuffer, LogCollector, parseLogLine, sessionEndIn } from '../lib/logs.mjs';
 import { pickDevice } from '../lib/simctl.mjs';
 import { readRun } from '../lib/runlog.mjs';
 
@@ -25,6 +25,18 @@ test('parseArgs splits command, positionals and flags', () => {
   assert.throws(() => parseArgs(['snapshot', '--bogus']), { code: 'usage' });
   assert.throws(() => parseArgs(['start', '--device']), { code: 'usage' });
   assert.throws(() => parseArgs(['snapshot', '--json=1']), { code: 'usage' });
+});
+
+test('parseArgs takes -i as a flag and refuses a flag-looking token as a value', () => {
+  assert.deepEqual(parseArgs(['console', 'list', '-i', '--grep', '206']).flags, { 'ignore-case': true, grep: '206' });
+  assert.deepEqual(parseArgs(['console', 'list', '--grep', '206', '--ignore-case']).flags, { grep: '206', 'ignore-case': true });
+  assert.throws(() => parseArgs(['console', 'list', '--grep', '-i', '206']), (err) => err.code === 'usage' && /--grep needs a value, but got the flag -i/.test(err.message) && /--grep=-i/.test(err.hint));
+  assert.throws(() => parseArgs(['console', 'list', '--grep']), { code: 'usage' });
+  assert.throws(() => parseArgs(['console', 'list', '--grep', '--']), { code: 'usage' });
+  assert.deepEqual(parseArgs(['console', 'list', '--grep', '--', '-i', '--json']).flags, { grep: '-i', json: true });
+  assert.equal(parseArgs(['console', 'list', '--grep=-i']).flags.grep, '-i');
+  assert.equal(parseArgs(['scroll', 'down', '--max', '-1']).flags.max, '-1');
+  assert.deepEqual(parseArgs(['fill', 'login-email', '', '--clear']).positionals, ['login-email', '']);
 });
 
 test('toRequest maps commands onto daemon requests', () => {
@@ -110,9 +122,10 @@ test('daemon serves the protocol over its socket', async () => {
   process.env.FAKE_HELPER_LOG = inputLog;
   const simctl = fakeSimctl();
   let stopped = false;
-  const { record, stop } = await runDaemon({
+  const { record, stop, session: daemonSession } = await runDaemon({
     udid: 'FAKE-UDID', deviceName: 'Fake Phone', bundleId: 'dev.example.app', processName: 'App', sightmapDir,
-    helperPath: process.execPath, onStopped: () => { stopped = true; }, timing: { settleMs: 0, scrollSettleMs: 0, readyTimeoutMs: 1000 },
+    helperPath: process.execPath, onStopped: () => { stopped = true; },
+    timing: { settleMs: 0, scrollSettleMs: 0, readyTimeoutMs: 1000, retryIntervalMs: 0, retryTimeoutMs: 100 },
   }, { simctl, helperArgs: [FAKE_HELPER], withLogs: false, log: () => {} });
   stopDaemon = stop;
   const inputs = () => readFileSync(inputLog, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
@@ -131,18 +144,30 @@ test('daemon serves the protocol over its socket', async () => {
   assert.equal(snap.tree, undefined);
   assert.ok((await call(sock, 'snapshot', { json: true })).tree.children.length);
 
-  assert.deepEqual(await call(sock, 'click', { target: 'go' }), { target: '2 button[identifier="go"] "Go"', x: 60, y: 30 });
+  assert.deepEqual(await call(sock, 'click', { target: 'go' }), { target: '2 button[identifier="go"] "Go"', x: 60, y: 30, retries: 0 });
   assert.deepEqual((await call(sock, 'click', { target: '2' })).y, 30);
   assert.deepEqual((await call(sock, 'click', { target: 'button[text="Go"]' })).x, 60);
   await assert.rejects(call(sock, 'click', { target: 'far' }), (err) => err.code === 'offscreen' && /scroll down --until/.test(err.hint));
   await assert.rejects(call(sock, 'click', { target: 'under' }), { code: 'covered' });
   await assert.rejects(call(sock, 'click', { target: 'nope' }), { code: 'disabled' });
-  await assert.rejects(call(sock, 'click', { target: 'Missing' }), { code: 'not_found' });
+  await assert.rejects(call(sock, 'click', { target: 'Missing' }), (err) => err.code === 'not_found' && /long lists/.test(err.message));
   assert.equal(inputs().filter((i) => i.cmd === 'tap').length, 3);
+
+  await daemonSession.helper.request('arm');
+  const late = await call(sock, 'click', { target: 'late' });
+  assert.ok(late.retries >= 2, `a button that appears a moment later is tapped after re-reads (${late.retries})`);
+  await daemonSession.helper.request('arm');
+  const mover = await call(sock, 'click', { target: 'mover' });
+  assert.equal(mover.y, 320, 'a sliding button is tapped where it stops');
+  assert.ok(mover.retries >= 1);
+  assert.match(formatResult('click', mover), /after \d+ re-read\(s\) while the screen settled/);
 
   const filled = await call(sock, 'fill', { target: 'email', text: 'a@b.co' });
   assert.equal(filled.value, 'a@b.co');
   assert.equal((await call(sock, 'fill', { target: 'email', text: 'x@y.z', clear: true })).value, 'x@y.z');
+  const cleared = await call(sock, 'fill', { target: 'email', text: '', clear: true });
+  assert.deepEqual([cleared.value, cleared.placeholder], ['', 'Email'], 'a cleared field showing its placeholder is empty');
+  assert.match(formatResult('fill', cleared), /value "" \(empty; the field shows its placeholder "Email"\)/);
 
   await call(sock, 'scroll', { direction: 'down' });
   assert.deepEqual(inputs().at(-1), { cmd: "swipe", args: { udid: "FAKE-UDID", x1: 200, y1: 640, x2: 200, y2: 160, duration: 1.6 } });
@@ -155,6 +180,7 @@ test('daemon serves the protocol over its socket', async () => {
   await call(sock, 'openurl', { url: 'app://x' });
   assert.deepEqual(simctl.calls.at(-1), ['openUrl', 'FAKE-UDID', 'app://x']);
   await assert.rejects(call(sock, 'sessionUrl'), { code: 'no_session_url' });
+  await checkSessionEnd(sock, daemonSession);
   await assert.rejects(call(sock, 'bogus'), { code: 'unknown_cmd' });
 
   const status = await call(sock, 'status');
@@ -190,10 +216,58 @@ test('daemon serves the protocol over its socket', async () => {
   assert.deepEqual(simctl.calls.slice(-2).map((c) => c[0]), ['terminate', 'shutdown']);
 });
 
+const URL_1 = 'https://app.fullstory.com/ui/o-TEST01-na1/session/1111111111111111111%3A2222222222222222222';
+const URL_2 = 'https://app.fullstory.com/ui/o-TEST01-na1/session/1111111111111111111%3A3333333333333333333';
+const sdkLine = (eventMessage, messageType = 'Default') => JSON.stringify({
+  eventType: 'logEvent', messageType, subsystem: 'com.fullstory.FullStory', category: 'FullStory', processID: 4242, timestamp: '2026-10-28 14:02:11.123456-0700', eventMessage,
+});
+
+test('Fullstory SDK termination lines are recognized', () => {
+  assert.equal(sessionEndIn('Received HTTP Status Code: 206, terminating FullStory session').status, 206);
+  assert.match(sessionEndIn('[FullStory] Received HTTP Status Code: 206, terminating FullStory session').reason, /too large/);
+  assert.match(sessionEndIn('FullStory: Received HTTP Status Code: 202, terminating FullStory session').reason, /recording is blocked/);
+  assert.equal(sessionEndIn('capture is terminated; not resuming session').status, null);
+  assert.deepEqual(sessionEndIn('WARNING: Maximum number of views reached'), { warning: 'the Fullstory SDK logged "Maximum number of views reached"' });
+  assert.equal(sessionEndIn('Received HTTP Status Code: 200'), null);
+  assert.equal(sessionEndIn('POST /orders 206'), null);
+});
+
+/** Feeds `log stream` lines through the daemon's log ingestion and checks the run log, `session-url` and `status`. */
+async function checkSessionEnd(sock, session) {
+  const logs = new LogCollector({ udid: 'FAKE-UDID', processName: 'App', buffer: session.buffer });
+  const runEntries = async () => readRun((await call(sock, 'runCurrent')).path);
+  logs.ingest(sdkLine(`FULLSTORY_SESSION_URL ${URL_1}`, 'Info'));
+  assert.deepEqual(await call(sock, 'sessionUrl', {}), { url: URL_1, ended: false });
+  logs.ingest(sdkLine('Maximum number of views reached; some views will not be captured', 'Error'));
+  logs.ingest(sdkLine('Received HTTP Status Code: 206, terminating FullStory session', 'Error'));
+  logs.ingest(sdkLine('capture is terminated; not resuming session'));
+
+  const ended = (await runEntries()).filter((e) => e.action === 'session-ended');
+  assert.equal(ended.length, 1, 'one session-ended entry per session');
+  assert.equal(ended[0].url, URL_1);
+  assert.equal(ended[0].status, 206);
+  assert.match(ended[0].reason, /HTTP 206.*too large.*Maximum number of views reached/);
+  assert.ok(ended[0].ts);
+  assert.match(formatRunEntry(ended[0]), /session-ended https:\/\/app\.fullstory\.com\/.* HTTP 206/);
+
+  await assert.rejects(call(sock, 'sessionUrl', {}), (err) => err.code === 'session_ended' && err.message.includes(URL_1) && /relaunch/.test(err.hint));
+  const asJson = await call(sock, 'sessionUrl', { json: true });
+  assert.deepEqual([asJson.url, asJson.ended], [URL_1, true]);
+  assert.match(asJson.reason, /206/);
+  assert.match((await call(sock, 'status')).sessionEnded.reason, /206/);
+
+  logs.ingest(sdkLine(`FULLSTORY_SESSION_URL ${URL_2}`, 'Info'));
+  assert.deepEqual(await call(sock, 'sessionUrl', {}), { url: URL_2, ended: false });
+  assert.equal((await call(sock, 'status')).sessionEnded, null);
+  const sessions = (await runEntries()).filter((e) => e.action === 'session' || e.action === 'session-ended').map((e) => `${e.action} ${e.url}`);
+  assert.deepEqual(sessions, [`session ${URL_1}`, `session-ended ${URL_1}`, `session ${URL_2}`]);
+}
+
 function stubSession({ describe, accessibilityEnabled }) {
   const helper = { request: async () => describe(), close() {}, alive: true, restarts: 0 };
   const simctl = accessibilityEnabled === undefined ? {} : { accessibilityEnabled: async () => accessibilityEnabled };
-  return new SimSession({ udid: 'U-1', bundleId: 'dev.x', processName: 'X', sightmapDir: join(dir, 'stub', '.sightmap'), helper, simctl, timing: { overlaySettleMs: 0 } });
+  return new SimSession({ udid: 'U-1', bundleId: 'dev.x', processName: 'X', sightmapDir: join(dir, 'stub', '.sightmap'), helper, simctl,
+    timing: { overlaySettleMs: 0, settleMs: 0, scrollSettleMs: 0, retryIntervalMs: 0, retryTimeoutMs: 20 } });
 }
 
 const axDisabled = () => { throw Object.assign(new Error('no elements'), { code: 'ax_disabled' }); };
@@ -227,4 +301,30 @@ test('a snapshot showing only a small floating element says the app window is hi
   assert.match(snap.text, /\[Mostly empty\]\nOnly a small floating element is exposed \(button "Dev menu"\)/);
   assert.match(snap.text, /no-hide-descendants/);
   assert.doesNotMatch(snap.text, /defaults write/);
+});
+
+test('click, fill and scroll on a mostly empty tree give the empty-tree diagnosis, not the long-list hint', async () => {
+  const el = (type, frame, extra = {}) => ({ role: `AX${type}`, type, label: null, identifier: null, value: null, frame, enabled: true, children: [], ...extra });
+  const floating = () => ({
+    screen: { w: 390, h: 844 },
+    root: el('Application', { x: 0, y: 0, w: 390, h: 844 }, { label: 'App', children: [el('Button', { x: 330, y: 700, w: 48, h: 48 }, { label: 'Dev menu' })] }),
+  });
+  const sparse = (err) => {
+    assert.equal(err.code, 'not_found');
+    assert.match(err.message, /exposes next to nothing to accessibility/);
+    assert.match(err.message, /Only a small floating element is exposed \(button "Dev menu"\)/);
+    assert.match(err.message, /no-hide-descendants/);
+    assert.doesNotMatch(err.message, /defaults write/);
+    assert.doesNotMatch(`${err.message} ${err.hint}`, /long lists|further down a list, run/);
+    return true;
+  };
+  const session = stubSession({ describe: floating, accessibilityEnabled: true });
+  await assert.rejects(session.handle('click', { target: 'profile-avatar' }), sparse);
+  await assert.rejects(session.handle('fill', { target: 'login-email', text: 'a' }), sparse);
+  await assert.rejects(session.handle('scroll', { direction: 'down', until: 'login-email', max: 3 }), sparse);
+
+  const loading = () => ({ screen: { w: 390, h: 844 }, root: el('Application', { x: 0, y: 0, w: 390, h: 844 }, { label: 'App', children: [
+    el('StaticText', { x: 0, y: 100, w: 390, h: 600 }, { label: 'Loading…' }), el('StaticText', { x: 0, y: 700, w: 390, h: 40 }, { label: 'v1' })] }) });
+  await assert.rejects(stubSession({ describe: loading, accessibilityEnabled: false }).handle('click', { target: 'go' }),
+    (err) => /no interactive elements/.test(err.message) && /defaults write/.test(err.message));
 });

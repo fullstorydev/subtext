@@ -8,7 +8,7 @@ Drive and inspect an iOS app in the local iOS Simulator from a coding agent. The
 - Xcode 26 or later, opened once, with an iOS Simulator runtime (Xcode > Settings > Components)
 - `xcode-select -p` pointing at Xcode, not the Command Line Tools
 - Node 18 or later
-- The sightmap CLI: nothing to install, `subtext-sim` runs the pinned `@sightmap/sightmap@0.36.1` through `npx`. A `sightmap` on your PATH (or `SIGHTMAP_BIN`) wins over the pin; `doctor` reports which one resolves and warns outside the tested range (0.32–0.36; the sample apps' `.sightmap/` need 0.34+).
+- The sightmap CLI: nothing to install, `subtext-sim` runs the pinned `@sightmap/sightmap@0.36.1` through `npx`. A `sightmap` on your PATH (or `SIGHTMAP_BIN`) wins over the pin, so you can pin your own; `doctor` says which one is used ("using PATH sightmap 0.36.0 (…; pinned fallback is 0.36.1)") and warns only outside the tested range (0.32–0.36; the sample apps' `.sightmap/` need 0.34+).
 
 ## Install from the branch (Claude Code)
 
@@ -104,7 +104,7 @@ This downloads the public Fullstory iOS SDK (the binary from [`fullstorydev/full
 Requirements on top of Xcode: Node 22.11+, npm, CocoaPods, and network access the first time. `pod install` needs a UTF-8 locale; `build.sh` sets one, but for your own app run `export LANG=en_US.UTF-8` first. Only the JS sources are checked in. `build.sh` generates the native iOS project from the React Native template for the pinned version, then runs `npm install`, `pod install` and `xcodebuild` in `~/Library/Caches/subtext-sim/RNSampleApp/` (set `OUT_DIR` to change that). It prints the `.app` path on stdout. The first build takes several minutes; after a JS change, a rebuild takes about 15 s.
 
 - `./build.sh` builds Release with the JS bundle embedded, so `subtext-sim start --app` works without Metro. `ios/SceneDelegate.swift` replaces the template's to keep `console.log` in Release builds (`RCTSetLogThreshold`).
-- `CONFIGURATION=Debug ./build.sh` builds for Metro. Start Metro from the generated project (the build prints the command) before launching. Debug with Metro works for the whole loop and is the cheaper choice while iterating on JS; if edits don't show up, restart Metro with `--clear`.
+- `CONFIGURATION=Debug ./build.sh` builds for Metro. Start Metro from the generated project (the build prints the command) before launching. Debug with Metro works for the whole loop and is the cheaper choice while iterating on JS; if edits don't show up, restart Metro with `--clear`. In a git worktree nested inside another checkout, Watchman roots at the parent checkout and Metro ignores the worktree's edits, which `--clear` doesn't fix: stop Metro, run `watchman watch-del-all`, add an empty `.watchmanconfig` at the worktree root, and start Metro from the worktree.
 - `FS_ORG_ID=<your-org-id> ./build.sh` adds `@fullstory/react-native` (its Babel plugins, the `FullStory` pod and a `FullStory` `Info.plist` dictionary) and logs `FULLSTORY_SESSION_URL <url>` from `FullStory.onReady()`. `FS_RN_VERSION` and `FS_SDK_VERSION` pick the plugin and iOS SDK versions.
 
 `build.sh` uses target builds rather than `xcodebuild -scheme`, and drops the template's launch storyboard and asset catalog. Both need Xcode's iOS platform component for the SDK version, which a machine with only a Simulator runtime installed doesn't have.

@@ -5,7 +5,8 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compareVersions, SIGHTMAP_EXTRACT_OBJECT, sightmapVersion, sightmapVersionWarning } from '../lib/sightmap-cli.mjs';
+import { compareVersions, SIGHTMAP_EXTRACT_OBJECT, SIGHTMAP_VERSION, sightmapVersion, sightmapVersionWarning } from '../lib/sightmap-cli.mjs';
+import { sightmapDetail } from '../lib/doctor.mjs';
 
 const skill = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bin = process.env.SIGHTMAP_BIN || 'sightmap';
@@ -26,6 +27,13 @@ test('sightmap versions outside the tested range warn', () => {
   assert.match(sightmapVersionWarning('0.31.2'), /outside the range/);
   assert.match(sightmapVersionWarning('0.37.0'), /outside the range/);
   assert.match(sightmapVersionWarning('unknown'), /could not read/);
+});
+
+test('doctor says which sightmap is used and what the pinned fallback is', () => {
+  assert.equal(sightmapDetail({ version: '0.36.0', source: 'on PATH: /opt/bin/sightmap' }), `using PATH sightmap 0.36.0 (/opt/bin/sightmap; pinned fallback is ${SIGHTMAP_VERSION})`);
+  assert.equal(sightmapDetail({ version: '0.35.2', source: 'SIGHTMAP_BIN=/x/sightmap' }), `using SIGHTMAP_BIN sightmap 0.35.2 (/x/sightmap; pinned fallback is ${SIGHTMAP_VERSION})`);
+  assert.match(sightmapDetail({ version: SIGHTMAP_VERSION, source: `npx @sightmap/sightmap@${SIGHTMAP_VERSION}` }), /^using the pinned sightmap/);
+  assert.equal(sightmapVersionWarning('0.36.0'), null, 'a PATH sightmap inside the range is not a warning');
 });
 
 for (const app of ['SampleApp', 'RNSampleApp']) {

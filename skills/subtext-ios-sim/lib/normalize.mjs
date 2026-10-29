@@ -89,6 +89,20 @@ function isIdentifiedGeneric(raw) {
   return type === 'genericelement' && !!present(raw.identifier);
 }
 
+// The system keyboard's window: its container, its keys, and anything carrying
+// the KeyboardKey trait. Not part of the app, so not in coverage or components.
+function isKeyboard(raw, tag) {
+  return tag === 'keyboard' || tag === 'key' || (raw.traits ?? []).includes('KeyboardKey');
+}
+
+const TAPPABLE_TRAITS = new Set(['Button', 'Link', 'Adjustable']);
+
+// A labelled or identified `other` whose traits say it can be tapped: React
+// Native Pressables surface as `other`, and an accessibilityRole adds the trait.
+function isTappableOther(raw, tag) {
+  return tag === 'other' && (raw.traits ?? []).some((t) => TAPPABLE_TRAITS.has(t)) && !!(present(raw.label) || present(raw.identifier));
+}
+
 function collapse(raw, isRoot) {
   const tag = rnTabTitle(raw) !== null ? 'tab' : tagFor(raw.type, raw.role, raw.subrole);
   let children = (raw.children ?? []).flatMap((c) => collapse(c, false));
@@ -136,7 +150,8 @@ export function normalize(describeResult) {
       frame,
       visible: intersects(frame, screen),
       onScreen: centerOnScreen(frame, screen),
-      interactive: INTERACTIVE_TAGS.has(tag) || isIdentifiedGeneric(raw),
+      interactive: INTERACTIVE_TAGS.has(tag) || isIdentifiedGeneric(raw) || isTappableOther(raw, tag),
+      system: isKeyboard(raw, tag) || !!parent?.system,
       ignored: isWrapper(raw, tag),
       nthChild,
       text: '',
@@ -180,6 +195,28 @@ export function floatingOnly({ nodes, root, screen, overlay }) {
   const x1 = Math.max(...shown.map((n) => n.frame.x + n.frame.w));
   const y1 = Math.max(...shown.map((n) => n.frame.y + n.frame.h));
   return (x1 - x0) * (y1 - y0) < 0.1 * screen.w * screen.h ? shown : null;
+}
+
+const DEV_MENU_LABEL = /\b(dev(eloper)?[\s-]?menu|dev[\s-]?tools)\b/i;
+/** How far beyond its frame a floating button still catches taps, in points. */
+export const FLOATING_MARGIN = 24;
+
+function fabShaped({ frame: { w, h }, children, identifier }) {
+  return !children.length && !identifier && w >= 32 && h >= 32 && w <= 96 && h <= 96 && w / h >= 0.6 && w / h <= 1.67;
+}
+
+/**
+ * Controls that most likely float in a separate small window above the app,
+ * like the React Native / Expo dev-menu button. `describe` reports no windows,
+ * so this is a heuristic: a dev-menu label or identifier, or a small square
+ * element without an identifier drawn last at the root, as a window above the
+ * app's own would be.
+ */
+export function floatingControls({ root, nodes }) {
+  const top = root.children.filter((n) => n.visible);
+  const last = top.length > 1 ? top.at(-1) : null;
+  return nodes.filter((n) => n !== root && n.visible
+    && (DEV_MENU_LABEL.test(n.label ?? '') || DEV_MENU_LABEL.test(n.identifier ?? '') || (n === last && fabShaped(n))));
 }
 
 const CSS_IDENT = /^-?[A-Za-z_][A-Za-z0-9_-]*$/;

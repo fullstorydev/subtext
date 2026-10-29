@@ -1,0 +1,118 @@
+{
+ "screen": {
+  "w": 402,
+  "h": 874
+ },
+ "root": {
+  "role": "AXApplication",
+  "subrole": null,
+  "type": "Application",
+  "label": "Sample",
+  "identifier": null,
+  "value": null,
+  "traits": [],
+  "frame": {
+   "x": 0,
+   "y": 0,
+   "w": 402,
+   "h": 874
+  },
+  "enabled": true,
+  "children": [
+   {
+    "role": "AXScrollArea",
+    "subrole": null,
+    "type": "ScrollArea",
+    "label": null,
+    "identifier": "nav-menu",
+    "value": null,
+    "traits": [],
+    "frame": {
+     "x": 0,
+     "y": 100,
+     "w": 402,
+     "h": 300
+    },
+    "enabled": true,
+    "children": [
+     {
+      "role": "AXButton",
+      "subrole": null,
+      "type": "Button",
+      "label": "Events",
+      "identifier": "nav-option-events",
+      "value": null,
+      "traits": [
+       "Button"
+      ],
+      "frame": {
+       "x": 16,
+       "y": 110,
+       "w": 370,
+       "h": 44
+      },
+      "enabled": true,
+      "children": []
+     },
+     {
+      "role": "AXButton",
+      "subrole": null,
+      "type": "Button",
+      "label": "Leagues",
+      "identifier": "nav-option-leagues",
+      "value": null,
+      "traits": [
+       "Button"
+      ],
+      "frame": {
+       "x": 16,
+       "y": 160,
+       "w": 370,
+       "h": 44
+      },
+      "enabled": true,
+      "children": []
+     },
+     {
+      "role": "AXButton",
+      "subrole": null,
+      "type": "Button",
+      "label": "Done",
+      "identifier": "done",
+      "value": null,
+      "traits": [
+       "Button"
+      ],
+      "frame": {
+       "x": 16,
+       "y": 210,
+       "w": 370,
+       "h": 44
+      },
+      "enabled": true,
+      "children": []
+     }
+    ]
+   },
+   {
+    "role": "AXButton",
+    "subrole": null,
+    "type": "Button",
+    "label": "Close",
+    "identifier": "close",
+    "value": null,
+    "traits": [
+     "Button"
+    ],
+    "frame": {
+     "x": 16,
+     "y": 500,
+     "w": 100,
+     "h": 44
+    },
+    "enabled": true,
+    "children": []
+   }
+  ]
+ }
+}

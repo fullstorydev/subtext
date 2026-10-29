@@ -1,0 +1,48 @@
+{
+  "memory": [],
+  "views": [],
+  "globals": [
+    {
+      "name": "SportOption",
+      "selectors": [
+        "[testid=\"sport-picker\"] [testid*=\"-option-\"]"
+      ]
+    },
+    {
+      "name": "FilterOption",
+      "selectors": [
+        "[testid=\"filter-sheet\"] [testid*=\"-option-\"]"
+      ]
+    },
+    {
+      "name": "NavOption",
+      "selectors": [
+        "[testid=\"nav-menu\"] [testid*=\"-option-\"]"
+      ]
+    },
+    {
+      "name": "SheetClose",
+      "selectors": [
+        "[testid=\"sheet-a\"] [testid=\"close\"]"
+      ]
+    },
+    {
+      "name": "DialogClose",
+      "selectors": [
+        "[testid=\"dialog-b\"] [testid=\"close\"]"
+      ]
+    },
+    {
+      "name": "OuterDone",
+      "selectors": [
+        "[testid=\"outer-wrapper\"] [testid=\"done\"]"
+      ]
+    },
+    {
+      "name": "MenuDone",
+      "selectors": [
+        "[testid=\"nav-menu\"] [testid=\"done\"]"
+      ]
+    }
+  ]
+}

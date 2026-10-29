@@ -43,6 +43,31 @@ export function sessionUrlIn(message) {
   return null;
 }
 
+// The ingest server answers 206 ("bad request, don't retry", mostly a bundle
+// that is too large) or 202 (recording blocked), and the SDK then terminates
+// the session for good.
+const HTTP_TERMINATION = /Received HTTP Status Code:?\s*(\d{3})\b[^\n]*terminating\b/i;
+const CAPTURE_TERMINATED = /capture is terminated/i;
+const MAX_VIEWS = /Maximum number of views reached/i;
+
+const TERMINATION_REASONS = {
+  206: 'the Fullstory server rejected a bundle with HTTP 206 (usually a bundle that is too large, e.g. a very large view tree) and the SDK terminated the session',
+  202: 'the Fullstory server answered HTTP 202 (recording is blocked for this app or org) and the SDK terminated the session',
+};
+
+/** What a console message says about the Fullstory session ending: `{status, reason}`, `{warning}`, or null. */
+export function sessionEndIn(message) {
+  const text = String(message);
+  const http = HTTP_TERMINATION.exec(text);
+  if (http) {
+    const status = Number(http[1]);
+    return { status, reason: TERMINATION_REASONS[status] ?? `the Fullstory server answered HTTP ${status} and the SDK terminated the session` };
+  }
+  if (CAPTURE_TERMINATED.test(text)) return { status: null, reason: 'the Fullstory SDK reports that capture is terminated' };
+  if (MAX_VIEWS.test(text)) return { warning: 'the Fullstory SDK logged "Maximum number of views reached"' };
+  return null;
+}
+
 /** A bounded console buffer with stable, ever-increasing indexes. */
 export class ConsoleBuffer {
   constructor(capacity = 5000) {
@@ -50,6 +75,8 @@ export class ConsoleBuffer {
     this.entries = [];
     this.nextIndex = 0;
     this.sessionUrl = null;
+    this.sessionEnded = null;
+    this.sessionWarnings = [];
   }
 
   push(entry) {
@@ -59,7 +86,17 @@ export class ConsoleBuffer {
     const url = sessionUrlIn(full.message);
     if (url && url !== this.sessionUrl) {
       this.sessionUrl = url;
+      this.sessionEnded = null;
+      this.sessionWarnings = [];
       this.onSessionUrl?.(url);
+    }
+    const end = sessionEndIn(full.message);
+    if (end?.warning) {
+      if (!this.sessionWarnings.includes(end.warning)) this.sessionWarnings.push(end.warning);
+    } else if (end && !this.sessionEnded) {
+      const notes = this.sessionWarnings.length ? `; before that, ${this.sessionWarnings.join('; ')}` : '';
+      this.sessionEnded = { url: this.sessionUrl, status: end.status, reason: `${end.reason}${notes}`, time: full.time, index: full.index };
+      this.onSessionEnded?.(this.sessionEnded);
     }
     return full;
   }
@@ -146,10 +183,7 @@ export class LogCollector {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     this.proc = proc;
-    createInterface({ input: proc.stdout }).on('line', (line) => {
-      const entry = parseLogLine(line);
-      if (entry) this.buffer.push(entry);
-    });
+    createInterface({ input: proc.stdout }).on('line', (line) => this.ingest(line));
     proc.on('exit', (code) => {
       if (this.proc !== proc) return;
       this.proc = null;
@@ -158,6 +192,12 @@ export class LogCollector {
         setTimeout(() => this.startStream(), 1000).unref?.();
       }
     });
+  }
+
+  /** One `log stream --style ndjson` line into the buffer. */
+  ingest(line) {
+    const entry = parseLogLine(line);
+    if (entry) this.buffer.push(entry);
   }
 
   get streaming() {

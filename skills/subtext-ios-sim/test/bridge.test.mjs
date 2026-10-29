@@ -111,6 +111,31 @@ test('first match wins and conflicts are reported, view components before global
   assert.match(snap.text, /matched by 3 components \(ViewPrimary, AnyButton, Primary\) — only ViewPrimary applied/);
 });
 
+test('skipping absent ancestors never collapses sibling components onto a substring-only leaf', () => {
+  const skipCorpus = loadCorpusFile(join(here, 'fixtures', 'skip-conflict-corpus.json'));
+  const snap = snapshot(fixture('options'), skipCorpus);
+  for (const id of ['nav-option-events', 'nav-option-leagues']) {
+    assert.equal(byIdentifier(snap, id).component, 'NavOption', `${id}: the component whose whole chain matched`);
+  }
+  assert.ok(!snap.conflicts.some((c) => c.names.includes('SportOption') || c.names.includes('FilterOption')));
+
+  const menuAbsent = fixture('options');
+  menuAbsent.root.children[0].identifier = null;
+  const orphaned = snapshot(menuAbsent, skipCorpus);
+  assert.equal(byIdentifier(orphaned, 'nav-option-events').component, null, 'a substring-only leaf needs its ancestor on screen');
+});
+
+test('a full-chain match beats a skipped one, and remaining skip conflicts are flagged', () => {
+  const snap = snapshot(fixture('options'), loadCorpusFile(join(here, 'fixtures', 'skip-conflict-corpus.json')));
+  const done = byIdentifier(snap, 'done');
+  assert.equal(done.component, 'MenuDone', 'listed after OuterDone, but its whole chain matched');
+  assert.ok(!snap.conflicts.some((c) => c.id === done.id), 'ranking settled it');
+  const close = byIdentifier(snap, 'close');
+  assert.equal(close.component, 'SheetClose');
+  assert.deepEqual(snap.conflicts.find((c) => c.id === close.id), { id: close.id, names: ['SheetClose', 'DialogClose'], skipped: ['SheetClose', 'DialogClose'] });
+  assert.match(snap.text, /⚠ #\d+ button "Close" matched by 2 components \(SheetClose, DialogClose\) — only SheetClose applied \(ancestor skipped\)/);
+});
+
 test('render hides off-screen nodes and says so', () => {
   const snap = snapshot(fixture('eager'), corpus);
   assert.equal(snap.view, 'Eager');
@@ -349,4 +374,7 @@ test('descendant selectors skip ancestors whose exact identifier is absent from 
   assert.equal(count('[testid="login-form"] button'), 0, 'a subject without its own attribute is not widened');
   assert.equal(count('[testid^="login-form"] [testid="login-submit"]'), 0, 'only exact identifiers are skippable');
   assert.equal(count('[testid="login-form"] > [testid="login-submit"]'), 0, 'the child combinator is never skipped');
+  assert.equal(count('[testid="login-form"] [testid^="login-sub"]'), 0, 'a prefix-only subject is not reached by skipping');
+  assert.equal(count('[testid="login-form"] [testid*="submit"]'), 0, 'a substring-only subject is not reached by skipping');
+  assert.equal(count('[testid="login-form"] button[text="Sign In"]'), 1, 'any exact attribute on the subject allows the skip');
 });

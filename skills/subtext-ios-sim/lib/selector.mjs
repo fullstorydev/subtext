@@ -216,7 +216,7 @@ function* descendants(node) {
   }
 }
 
-function matchCompound(node, c) {
+function matchCompound(node, c, skip = true) {
   if (c.tag && c.tag !== '*' && c.tag !== node.tag) return false;
   if (c.classes.length) return false;
   for (const id of c.ids) if (node.identifier !== id) return false;
@@ -226,21 +226,22 @@ function matchCompound(node, c) {
     if (a.op === null ? actual === undefined : !compareValue(actual, a.op, a.value, a.ci)) return false;
   }
   for (const p of c.pseudos) {
-    if (p.name === 'not' && matchesList(node, p.list)) return false;
-    if ((p.name === 'is' || p.name === 'where') && !matchesList(node, p.list)) return false;
-    if (p.name === 'has' && !hasMatch(node, p.list)) return false;
+    if (p.name === 'not' && matchesList(node, p.list, null, skip)) return false;
+    if ((p.name === 'is' || p.name === 'where') && !matchesList(node, p.list, null, skip)) return false;
+    if (p.name === 'has' && !hasMatch(node, p.list, skip)) return false;
   }
   return true;
 }
 
-function hasMatch(scope, list) {
-  for (const d of descendants(scope)) if (matchesList(d, list, scope)) return true;
+function hasMatch(scope, list, skip) {
+  for (const d of descendants(scope)) if (matchesList(d, list, scope, skip)) return true;
   return false;
 }
 
 const IDENTIFIER_ATTRS = new Set(['identifier', 'testid', 'id']);
+const EXACT_OPS = new Set(['=', '~=', '|=']);
 const namesIdentifier = (c) => c.ids.length > 0 || c.attrs.some((a) => IDENTIFIER_ATTRS.has(a.name) && a.op === '=');
-const discriminates = (c) => c.ids.length > 0 || c.attrs.some((a) => a.op !== null);
+const matchesExactly = (c) => c.ids.length > 0 || c.attrs.some((a) => EXACT_OPS.has(a.op));
 
 function rootOf(node) {
   let r = node;
@@ -265,28 +266,29 @@ function absentFromTree(node, compound) {
 
 /**
  * Ancestor step `k` of a descendant chain may be skipped when it names an exact
- * identifier that no element of the tree carries, and the subject step has an
- * attribute of its own: a testID on a plain wrapper view never reaches the iOS
- * accessibility tree, so its descendants would otherwise never match, while a
- * bare `[testid="list"] button` would match every button.
+ * identifier that no element of the tree carries, and the subject step matches
+ * an attribute exactly: a testID on a plain wrapper view never reaches the iOS
+ * accessibility tree, so its descendants would otherwise never match. A bare
+ * `[testid="list"] button`, or a substring-only `[testid="list"] [testid*="-option-"]`,
+ * would collapse onto every button or option on screen, so neither skips.
  */
-function skippable(node, parts, k, scope) {
-  return !scope && k < parts.length - 1 && parts[k + 1].combinator === ' '
-    && discriminates(parts.at(-1).compound)
+function skippable(node, parts, k, scope, skip) {
+  return skip && !scope && k < parts.length - 1 && parts[k + 1].combinator === ' '
+    && matchesExactly(parts.at(-1).compound)
     && namesIdentifier(parts[k].compound) && absentFromTree(node, parts[k].compound);
 }
 
-function matchAncestors(node, parts, k, scope) {
+function matchAncestors(node, parts, k, scope, skip) {
   for (let a = node.parent; a; a = a.parent) {
     if (scope && a === scope) return false;
-    if (matchFrom(a, parts, k, scope)) return true;
+    if (matchFrom(a, parts, k, scope, skip)) return true;
   }
-  if (!skippable(node, parts, k, scope)) return false;
-  return k === 0 || matchAncestors(node, parts, k - 1, scope);
+  if (!skippable(node, parts, k, scope, skip)) return false;
+  return k === 0 || matchAncestors(node, parts, k - 1, scope, skip);
 }
 
-function matchFrom(node, parts, k, scope) {
-  if (!matchCompound(node, parts[k].compound)) return false;
+function matchFrom(node, parts, k, scope, skip) {
+  if (!matchCompound(node, parts[k].compound, skip)) return false;
   const { combinator } = parts[k];
   if (k === 0) {
     if (!scope || combinator === null) return true;
@@ -294,14 +296,21 @@ function matchFrom(node, parts, k, scope) {
     for (let a = node.parent; a; a = a.parent) if (a === scope) return true;
     return false;
   }
-  if (combinator === '>') return !!node.parent && matchFrom(node.parent, parts, k - 1, scope);
-  return matchAncestors(node, parts, k - 1, scope);
+  if (combinator === '>') return !!node.parent && matchFrom(node.parent, parts, k - 1, scope, skip);
+  return matchAncestors(node, parts, k - 1, scope, skip);
 }
 
-function matchesList(node, list, scope = null) {
-  return list.some((complex) => matchFrom(node, complex.parts, complex.parts.length - 1, scope));
+function matchesList(node, list, scope = null, skip = true) {
+  return list.some((complex) => matchFrom(node, complex.parts, complex.parts.length - 1, scope, skip));
 }
 
 export function matches(node, selector) {
   return matchesList(node, parseSelector(selector));
+}
+
+/** `'full'` when the whole chain matched, `'skipped'` when it matched only by skipping absent ancestors, else null. */
+export function matchKind(node, selector) {
+  const list = parseSelector(selector);
+  if (!matchesList(node, list)) return null;
+  return matchesList(node, list, null, false) ? 'full' : 'skipped';
 }

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { attrsOf, cssId, floatingOnly, logBoxToast, normalize } from './normalize.mjs';
 import { emptyTreeMessage } from './errors.mjs';
-import { compareValue, matches } from './selector.mjs';
+import { compareValue, matches, matchKind } from './selector.mjs';
 import { loadCorpus } from './corpus.mjs';
 
 export class BridgeError extends Error {
@@ -33,6 +33,21 @@ function allDescendants(node, componentName) {
 
 function matchedNodes(nodes, def) {
   return nodes.filter((n) => def.selectors.some((sel) => matches(n, sel)));
+}
+
+/** Each node the definition matches, with whether its best match needed an absent ancestor skipped. */
+function matchedWithKind(nodes, def) {
+  const out = [];
+  for (const n of nodes) {
+    let kind = null;
+    for (const sel of def.selectors) {
+      const k = matchKind(n, sel);
+      if (k === 'full') { kind = k; break; }
+      kind ??= k;
+    }
+    if (kind) out.push({ node: n, skipped: kind === 'skipped' });
+  }
+  return out;
 }
 
 function inferView(nodes, corpus) {
@@ -117,7 +132,7 @@ function extractOne(node, extract, memo) {
 function computeCoverage(nodes) {
   const counts = { interactive: 0, t1: 0, t2: 0, t3: 0 };
   for (const n of nodes) {
-    if (!n.interactive || !n.visible) continue;
+    if (!n.interactive || !n.visible || n.system) continue;
     counts.interactive++;
     if (n.component) counts.t1++;
     else {
@@ -138,30 +153,38 @@ function computeCoverage(nodes) {
 export function annotate(normalized, sightmap, { view, sightmapBin, url } = {}) {
   const corpus = typeof sightmap === 'string' ? loadCorpus(sightmap, { bin: sightmapBin }) : sightmap;
   const { nodes } = normalized;
+  const matchable = nodes.filter((n) => !n.system);
   let activeView = null;
   if (view) {
     activeView = corpus.views.find((v) => v.name === view);
     if (!activeView) throw new BridgeError('unknown_view', `no view named ${quote(view)} in the corpus`);
   } else {
-    activeView = inferView(nodes, corpus);
+    activeView = inferView(matchable, corpus);
   }
 
   const defs = [...(activeView?.components ?? []), ...corpus.globals];
   const candidates = new Map();
   for (const def of defs) {
-    for (const node of matchedNodes(nodes, def)) {
+    for (const { node, skipped } of matchedWithKind(matchable, def)) {
       const list = candidates.get(node) ?? [];
-      if (!list.some((d) => d.name === def.name)) list.push(def);
+      const seen = list.find((c) => c.def.name === def.name);
+      if (!seen) list.push({ def, skipped });
+      else if (seen.skipped && !skipped) seen.skipped = false;
       candidates.set(node, list);
     }
   }
 
+  // A component whose whole chain matched beats one that needed an absent
+  // ancestor skipped; among equals, view components and then corpus order win.
   const conflicts = [];
   for (const node of nodes) {
-    const list = candidates.get(node);
-    node.component = list ? list[0].name : null;
-    Object.defineProperty(node, 'componentDef', { value: list ? list[0] : null, enumerable: false, writable: true });
-    if (list && list.length > 1) conflicts.push({ id: node.id, names: list.map((d) => d.name) });
+    const list = candidates.get(node)?.sort((a, b) => a.skipped - b.skipped);
+    node.component = list ? list[0].def.name : null;
+    Object.defineProperty(node, 'componentDef', { value: list ? list[0].def : null, enumerable: false, writable: true });
+    const full = list?.filter((c) => !c.skipped).length ?? 0;
+    if (list && list.length > 1 && full !== 1) {
+      conflicts.push({ id: node.id, names: list.map((c) => c.def.name), skipped: list.filter((c) => c.skipped).map((c) => c.def.name) });
+    }
   }
 
   const memo = new Map();
@@ -195,6 +218,25 @@ export function annotate(normalized, sightmap, { view, sightmapBin, url } = {}) 
 
 export function snapshot(describeResult, sightmap, options) {
   return annotate(normalize(describeResult), sightmap, options);
+}
+
+/**
+ * Why a tree offers (next to) nothing to act on, as lines naming the likely
+ * causes, or null when it looks healthy. Shared by `snapshot` and by the
+ * not-found errors of `click`, `fill` and `scroll`.
+ */
+export function sparseTreeNote(annotated, { udid = annotated.udid, accessibilityEnabled = annotated.accessibilityEnabled } = {}) {
+  if (annotated.overlay) return null;
+  const causes = emptyTreeMessage({ udid: udid ?? '<udid>', accessibilityEnabled: accessibilityEnabled ?? null }).split('\n').slice(1);
+  const floating = floatingOnly(annotated);
+  if (floating) {
+    const desc = floating.slice(0, 3).map((n) => `${n.tag}${n.label ? ` ${quote(n.label)}` : ''}`).join(', ');
+    return [`Only a small floating element is exposed (${desc}). It is probably a separate window, such as the React Native / Expo dev-menu button, and the app's own window shows nothing to accessibility.`, ...causes];
+  }
+  if (!annotated.coverage.interactive) {
+    return ['The app exposes no interactive elements. If it is still loading, snapshot again in a moment; otherwise, likely causes:', ...causes];
+  }
+  return null;
 }
 
 function nodeLabel(node, { showIdentifiers = true } = {}) {
@@ -235,12 +277,8 @@ export function render(annotated, { includeOffscreen = false, showIdentifiers = 
       'Dismiss it with one of its buttons, e.g. `click \'button[text="Not Now"]\'`, then snapshot again.', '');
   }
 
-  const floating = floatingOnly(annotated);
-  if (floating) {
-    const desc = floating.slice(0, 3).map((n) => `${n.tag}${n.label ? ` ${quote(n.label)}` : ''}`).join(', ');
-    lines.push('[Mostly empty]', `Only a small floating element is exposed (${desc}). It is probably a separate window, such as the React Native / Expo dev-menu button, and the app's own window shows nothing to accessibility.`,
-      emptyTreeMessage({ udid: annotated.udid ?? '<udid>', accessibilityEnabled: annotated.accessibilityEnabled ?? null }).split('\n').slice(1).join('\n'), '');
-  }
+  const sparse = sparseTreeNote(annotated);
+  if (sparse) lines.push('[Mostly empty]', ...sparse, '');
 
   const logBox = logBoxToast(annotated);
   if (logBox) {
@@ -278,10 +316,14 @@ export function render(annotated, { includeOffscreen = false, showIdentifiers = 
 
   if (annotated.conflicts.length) {
     lines.push('', '[Conflicts]');
-    for (const { id, names } of annotated.conflicts) {
+    for (const { id, names, skipped = [] } of annotated.conflicts) {
       const node = annotated.byId.get(id);
       const desc = `${node.tag}${node.label ? ` ${quote(node.label)}` : ''}`;
-      lines.push(`⚠ #${id} ${desc} matched by ${names.length} components (${names.join(', ')}) — only ${names[0]} applied`);
+      const why = !skipped.length ? '' : skipped.length === names.length ? ' (ancestor skipped)' : ` (ancestor skipped for ${skipped.join(', ')})`;
+      lines.push(`⚠ #${id} ${desc} matched by ${names.length} components (${names.join(', ')}) — only ${names[0]} applied${why}`);
+    }
+    if (annotated.conflicts.some((c) => c.skipped?.length)) {
+      lines.push('  (ancestor skipped: the selector matched only because an identifier in its chain is on no element here; give the ancestor an accessible testID or make the leaf selector more specific)');
     }
   }
   if (hidden.nodes) {

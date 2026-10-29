@@ -44,30 +44,30 @@ subtext-sim stop                               # --shutdown also shuts the simul
 
 **Targets** are a snapshot id (`12`), an exact accessibility identifier (`login-submit`), or a component query: `SignInButton`, `ProductRow[title^="Product 15"]`, `LoginForm SignInButton`, or a role with attributes for unmapped apps, `button[identifier="login-submit"]`. A query matching several elements errors and lists them; add a predicate or append `#N`.
 
-**Off-screen elements:** `click` refuses targets whose center is off the screen or under the tab bar, toolbar or keyboard, and says what to do. Long SwiftUI/UIKit lists only expose the rows near the screen, so a row further down is "not found" until you scroll. `scroll down --until <target>` scrolls (slowly enough not to fling past it) until the target is tappable, then refreshes the snapshot ids.
+**Off-screen elements:** `click` refuses targets whose center is off the screen, under the tab bar, toolbar or keyboard, or within 24 pt of a floating dev-menu button (see React Native apps), and says what to do. Long SwiftUI/UIKit lists only expose the rows near the screen, so a row further down is "not found" until you scroll. `scroll down --until <target>` scrolls (slowly enough not to fling past it) until the target is tappable, then refreshes the snapshot ids.
 
-**Waiting:** actions return as soon as the tap lands; navigation animates for a moment after. If a snapshot still shows the old screen, snapshot again.
+**Waiting:** actions return as soon as the tap lands; navigation animates for a moment after. If a snapshot still shows the old screen, snapshot again. `click` and `fill` wait out short animations themselves: when the target is missing, or the screen moves between two reads ~150 ms apart (a sheet closing, a back navigation), they re-read for up to ~1.5 s before tapping or failing. `--json` reports how many re-reads it took as `retries`.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `doctor [--fix]` | Checks Xcode, simulators, Swift, Node, the sightmap CLI (the version that resolves: `SIGHTMAP_BIN`, then PATH, then the pinned npx package; warns outside the tested 0.32–0.36 range); builds the helper. |
+| `doctor [--fix]` | Checks Xcode, simulators, Swift, Node, the sightmap CLI, and builds the helper. For sightmap it says which one is used, e.g. "using PATH sightmap 0.36.0 (…; pinned fallback is 0.36.1)": `SIGHTMAP_BIN`, then PATH (so you can pin your own), then the pinned npx package. It warns only outside the tested 0.32–0.36 range (or below 0.34 for `extract` objects). |
 | `start [--device NAME\|UDID] [--app PATH] [--bundle-id ID] [--label L] [--detach]` | Boots, enables app accessibility, installs, launches, starts the daemon and a new run log. On a running session: reinstalls and relaunches the same app; errors for a different one. |
 | `status` / `stop [--shutdown]` | Session health / stop the daemon and the app (and the simulator). |
 | `launch` / `relaunch` | Foreground the app / restart it (re-enables accessibility first). |
 | `snapshot [--view V] [--include-offscreen] [--out F] [--tree-out F] [--json]` | Annotated tree. `--out` writes the text plus a `.tree.json` that `sightmap coverage` / `explain --snap` read. |
-| `click <target>` | Re-resolves, checks it's on screen, uncovered and enabled, taps its center. |
-| `fill <target> <text> [--clear]` | Taps, types (appends unless `--clear`), and errors if the field doesn't show the text. |
+| `click <target>` | Re-resolves, checks it's on screen, uncovered and enabled, taps its center. Re-reads for up to ~1.5 s while the target is missing or the screen is moving. |
+| `fill <target> <text> [--clear]` | Taps, types (appends unless `--clear`), and errors if the field doesn't show the text. `fill <target> "" --clear` empties a field; a field that then shows only its placeholder reports value `""` (and the placeholder separately). |
 | `scroll <up\|down\|left\|right> [--in <target>] [--until <target>] [--max N]` | One page, or until a target is tappable. `--in` scrolls inside that element. |
 | `swipe x1 y1 x2 y2 [--duration S]`, `tap-xy x y`, `type <text>`, `key <name>`, `button <name>`, `openurl <url>` | Raw input in screen points (not pixels; off-screen points are refused). Keys: `return delete tab escape space` and arrows. Buttons: `home lock siri side`. |
 | `screenshot --out F.png` | PNG of the screen. |
-| `console list [--limit N] [--grep S] [--level L] [--all]` / `console get <i>` | The app's own os_log/Logger output and its stdout/stderr (levels `stdout`, `stderr`). `--all` adds Apple framework errors and faults, which are hidden by default as noise. |
-| `session-url` | The Fullstory session URL from the app's console: any `https://app…fullstory.com/ui/<org>/session/…` (or `client-session`) URL in any line, source or level; the newest wins. |
+| `console list [--limit N] [--grep S] [-i] [--level L] [--all]` / `console get <i>` | The app's own os_log/Logger output and its stdout/stderr (levels `stdout`, `stderr`). `--grep` is case-insensitive (`-i` / `--ignore-case` is accepted). `--all` adds Apple framework errors and faults, which are hidden by default as noise. |
+| `session-url` | The Fullstory session URL from the app's console: any `https://app…fullstory.com/ui/<org>/session/…` (or `client-session`) URL in any line, source or level; the newest wins. Errors once the SDK has ended that session (with `--json`: `ended: true` and the `reason`, exit code 1); `relaunch` for a new one. |
 | `run new [--label L]` / `run current` | Start a new run log / print the current run's id and path. |
 | `run tail [--follow] [--since SEQ] [--run ID]` | Print `.sightmap/.sim-runs/<run>.jsonl` entries; `--follow` keeps streaming. |
 
-Every command takes `--json`. Errors are one line with a `Next:` step.
+Every command takes `--json`. Errors are one line with a `Next:` step. A flag value that starts with `-` goes after `=` or `--`: `--grep=-i`, `--grep -- -i`.
 
 ## Network, and the producer / consumer collaboration
 
@@ -84,6 +84,10 @@ Network and Fullstory-captured console data come from the app's own Fullstory SD
   - the Subtext MCP authenticated to the same org.
 - **Console:** only `FS.log` reaches Fullstory. `print` / `os_log` output is local only; read it live with `subtext-sim console list`.
 - **Session URL:** `subtext-sim session-url` returns it, and the run log records it as a `session` entry. It's found in any console line that contains one (a React Native `console.log('session', url)` works, as does a `FULLSTORY_SESSION_URL <url>` line). A relaunch can start a new session; when the run log gets a new `session` entry, follow the newest one.
+- **Session end:** the SDK can end a session for good. The daemon watches the console for the SDK's termination lines (`Received HTTP Status Code: 206, terminating FullStory session`, the 202 variant, `capture is terminated; not resuming session`), appends `{"action": "session-ended", "url", "reason"}` to the run log, and from then on `session-url` errors and `status` shows the session as ended. Nothing after that point is recorded until a `relaunch` starts a new session, which gets its own `session` entry.
+  - **206** means the server rejected a bundle and told the SDK not to retry, mostly because it was too large (e.g. a very large view tree; a preceding `Maximum number of views reached` warning is included in the reason). It's an app / SDK issue to report, not something to retry around: relaunching gets a new session, but the same screens will likely end it again.
+  - **202** means recording is blocked for the app or org.
+- **`review-open` says "invalid session_url"?** The link is usually fine: it means the session never reached Fullstory, because it ended before its first bundle arrived or never uploaded (see the build requirements above). Check `status` / the run log for `session-ended`, then `relaunch`.
 - **Recording isn't reading.** Fullstory records views from inside the app; `subtext-sim` reads the accessibility tree from outside it. A healthy replay doesn't mean `snapshot` can see the screen, and an empty snapshot doesn't mean recording broke.
 
 ### Two agents, working at the same time
@@ -98,12 +102,13 @@ Because data lags the app by up to ~30 s, one agent that taps, then waits, then 
 
 **Producer** drives the app and never waits on network data:
 - It works through flows with `snapshot` / `click` / `fill` / `scroll` / `openurl`. Every action lands in the run log `.sightmap/.sim-runs/<run>.jsonl` with its timestamp, target component and view.
+- As soon as a `session-ended` entry appears in the run log (or `session-url` errors), it runs `subtext-sim relaunch` and carries on from the app's start screen, re-doing the step that was in flight. It doesn't wait for a crash. If sessions keep ending with a 206 on the same screen, it stops relaunching there and reports the screen.
 - It owns `components:` and `views:` in `.sightmap/`: elements it can't target cleanly become new components.
 - Between flows, it reads `.sightmap/.sim-runs/<run>.consumer.md` for the consumer's requests (e.g. "re-run checkout; a POST /orders fired with no step that explains it") and works them into its next flows.
 - When finished, it reports to the orchestrator: the run id, the flows it covered, and any consumer requests it couldn't do. It leaves the app running, so the last bundle uploads and the consumer can still re-check a screen.
 
 **Consumer** reads captured data while the producer is still working:
-1. Follow the producer with `subtext-sim run tail --follow` (or poll with `--since SEQ`).
+1. Follow the producer with `subtext-sim run tail --follow` (or poll with `--since SEQ`). After a `session-ended` entry, switch to the newest `session` entry's URL for further reads, and note the gap: producer steps between `session-ended` and the next `session` were never recorded, so don't expect their requests.
 2. About every 30 s while new producer steps are appearing, read the newest data: `review-open` the session URL, then `review-zoom` with `t0_ms` set past what it has already processed, and `resolution={"network": "machine", "console": "standard"}`. Close each client with `review-close` before opening the next.
    - **Network grain:** endpoint names (method + URL) show at `machine`. `standard` collapses traffic into counts, and `detail` adds response headers only, unless the org's capture rules record more. Use `{"network": "machine"}` to name endpoints, and `detail` only on the specific requests whose headers matter.
 3. Match each request and `FS.log` message to the producer step just before it (by timestamp), then author:
@@ -150,7 +155,8 @@ Write `extract` as an object (`{ from: dom.text }`, `{ from: dom.attr, path: NAM
 
 **Reusing a web or React Native session corpus.** Two rules make selectors written against a recorded session match in the simulator:
 - `[testid="x"]` matches the element whose accessibility identifier is `x`.
-- In a descendant selector (`A B`), an ancestor step that names an exact identifier (`[testid="x"]`, `[identifier="x"]`, `#x`) is skipped when **no element in the tree** carries it, as long as the last step has an attribute of its own. A `testID` on a plain wrapper view never reaches the iOS tree, so `[testid="login-form"] [testid="login-submit"]` still matches the button. An identifier that is on screen is never skipped, `>` steps are never skipped, and `[testid="login-form"] button` doesn't match (it would match every button).
+- In a descendant selector (`A B`), an ancestor step that names an exact identifier (`[testid="x"]`, `[identifier="x"]`, `#x`) is skipped when **no element in the tree** carries it, as long as the last step matches an attribute exactly (`=`, or `#id`). A `testID` on a plain wrapper view never reaches the iOS tree, so `[testid="login-form"] [testid="login-submit"]` still matches the button. An identifier that is on screen is never skipped, `>` steps are never skipped, and neither `[testid="login-form"] button` nor a prefix/substring leaf like `[testid="menu"] [testid*="-option-"]` is reached by skipping (they would match every button or option on screen).
+- When several components match one element, one whose whole chain matched beats one that needed an ancestor skipped. Conflicts that remain between skipped matches are flagged `⚠ … (ancestor skipped)` in the snapshot: give the ancestor an accessible `testID`, or make the leaf selector exact.
 
 Prefer `[identifier=…]`; fall back to `[text=…]` only for copy that won't change or be localized. Snapshot after editing to confirm the components resolve.
 
@@ -162,17 +168,20 @@ The loop is the same; RN maps onto the iOS accessibility tree like this:
 
 - **`testID` is the identifier.** Target it directly (`click login-submit`) and select on it (`[identifier="login-submit"]` or `[testid="login-submit"]`).
 - **Put `testID`s on accessible elements.** Only accessible elements reach the tree: a `Pressable`, a `TextInput`, a `View` with `accessible`. A `testID` on a plain wrapper `View` is invisible to the simulator (selectors that use it as an ancestor still work, see above).
-- **Role-less `Pressable`s show up as `other`**, not `button`; only `accessibilityRole="button"` makes a `button`. Write role-free selectors (`'[identifier^="product-row-"]'`), not `button[identifier=…]`. Accessible elements with a `testID` count as interactive.
+- **Role-less `Pressable`s show up as `other`**, not `button`; only `accessibilityRole="button"` makes a `button`. Write role-free selectors (`'[identifier^="product-row-"]'`), not `button[identifier=…]`. Coverage counts an `other` as interactive when it has a `testID`, or when it has a label or `testID` **and** a tappable trait (`Button`, `Link`, `Adjustable`, e.g. from an `accessibilityRole`). A Pressable with neither a `testID` nor a role has nothing that says it's tappable, so it isn't counted.
+- **The system keyboard isn't part of the app:** its keys (and anything else in the keyboard) are left out of coverage and never match components.
 - **`<Text testID>` doesn't reach the tree** on the New Architecture: the text shows up, its identifier doesn't. Put the `testID` on an `accessible` `View` around the `Text`, or select on `[text=…]`.
 - **React Navigation tabs** become `tab "Products"` (the "tab, 1 of 3" suffix is stripped), so `tab` selectors and `TabBarItem[title="Network"]` work. Rows behind its JS tab bar are refused as covered, like a native one.
 - **Labels join child texts with ", "**: a row with "Product 1" and "$6.37" reads `"Product 1, $6.37"`.
 
-**Debug with Metro is fine.** A Debug build (or an Expo dev client) loading JS from Metro works for the whole loop and is cheaper than Release, since JS edits reload without a native rebuild; Release isn't required. Start Metro (`npx react-native start`, or `npx expo start --dev-client`) before `subtext-sim start`; without it the snapshot shows a red "No script URL provided" box. If edits don't show up, restart Metro with `--clear`: it can serve stale modules, especially from a git worktree. If port 8081 is taken, run Metro with `--port N` and point the app at it: `xcrun simctl spawn <udid> defaults write <bundle-id> RCT_jsLocation localhost:N`, then `relaunch`. A Release build embeds `main.jsbundle` and runs without Metro; it drops `console.log` below error unless the app calls `RCTSetLogThreshold(.info)` natively.
+**Debug with Metro is fine.** A Debug build (or an Expo dev client) loading JS from Metro works for the whole loop and is cheaper than Release, since JS edits reload without a native rebuild; Release isn't required. Start Metro (`npx react-native start`, or `npx expo start --dev-client`) before `subtext-sim start`; without it the snapshot shows a red "No script URL provided" box. If edits don't show up, restart Metro with `--clear`: it can serve stale modules. **Git worktrees:** in a worktree nested inside another checkout, Watchman roots its watch at the parent checkout, so Metro never sees edits in the worktree and `--clear` doesn't help. Stop Metro, run `watchman watch-del-all` (an existing watch on the parent checkout otherwise keeps winning), add an empty `.watchmanconfig` at the worktree root so Watchman roots there, and start Metro again from the worktree. If port 8081 is taken, run Metro with `--port N` and point the app at it: `xcrun simctl spawn <udid> defaults write <bundle-id> RCT_jsLocation localhost:N`, then `relaunch`. A Release build embeds `main.jsbundle` and runs without Metro; it drops `console.log` below error unless the app calls `RCTSetLogThreshold(.info)` natively.
 
-**Empty or nearly empty tree.** When `snapshot` says the app exposes no accessibility elements, or shows only a small floating element (e.g. the Expo dev-menu button, which lives in its own window), the likely causes in order are:
+**Empty or nearly empty tree.** When `snapshot` says the app exposes no accessibility elements, or shows only a small floating element (e.g. the Expo dev-menu button, which lives in its own window), `click`, `fill` and `scroll --until` give the same diagnosis instead of the long-list hint. The likely causes in order are:
 1. A view that stays mounted hides the rest: `accessibilityViewIsModal = YES`, or `accessibilityElementsHidden` / `importantForAccessibility="no-hide-descendants"` on a root view. In RN this is often a full-window overlay (a toast host, a modal backdrop) that is invisible but still mounted. Unmount it, or set those props only while it's shown.
 2. App accessibility is off: `subtext-sim relaunch` turns it on. The error leaves this out when it's already on.
 3. A system sheet is animating in: snapshot again in a moment.
+
+**The dev-menu floating button.** An Expo dev client (and some RN debug setups) draws a floating dev-menu button in its own small window, and it catches taps beyond its visible frame: a tap near it opens the dev menu instead. `click` refuses a target whose center is within 24 pt of it and suggests a `tap-xy` on another part of the target. Better, hide it: open the dev menu, Settings, turn off "Show floating action button"; open the menu later with Device → Shake (⌃⌘Z) in Simulator. `describe` doesn't report windows, so the button is recognized by heuristics: a dev-menu label, or a small square element without an identifier drawn last at the root of the tree.
 
 **Overlays.**
 - In Debug, a `console.error` or `console.warn` raises a LogBox toast over the bottom of the screen. The snapshot gets a `[LogBox]` section with the `tap-xy` that hits the toast's ✕ (the ✕ has no element of its own), and `click` refuses targets under it. Tapping the toast itself opens the full-screen LogBox inspector. To keep toasts away entirely, call `LogBox.ignoreAllLogs()` in the app.
@@ -195,4 +204,5 @@ The loop is the same; RN maps onto the iOS accessibility tree like this:
 - Network isn't live, and needs the Fullstory SDK in the app plus network capture enabled for the org.
 - The helper uses Apple private frameworks; a new Xcode release may need a plugin update. `doctor` says so when the helper fails to build.
 - On iOS 26 a SwiftUI tab bar shows up as one `other "Tab Bar"` element without its tabs; switch tabs with `tap-xy` from a screenshot.
+- The corpus is always the session's `.sightmap/`; there is no `--corpus DIR` to try a draft corpus against a running session yet.
 - Scrolling a long list to a far row takes about 3 s per screenful (4–5 s for a React Native `FlatList`, whose tree is larger).

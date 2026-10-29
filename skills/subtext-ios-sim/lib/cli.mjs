@@ -12,7 +12,10 @@ import { latestRunPath, readRun, RUNS_DIR } from './runlog.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/subtext-sim', import.meta.url));
 
-const BOOLEAN_FLAGS = new Set(['detach', 'json', 'include-offscreen', 'clear', 'help', 'shutdown', 'fix', 'follow', 'all']);
+const BOOLEAN_FLAGS = new Set(['detach', 'json', 'include-offscreen', 'clear', 'help', 'shutdown', 'fix', 'follow', 'all', 'ignore-case']);
+const SHORT_FLAGS = { '-h': 'help', '-i': 'ignore-case' };
+const NEGATIVE_NUMBER = /^-\d+(\.\d+)?$/;
+const looksLikeFlag = (s) => s.startsWith('-') && s.length > 1 && !NEGATIVE_NUMBER.test(s);
 const VALUE_FLAGS = new Set(['device', 'app', 'bundle-id', 'view', 'out', 'tree-out', 'in', 'until', 'max', 'limit', 'grep', 'level', 'duration', 'sightmap-dir', 'label', 'since', 'run']);
 
 export const USAGE = `subtext-sim: drive an app in the local iOS Simulator (sightmap-browser style)
@@ -29,7 +32,9 @@ Session
 Observe
   snapshot [--view V] [--include-offscreen] [--out F] [--tree-out F] [--json]
   screenshot --out F.png
-  console list [--limit N] [--grep S] [--level L[,L]] [--all]   levels: debug info default error fault stdout stderr; --all includes Apple frameworks
+  console list [--limit N] [--grep S] [-i] [--level L[,L]] [--all]
+                                                   --grep is case-insensitive (-i/--ignore-case accepted); levels: debug info
+                                                   default error fault stdout stderr; --all includes Apple frameworks
   console get <index>
   session-url                                      Fullstory session URL from the app's logs
 
@@ -49,7 +54,8 @@ Act (targets: snapshot id, accessibility identifier, or component query)
   button <name>                                    home lock siri side apple_pay volume_up volume_down
   openurl <url>
 
-Global: --json (machine-readable output), --sightmap-dir DIR (default: nearest .sightmap/)`;
+Global: --json (machine-readable output), --sightmap-dir DIR (default: nearest .sightmap/)
+A flag value that starts with "-" goes after \`--\` or \`=\`: \`--grep -- -i\`, \`--grep=-i\`.`;
 
 export function parseArgs(argv) {
   const flags = {};
@@ -68,20 +74,33 @@ export function parseArgs(argv) {
         if (eq !== -1) throw new SimError('usage', `--${name} takes no value`);
         flags[name] = true;
       } else if (VALUE_FLAGS.has(name)) {
-        const value = eq === -1 ? argv[++i] : arg.slice(eq + 1);
-        if (value === undefined) throw new SimError('usage', `--${name} needs a value`);
-        flags[name] = value;
+        flags[name] = eq === -1 ? valueAfter(argv, i, name) : arg.slice(eq + 1);
+        if (eq === -1) i += argv[i + 1] === '--' ? 2 : 1;
       } else {
         throw new SimError('usage', `unknown flag --${name}`);
       }
-    } else if (arg === '-h') {
-      flags.help = true;
+    } else if (SHORT_FLAGS[arg]) {
+      flags[SHORT_FLAGS[arg]] = true;
     } else {
       positionals.push(arg);
     }
   }
   const [command = 'help', ...rest] = positionals;
   return { command, positionals: rest, flags };
+}
+
+/** The value of a space-separated flag; one that looks like a flag must come after `--` (or use `--name=value`). */
+function valueAfter(argv, i, name) {
+  const next = argv[i + 1];
+  if (next === '--') {
+    if (argv[i + 2] === undefined) throw new SimError('usage', `--${name} needs a value`);
+    return argv[i + 2];
+  }
+  if (next === undefined) throw new SimError('usage', `--${name} needs a value`);
+  if (looksLikeFlag(next)) {
+    throw new SimError('usage', `--${name} needs a value, but got the flag ${next}`, `to use ${JSON.stringify(next)} as the value, write --${name}=${next} or --${name} -- ${next}`);
+  }
+  return next;
 }
 
 const num = (value, name) => {
@@ -139,7 +158,7 @@ export function toRequest({ command, positionals: p, flags }, cwd = process.cwd(
     case 'relaunch':
       return { cmd: 'relaunch', args: {} };
     case 'session-url':
-      return { cmd: 'sessionUrl', args: {} };
+      return { cmd: 'sessionUrl', args: { json: !!flags.json } };
     case 'console': {
       const [sub, index] = p;
       if (sub === 'list') return { cmd: 'consoleList', args: { limit: flags.limit ? num(flags.limit, '--limit') : 50, grep: flags.grep, level: flags.level, all: !!flags.all } };
@@ -168,12 +187,14 @@ const consoleLine = (e) => {
   return `#${e.index} [--] ${e.level.padEnd(7)}${where}  ${e.message.split('\n')[0]}`;
 };
 
+const waited = (r) => (r.retries ? ` after ${r.retries} re-read(s) while the screen settled` : '');
+
 /** Human output for each daemon command, in the shape of `sightmap browser`. */
 export function formatResult(cmd, r) {
   switch (cmd) {
     case 'snapshot': return r.text;
-    case 'click': return `✓ clicked ${r.target} at (${r.x}, ${r.y})`;
-    case 'fill': return `✓ filled ${r.target} → value ${JSON.stringify(r.value)}`;
+    case 'click': return `✓ clicked ${r.target} at (${r.x}, ${r.y})${waited(r)}`;
+    case 'fill': return `✓ filled ${r.target} → value ${JSON.stringify(r.value)}${r.placeholder ? ` (empty; the field shows its placeholder ${JSON.stringify(r.placeholder)})` : ''}${waited(r)}`;
     case 'scroll':
       if (r.found) return `✓ ${r.found} is on screen after ${r.scrolls} scroll(s) ${r.direction}; snapshot ids refreshed, act on it by id ${r.id} or by the same query`;
       return `✓ scrolled ${r.direction}; take a new snapshot`;
@@ -210,7 +231,9 @@ function formatStatus(s, sessionFile) {
     `  app:     ${s.bundleId}${s.appPid ? ` (pid ${s.appPid})` : ''}${s.appPath ? `  ${s.appPath}` : ''}`,
     `  helper:  ${s.helper.alive ? 'running' : 'idle'}${s.helper.restarts ? `, restarted ${s.helper.restarts}x` : ''}`,
     `  console: ${s.logs.entries} entries${s.logs.streaming ? '' : ' (log stream not running)'}`,
-    ...(s.sessionUrl ? [`  fullstory: ${s.sessionUrl}`] : []),
+    ...(s.sessionEnded
+      ? [`  fullstory: ✗ session ${s.sessionEnded.url ?? '(no URL)'} ended at ${s.sessionEnded.time}: ${s.sessionEnded.reason}. Next: \`subtext-sim relaunch\` for a new session`]
+      : s.sessionUrl ? [`  fullstory: ${s.sessionUrl}`] : []),
     `  session: ${sessionFile}`,
     ...(s.run ? [`  run:     ${s.run.run} (${s.run.seq} entries)`] : []),
   ].join('\n');
@@ -320,6 +343,7 @@ function formatStart(r, cwd) {
 
 export function formatRunEntry(e) {
   if (e.action === 'session') return `${e.seq} ${e.ts} session ${e.url}`;
+  if (e.action === 'session-ended') return `${e.seq} ${e.ts} session-ended ${e.url ?? '(no URL)'}: ${e.reason}`;
   const t = e.target;
   const target = t ? ` → ${t.id} ${t.component ? `[${t.component}]` : t.role}${t.identifier ? ` ${t.identifier}` : ''}${t.text ? ` ${JSON.stringify(t.text)}` : ''}` : '';
   const args = Object.entries(e.args ?? {}).filter(([k]) => k !== 'target').map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(' ');
@@ -443,6 +467,7 @@ export async function main(argv = process.argv.slice(2), { cwd = process.cwd() }
     const session = await requireSession(sightmapDir);
     const result = await call(session.socket, request.cmd, request.args);
     print(request.cmd, result);
+    if (request.cmd === 'sessionUrl' && result.ended) return 1;
     if (request.cmd === 'snapshot' && result.coverage?.interactive === 0) {
       console.error('error: 0 interactive elements; the app may still be loading. Next: wait a moment and snapshot again');
       return 1;
