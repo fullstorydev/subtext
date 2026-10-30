@@ -1,6 +1,6 @@
 # React Native
 
-Field-tested on iOS with Fabric (Expo, October 2026): two runs, 38 of 40 and then 74 of 75 taps resolved. Two later agent-driven simulator runs added the capture and network findings below. Android is unverified; see [Android](#android).
+Field-tested on iOS with Fabric (Expo, October 2026): two runs, 38 of 40 and then 74 of 75 taps resolved. Two later agent-driven simulator runs added the capture and network findings below. Android is partly verified; see [Android](#android).
 
 ## Detect
 
@@ -80,4 +80,4 @@ Rows marked *open* weren't confirmed fixed in the field tests.
 
 ## Android
 
-Unverified. React Native maps `testID` to `resource-id` on Android, but whether the SDK then emits `[testid]`, `#id` or `resource-id` hasn't been observed. Blur fallbacks such as `BlurView` are native views too, so expect the same `#id`-only behavior. Record what the snapshot shows under "Reference updates".
+Partly verified on an Android 15 emulator (October 2026). A `testID` shows up as `identifier` / `testid` in `sightmap device` snapshots, and an iOS-oriented `[testid="…"]` corpus matched 5 of 5 on a login screen. Emulator setup, the session URL in logcat and capture health are in [android.md](android.md). What the Fullstory session's own snapshot emits (`[testid]`, `#id` or `resource-id`) hasn't been observed. Blur fallbacks such as `BlurView` are native views too, so expect the same `#id`-only behavior. Record what the snapshot shows under "Reference updates".
