@@ -9,3 +9,5 @@ Fullstory SDK's data reaches agents (batched uploads, point-in-time
 session URL in the app's console and notice when the SDK ends a session, and
 how to run a producer that drives the app alongside a consumer that reads the
 session and authors `.sightmap/` requests and messages from it.
+Field-validated on a React Native app in the iOS Simulator: re-sign forms,
+stalled sessions, first-open retries and `get-task-allow` checks are covered.

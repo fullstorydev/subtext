@@ -16,7 +16,7 @@ Paths below use `<run>`, the run id from `sightmap device run current`. The run 
 Drives the app and never waits on network data.
 
 - Works through flows with `snapshot` / `click` / `fill` / `scroll` / `openurl`. Each action lands in the run log with its timestamp, target component and view; a secure field's text is redacted.
-- Between flows, checks the console for the SDK's termination lines (`console list --grep terminat --limit 0`). As soon as a new one appears it runs `sightmap device relaunch` and carries on from the app's start screen, re-doing the step that was in flight. It doesn't wait for a crash. If sessions keep ending with a 206 on the same screen, it stops relaunching there and reports the screen.
+- Between flows, checks the console for the SDK's termination lines (`console list --grep terminat --since <last index> --limit 0`; without `--since` it keeps returning old lines). The list view shows no time on the 206 line; `console get N` does. As soon as a new one appears it runs `sightmap device relaunch` and carries on from the app's start screen, re-doing the step that was in flight. It doesn't wait for a crash. If sessions keep ending with a 206 on the same screen, it stops relaunching there and reports the screen.
 - Owns `components:` and `views:` in `.sightmap/`: elements it can't target cleanly become new components.
 - Between flows, reads `<run>.consumer.md` for the consumer's requests (e.g. "re-run checkout; a POST /orders fired with no step that explains it") and works them into its next flows.
 - When finished, reports to the orchestrator: the run id, the flows it covered, the sessions it saw end, and any consumer requests it couldn't do. It leaves the app running, so the last bundle uploads and the consumer can still re-check a screen.
@@ -33,6 +33,8 @@ Reads captured data while the producer is still working, from two sources: `sigh
    - `properties:` for outcomes hidden in bodies, using field paths only, never captured values;
    - `messages:` for meaningful logs and errors.
 
+   To add `properties:` to a route that already has a name, edit the original entry: repeating the route in a new file validates, but `network list` then shows the name twice (`[X, X]`).
+
    It owns those sections of `.sightmap/`. Component and view problems it notices go to the producer, not into the YAML.
 5. When it needs more coverage (an endpoint it can't place, a flow that never fired a request, an error worth reproducing), it appends a short line to `<run>.consumer.md`.
 6. When the producer is done, wait ~30 s for the last bundle, do one final read to cover the tail of the session, then report what it authored and what remains unmapped.
@@ -43,5 +45,6 @@ Local capture costs nothing, so lean on it for routes and bodies and spend `revi
 
 ## Known data quirks
 
-- A network request can appear twice at the same millisecond in the Fullstory session; count unique requests. Local capture lists each request once.
+- A network request can appear twice at the same millisecond, with different task IDs, in both the Fullstory session and local capture; count unique requests in both.
+- React Native sessions can have 0 navigation events, and early clicks can come through as `missingview#…`. That's expected: take the screen from the component names on clicks plus the run log.
 - Network data has lagged the app by 35 s to 2 min in field runs, longer than the upload interval.
