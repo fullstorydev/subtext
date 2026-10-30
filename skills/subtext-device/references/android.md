@@ -51,24 +51,24 @@ Notes:
 - Frames and coordinates are dp, not pixels: divide screenshot pixels by dpi/160 (2.625 on the 420 dpi Pixel 8 AVD).
 - If a snapshot fails with "could not get idle state", turn animations off: `adb shell settings put global animator_duration_scale 0` (also `transition_animation_scale` and `window_animation_scale`).
 - **Known issue (fixed in sightmap#526):** on Android 15 the IME window's frame spans the screen, so `sightmap device` builds before #526 report a full-screen `keyboard` node and refuse clicks as "covered by the keyboard". Run `sightmap device button back` to hide the keyboard before clicking.
-- Names drop icon-font glyphs (Unicode private-use characters), so a React Native tab reads `Rank`, not `\U000f0538, Rank` (#526).
+- Names drop icon-font glyphs (Unicode private-use characters), so a React Native tab reads `Home`, not `\U000f02dc, Home` (#526).
 - When the launcher is showing, a snapshot reports `[Not in front]` and actions fail with `not_in_front`, not a system sheet. Run `sightmap device launch` to bring the app back. `button back` on the app's first screen closes the app.
 - `sightmap device start` creates `.sightmap/.device-session` and `.sightmap/.device-runs/` in the repo root. Add both to `.gitignore`.
 - For an agent loop, keep a project script that builds a standalone release APK with a staging environment. A release APK bakes JS environment at bundle time, and Gradle doesn't rerun the bundle when only the environment changes: `./gradlew app:createBundleReleaseJsAndAssets --rerun`.
 
 ### Worked example
 
-On a React Native app (Pick'em Club), an iOS-oriented `.sightmap/mobile` corpus matched 100% T1 on most Android screens unchanged. The orphans were Pressables with no `testID`, such as a linked avatar and a pick row toggle. Adding `testID`s and corpus components took the tournament screen from 24/36 to 36/36 T1, and Stats from 10/16 to 13/16. The rest is a react-native-paper `Tooltip`: it forwards props to its child, not to its own Pressable, so that press target can't take a `testID` and stays a scoped (T2) element.
+On a React Native app an iOS-oriented `.sightmap/mobile` corpus matched 100% T1 on most Android screens unchanged. The orphans were Pressables with no `testID`, such as a linked avatar and a row toggle. Adding `testID`s and corpus components took a detail screen from 24/36 to 36/36 T1, and a stats screen from 10/16 to 13/16. The rest is a react-native-paper `Tooltip`: it forwards props to its child, not to its own Pressable, so that press target can't take a `testID` and stays a scoped (T2) element.
 
 ### Crawl an app
 
-- **Plan from routes, not memory.** List the routes (`app/**` for expo-router) and the corpus components or views that never matched in any snapshot, then group what's left: not visited, needs a write action, needs another club, season or role, and states (empty, error, in-season). On Pick'em Club the leftovers were 8 / 9 / 3 / 5 lines. The biggest gaps (admin routes, a second sport) needed account setup, not more crawling.
-- **Reach sheets with deep links**, not flows that change data: `sightmap device openurl 'pickem://submit/<id>'` opened the locked pick sheet read-only.
+- **Plan from routes, not memory.** List the routes (`app/**` for expo-router) and the corpus components or views that never matched in any snapshot, then group what's left: not visited, needs a write action, needs another account, season or role, and states (empty, error, in-season). In one crawl the leftovers were 8 / 9 / 3 / 5 lines. The biggest gaps (admin routes, a second product area) needed account setup, not more crawling.
+- **Reach sheets with deep links**, not flows that change data: `sightmap device openurl 'myapp://<path>'` opened a read-only sheet.
 - **Never write app data while crawling:** no submitting, sending, reacting, joining, editing, blocking, settings or sign-out. Open and close only.
-- **Absolute wrappers hide controls.** An absolutely positioned wrapper with zero height hides its children from Android accessibility: taps work, but `uiautomator` drops the controls, so nothing gets named. Symptom: controls in the screenshot but missing from `snapshot`. A full-screen wrapper with `pointerEvents="box-none"` fixed Chat's top bar (33/34 to 39/40, thread 13/13 to 18/18).
+- **Absolute wrappers hide controls.** An absolutely positioned wrapper with zero height hides its children from Android accessibility: taps work, but `uiautomator` drops the controls, so nothing gets named. Symptom: controls in the screenshot but missing from `snapshot`. A full-screen wrapper with `pointerEvents="box-none"` fixed a screen's top bar (33/34 to 39/40, thread 13/13 to 18/18).
 - **react-native-paper:** a Tooltip's Pressable can't take a `testID` (it stays T2). A Menu's dismiss layer has only a label, so key it on `[text="Close menu"]`. Menu.Item and SegmentedControl give child testIDs ending `-title` / `-option-N`, which a `^=` selector can catch by accident; add `:not(...)`.
-- **Disabled non-controls** (DataTable cells, glyph-only IconButtons with no `onPress`) are left out of coverage as of sightmap#526 (a7406c4): Payouts went from 17/33 to 10/10 with no app change. Don't add `testID`s for them.
-- **Season and staging data limit which states you can see.** In-season states need seeded data or a test club.
+- **Disabled non-controls** (DataTable cells, glyph-only IconButtons with no `onPress`) are left out of coverage as of sightmap#526 (a7406c4): a table screen went from 17/33 to 10/10 with no app change. Don't add `testID`s for them.
+- **Season and staging data limit which states you can see.** In-season states need seeded data or a test account.
 
 ## Producer and consumer
 
