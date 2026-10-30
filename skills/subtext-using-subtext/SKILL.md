@@ -18,6 +18,7 @@ This plugin gives you read-only access to Fullstory session recordings, plus pri
 | Log workflow milestones (e.g. onboarding progress) for analytics | `subtext-telemetry` |
 | The project has a `.sightmap/` corpus, or you want annotated component snapshots | `subtext-sightmap` |
 | Author/maintain a `.sightmap/` corpus, or drive a live browser against it | `sightmap-authoring`, `sightmap-browser` |
+| Drive an iOS app in the local Simulator and read the network and `FS.log` data its Fullstory SDK captured | `subtext-device`, with `sightmap-device` |
 
 ## Sightmap
 

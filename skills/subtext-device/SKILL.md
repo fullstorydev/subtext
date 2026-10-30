@@ -1,0 +1,122 @@
+---
+name: subtext-device
+description: Read Fullstory data from a native iOS or React Native app while driving it in the local iOS Simulator with `sightmap device`. Asks before recording anything to Fullstory (default: local only). When the user opts in, combine the app's Fullstory session (which tap and screen caused each request) with `sightmap device network` (exact routes, headers and bodies, live), find the session URL, notice when the SDK ends a session, and split the work into a producer that drives and a consumer that reads, running at the same time. Use when an agent drives an iOS app on the Simulator and needs its captured network or console data, or authors `.sightmap/` requests and messages from it.
+---
+
+# Subtext × sightmap device
+
+> **PREREQUISITE:** Read `sightmap-device` for driving the Simulator, `subtext-session` for the `review-*` tools, and `subtext-sightmap` for corpus upload. Needs a `sightmap` CLI that has `device` and `device network` (`sightmap device network list --help` answers).
+
+**Type:** Workflow — drive the app locally, read what its Fullstory SDK captured.
+
+`sightmap device` drives the app, reads its accessibility tree and console, and captures its network traffic locally with no vendor SDK (`sightmap device network`). The app's Fullstory SDK session adds what local capture can't: which tap and screen caused each request, in the same timeline as navigation and `FS.log`. This skill combines the two, and covers getting from a simulator run to its session and reading it while the run is still going.
+
+## First: ask whether to record to Fullstory
+
+**Before installing the app, ask the user:** "Should this simulator run record a session to Fullstory? (default: no)". Only an explicit yes counts. Unless they say yes, the run stays on this Mac: the app's Fullstory SDK must not record or upload anything.
+
+**No (the default): install a local-only copy of the app.** Don't edit the user's project; change a copy of the built `.app`:
+
+```bash
+cp -R path/to/MyApp.app /tmp/local-only/ && app=/tmp/local-only/MyApp.app
+key=$(/usr/libexec/PlistBuddy -c "Print :Fullstory" "$app/Info.plist" >/dev/null 2>&1 && echo Fullstory || echo FullStory)
+for k in RecordOnStart ServerUrl; do /usr/libexec/PlistBuddy -c "Delete :$key:$k" "$app/Info.plist" 2>/dev/null; done
+/usr/libexec/PlistBuddy -c "Add :$key:RecordOnStart bool false" -c "Add :$key:ServerUrl string https://127.0.0.1:9" "$app/Info.plist"
+codesign --force --sign - --preserve-metadata=entitlements "$app"
+sightmap device start --app "$app" --detach
+```
+
+- `RecordOnStart = false` keeps the SDK from starting a session at launch. Pointing `ServerUrl` at an unreachable local address is the backstop for apps that start recording themselves (e.g. after a consent check): even then, nothing can leave the Mac.
+- Re-signing with `--preserve-metadata=entitlements` keeps the simulated entitlements and `get-task-allow`, so local network capture still works.
+- If the `.app` has neither a `Fullstory` nor a `FullStory` dictionary (the `Add` lines fail), it has no SDK; install the original as is.
+- **Check it held:** about 30 s after launch, `sightmap device console list --grep fullstory.com/ui/ --limit 0` must show no session URL. If one appears, stop the run and tell the user.
+- Work from `sightmap device network` alone (degrade level 3 below): no session URL, no `review-*` calls, no credits.
+
+**Yes:** install the app as built, and record to a **dev org** if the app has one (see Requirements). Say which org the session will land in before starting.
+
+Ask again for every run; a yes doesn't carry over.
+
+## How the SDK delivers data
+
+- **Capture is in the app.** The SDK records interactions, navigation, network requests (method, URL, status, timing) and `FS.log` messages as they happen. Headers and bodies are captured only when the org's network header allowlists and body rules ask for them.
+- **Upload is batched.** The SDK uploads a bundle about every **20 s**, and also when the app goes to the background or relaunches. A bundle is readable within seconds of arriving, so a request is visible roughly 5–30 s after it happens (field runs saw up to 2 min).
+- **Reads are point-in-time.** Each `review-open` returns the session as uploaded so far and costs **10 credits**. `review-zoom` on that client is free but never shows newer data; open the session again for that.
+- **Grains.** Endpoint names (method + URL) show at `machine`; `standard` collapses traffic into counts. `detail` adds response headers only, unless the org's capture rules record more. Use `resolution={"network": "machine", "console": "standard"}`, and `detail` only on the requests whose headers matter.
+- **Console:** only `FS.log` reaches Fullstory. `print` / `os_log` / `console.log` output is local only; read it live with `sightmap device console list`.
+- **Recording isn't reading.** Fullstory records views from inside the app; `sightmap device` reads the accessibility tree from outside. A healthy replay doesn't mean `snapshot` can see the screen, and an empty snapshot doesn't mean recording broke.
+- **Wrapper `testID`s don't reach the simulator.** Fullstory captures a `testID` on a plain wrapper view, so a corpus built from sessions often nests components under those wrappers. iOS accessibility exposes only the leaf elements, so nested selectors match little in `sightmap device`. Write the device corpus with leaf selectors (the control's own `testID`); in a field test, that took every screen from 14–83% to 100% coverage.
+- **Select by id, not `[identifier=…]`, when the corpus also serves review.** Fullstory records an `accessibilityIdentifier` as the view's id, so review matches `#add-to-cart` and `[id^="product-row-"]` but not `[identifier="add-to-cart"]` or `[testid=…]`. `sightmap device` matches both forms. Write `#id` and `[id^="…"]`, and the same corpus names elements both in the simulator and in `review-snapshot`. A corpus written in the `[identifier=…]` form reaches 100% coverage in `snapshot` but names nothing in review.
+- **SwiftUI content isn't selectable in review.** The SDK records a SwiftUI view's content as anonymous `swiftui` layers with no id or text, so identifiers set in SwiftUI reach `sightmap device` but not the session. Only UIKit views carry their ids into review, including the UIKit chrome around SwiftUI such as navigation bar buttons.
+- **View-scoped components don't apply in review for mobile sessions (today).** Review picks a corpus view by matching `route:` against the page URL, and a mobile page's "URL" is the bare view-controller name (e.g. `MyApp.ProductViewController`), so no route matches and only global components get named. For a corpus that has to serve review now, make every component global and put per-screen notes in each component's `memory`. `sightmap validate` then warns that there are no views, which is expected. This goes away once review chooses the view without a URL, the way `sightmap device` does.
+- **A UIKit bar button's id repeats on its wrapper views.** A `UIBarButtonItem`'s `accessibilityIdentifier` is recorded on each of the UIKit views that wrap it, so one component can show up nested several levels deep in `review-snapshot` (five in a field run). Count it once.
+- **Let the last actions upload before you background or stop.** Wait about 3 s after the final tap before `button home`, `relaunch` or `stop`: a tap made 0.1 s before backgrounding was missing from the session.
+
+## Two network sources, used together
+
+| | Fullstory session (`review-*`) | `sightmap device network` |
+|---|---|---|
+| Best for | **Attribution:** the tap and screen behind each request, navigation, `FS.log` | **Detail:** full URL and query, headers, request and response bodies |
+| Timing | ~20 s upload lag; each `review-open` costs 10 credits | Live, within milliseconds; free |
+| Coverage | All of the app's networking; matches production review | URLSession traffic (React Native `fetch` included). Some React Native requests reach local capture only as host-less `summary` entries, though Fullstory has them |
+| Needs | The SDK, network capture on, the MCP on the same org | A build signed with `get-task-allow` for full detail (see Requirements to check) |
+
+Use both on every run: start with `sightmap device start … --network auto` (the default), and check `sightmap device status --json` → `network.sources` to see which local source is active. Author `requests:` routes, methods and `properties:` field paths from `network list` / `network get`; decide each request's name and the view it belongs to from the Fullstory session. Join the two by **time, method and URL**: both use the Mac's clock, typically within a second.
+
+**When a source is missing, degrade in this order:**
+1. **Fullstory session + local `har` capture:** the full picture.
+2. **Fullstory session only** (`network` reports only `summary`, e.g. a Release build without `get-task-allow`): names and attribution, with bodies only where the org's rules capture them.
+3. **Local capture only** (no SDK, a session that ended with a 206, or the consumer is out of credits): `network list` for routes and bodies; attribute each request to the producer's run-log step just before it.
+4. **`summary` source only:** hosts, status and timing; no routes. Note in the report that `requests:` couldn't be authored.
+
+**Privacy:** local capture sees unmasked traffic. Output is redacted by default (auth headers, cookies, and any key matching token, password, secret or key); leave `--unredacted` off. Use bodies only to find **field paths** for `properties:`, and never copy captured values into `.sightmap/`, the run log or a report.
+
+## Requirements
+
+- For full local capture, a build signed with `get-task-allow`. A Release build falls back to the `summary` source. A signed `xcodebuild` Debug build doesn't always have it: check with `codesign -d --entitlements :- <App.app>`, or look for the `__TEXT,__entitlements` section. If it's missing, `har` is unavailable; add `<key>get-task-allow</key><true/>` to the app's entitlements file (Xcode then embeds it) and rebuild.
+- The Fullstory SDK in the app, and an app **built by Xcode with signing allowed** (`xcodebuild` or the Xcode app, never `CODE_SIGNING_ALLOWED=NO`). Without signing, the executable lacks the simulated entitlements Xcode links in as `__TEXT,__entitlements`, and every SDK upload fails inside the simulator with `NSURLErrorDomain -1`. Check with `otool -s __TEXT __entitlements <App>.app/<App>` (it must print a section; `codesign -d --entitlements -` can't tell). Fix by rebuilding without the flag, which needs no team, certificate or Apple ID; re-signing a built app with `codesign … --entitlements <plist>` makes it fail to launch (POSIX 163). The local-only recipe's `--preserve-metadata=entitlements` form doesn't: it keeps `__TEXT,__entitlements` and `get-task-allow` and launches.
+- **Mobile network capture turned on** for the org (Settings → Data Capture → Mobile). It's off by default, and nothing but the settings page can turn it on.
+- The Subtext MCP authenticated to the **same org** the app records to.
+- Some apps send Debug builds to a separate dev org, so simulator runs stay out of production data; others record Debug builds to their production org. Check which org the build's SDK config points at before a recording run, say it, and authenticate the MCP to that org.
+
+If sessions never arrive, are implausibly short, or lose their interactions, run `subtext-doctor` before reading anything into the data.
+
+## Finding the session URL
+
+The SDK logs its session URL to the app's console; native apps can also log `FS.currentSessionURL` themselves, and a React Native `console.log('session', url)` works. Search the console for it:
+
+```bash
+sightmap device console list --grep fullstory.com/ui/ --limit 0
+```
+
+Any `https://app.fullstory.com/ui/<org>/session/…` or `…/client-session/…` URL in any line, source or level counts, and the **newest wins**: a relaunch can start a new session. The list is oldest first, so that's the last match. The console keeps the most recent 5,000 entries, so write the URL down once you have it. `review-open` takes it as is.
+
+## When the SDK ends a session
+
+The SDK can end a session for good. Watch the console for its termination lines:
+
+```bash
+sightmap device console list --grep terminat --limit 0
+```
+
+- `Received HTTP Status Code: 206, terminating FullStory session`: the server rejected a bundle and told the SDK not to retry, mostly because it was too large (a very large view tree). A preceding `Maximum number of views reached` warning usually says why. It's an app / SDK issue to report: relaunching gets a new session, but the same screens will likely end it again.
+- The `202` variant: recording is blocked for the app or org.
+- `capture is terminated; not resuming session`.
+
+A session can also stall with no termination line (one stopped sending data 35 s after a relaunch). If 2 consecutive reads, about 30 s apart, show no new data while the producer is still acting, treat the session as dead: fall back to local-only capture and note it.
+
+Nothing after a termination line is recorded. `sightmap device relaunch` starts a new session with a new URL; find it as above.
+
+**`review-open` says "invalid session_url"?** The first opens can fail before any bundle has arrived: wait for the first `rec/bundle` (about 30 s after the session URL appears) before opening. Failed opens don't count against the open budget; cap retries at about 3. The link is usually fine: the session never reached Fullstory, because it ended before its first bundle arrived or never uploaded (see Requirements). Check the console for the lines above, then relaunch.
+
+## Producer and consumer
+
+Because data lags the app by up to ~30 s, one agent that taps, waits and reads spends most of its time waiting. Split the work into two subagents that **run concurrently** for the whole run: a producer that drives with `sightmap device`, and a consumer that follows local network capture live, reads the session for attribution, and lines both up against the producer's run log. See [references/producer-consumer.md](references/producer-consumer.md) for the roles, the ownership split in `.sightmap/`, the feedback file and the credit budget.
+
+Run the producer alone when only UI or component work is needed. For quick local signals that need no SDK and no credits, use `network list`, `console list` and `snapshot`.
+
+## See also
+
+- `sightmap-device` — the Simulator commands, iOS selectors and React Native notes (bundled).
+- `subtext-doctor` — check that capture is healthy before trusting the data.
+- `subtext-sightmap` — upload the `.sightmap/` corpus into a review.
+- `subtext-session` — the `review-*` tool catalog.
