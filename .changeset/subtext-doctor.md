@@ -11,4 +11,5 @@ Native (iOS) and web (Next.js + MUI) are field-tested: the web reference covers
 development-only selector attributes, Subtext Verify clicks not being recorded,
 localhost tunnel limits, and the web last-bracket exceptions. Native iOS and
 Android are partly verified: Android covers emulator setup from scratch, finding
-the session URL in logcat, and the selector attribute.
+the session URL in logcat, the selector attribute, reusing an iOS corpus,
+and rebuilding release APKs after an environment change.
