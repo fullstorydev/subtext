@@ -12,4 +12,4 @@ session and authors `.sightmap/` requests and messages from it.
 An Android reference covers the emulator: the Fullstory session as the network
 source, finding the session URL in logcat, and a snapshot loop for improving an
 app's sightmap, with a worked example, the not-in-front state, and
-what to gitignore.
+what to gitignore, plus crawl guidance (plan from routes, deep links, no writes).

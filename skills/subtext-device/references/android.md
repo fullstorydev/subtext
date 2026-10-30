@@ -60,6 +60,16 @@ Notes:
 
 On a React Native app (Pick'em Club), an iOS-oriented `.sightmap/mobile` corpus matched 100% T1 on most Android screens unchanged. The orphans were Pressables with no `testID`, such as a linked avatar and a pick row toggle. Adding `testID`s and corpus components took the tournament screen from 24/36 to 36/36 T1, and Stats from 10/16 to 13/16. The rest is a react-native-paper `Tooltip`: it forwards props to its child, not to its own Pressable, so that press target can't take a `testID` and stays a scoped (T2) element.
 
+### Crawl an app
+
+- **Plan from routes, not memory.** List the routes (`app/**` for expo-router) and the corpus components or views that never matched in any snapshot, then group what's left: not visited, needs a write action, needs another club, season or role, and states (empty, error, in-season). On Pick'em Club the leftovers were 8 / 9 / 3 / 5 lines. The biggest gaps (admin routes, a second sport) needed account setup, not more crawling.
+- **Reach sheets with deep links**, not flows that change data: `sightmap device openurl 'pickem://submit/<id>'` opened the locked pick sheet read-only.
+- **Never write app data while crawling:** no submitting, sending, reacting, joining, editing, blocking, settings or sign-out. Open and close only.
+- **Absolute wrappers hide controls.** An absolutely positioned wrapper with zero height hides its children from Android accessibility: taps work, but `uiautomator` drops the controls, so nothing gets named. Symptom: controls in the screenshot but missing from `snapshot`. A full-screen wrapper with `pointerEvents="box-none"` fixed Chat's top bar (33/34 to 39/40, thread 13/13 to 18/18).
+- **react-native-paper:** a Tooltip's Pressable can't take a `testID` (it stays T2). A Menu's dismiss layer has only a label, so key it on `[text="Close menu"]`. Menu.Item and SegmentedControl give child testIDs ending `-title` / `-option-N`, which a `^=` selector can catch by accident; add `:not(...)`.
+- **Disabled non-controls** (DataTable cells, glyph-only IconButtons with no `onPress`) are left out of coverage as of sightmap#526 (a7406c4): Payouts went from 17/33 to 10/10 with no app change. Don't add `testID`s for them.
+- **Season and staging data limit which states you can see.** In-season states need seeded data or a test club.
+
 ## Producer and consumer
 
 The split in [producer-consumer.md](producer-consumer.md) still applies, with the consumer reading only the Fullstory session (no local capture to follow). Wherever it says `network list` / `network get`, read `review-zoom` instead.
