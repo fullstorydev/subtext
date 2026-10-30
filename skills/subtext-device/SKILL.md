@@ -11,6 +11,8 @@ description: Read Fullstory data from a native iOS or React Native app while dri
 
 `sightmap device` drives the app, reads its accessibility tree and console, and captures its network traffic locally with no vendor SDK (`sightmap device network`). The app's Fullstory SDK session adds what local capture can't: which tap and screen caused each request, in the same timeline as navigation and `FS.log`. This skill combines the two, and covers getting from a simulator run to its session and reading it while the run is still going.
 
+> **Android:** this file is written for the iOS Simulator. On an Android emulator `sightmap device network` doesn't exist and the Fullstory session is the network source; read [references/android.md](references/android.md) first for what changes, the session URL, and the loop for improving a sightmap on the emulator.
+
 ## First: ask whether to record to Fullstory
 
 **Before installing the app, ask the user:** "Should this simulator run record a session to Fullstory? (default: no)". Only an explicit yes counts. Unless they say yes, the run stays on this Mac: the app's Fullstory SDK must not record or upload anything.
@@ -53,6 +55,8 @@ Ask again for every run; a yes doesn't carry over.
 
 ## Two network sources, used together
 
+(iOS only. On Android the Fullstory session is the only source; see [references/android.md](references/android.md).)
+
 | | Fullstory session (`review-*`) | `sightmap device network` |
 |---|---|---|
 | Best for | **Attribution:** the tap and screen behind each request, navigation, `FS.log` | **Detail:** full URL and query, headers, request and response bodies |
@@ -81,6 +85,8 @@ Use both on every run: start with `sightmap device start … --network auto` (th
 If sessions never arrive, are implausibly short, or lose their interactions, run `subtext-doctor` before reading anything into the data.
 
 ## Finding the session URL
+
+The command below works on Android too; [references/android.md](references/android.md) lists where the URL appears there.
 
 The SDK logs its session URL to the app's console; native apps can also log `FS.currentSessionURL` themselves, and a React Native `console.log('session', url)` works. Search the console for it:
 

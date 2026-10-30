@@ -11,3 +11,7 @@ how to run a producer that drives the app alongside a consumer that reads the
 session and authors `.sightmap/` requests and messages from it.
 Field-validated on a React Native app in the iOS Simulator: re-sign forms,
 stalled sessions, first-open retries and `get-task-allow` checks are covered.
+An Android reference covers the emulator: the Fullstory session as the network
+source, finding the session URL in logcat, and a snapshot loop for improving an
+app's sightmap, with a worked example, the not-in-front state, what to
+gitignore, plus crawl guidance (plan from routes, deep links, no writes).
