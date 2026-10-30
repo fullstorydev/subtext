@@ -23,7 +23,7 @@ Most of this loop is the same everywhere. What changes per platform — how to d
 |---|---|---|
 | React Native (iOS; Android partly) | [references/react-native.md](references/react-native.md) | Field-tested on iOS with Fabric, October 2026 |
 | Native iOS (Swift / UIKit / SwiftUI) | [references/ios.md](references/ios.md) | Partly verified: simulator run on a SwiftUI sample, October 2026 |
-| Native Android (Kotlin / Java / Compose) | [references/android.md](references/android.md) | Unverified |
+| Native Android (Kotlin / Java / Compose) | [references/android.md](references/android.md) | Partly verified: local Android 15 emulator, mostly through React Native, October 2026 |
 | Web | [references/web.md](references/web.md) | Field-tested on Next.js + MUI, October 2026 |
 
 For an unverified platform, follow the loop as written, treat the reference as a starting point, and record in the report everything you observe that the reference doesn't say. That's how the reference grows.
