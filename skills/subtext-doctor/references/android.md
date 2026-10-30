@@ -79,7 +79,7 @@ On top of Step 2's checks in `SKILL.md`:
 `sightmap device` on the emulator is a fast way to repeat Steps 3–5 after a fix. Notes from the run:
 
 - A click took about 2 s. `fill` types through `adb input`, so the soft keyboard isn't needed.
-- **Known issue:** with a hardware keyboard present, Gboard shows a small floating toolbar, but the IME window's frame is full-screen. `sightmap device` then reports a full-screen `keyboard` node and refuses clicks as "covered by the keyboard". A fix is in progress; until then run `sightmap device key back` (or dismiss the keyboard) before clicking.
+- **Known issue (fixed in sightmap#526):** on Android 15 the IME window's frame spans the screen, so `sightmap device` builds before #526 report a full-screen `keyboard` node and refuse clicks as "covered by the keyboard". Run `sightmap device button back` to hide the keyboard before clicking.
 - Run it from the project root so `.sightmap/` loads. The subtext-device skill has the full workflow.
 
 ## Carried over from React Native
