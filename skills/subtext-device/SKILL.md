@@ -56,8 +56,8 @@ Ask again for every run; a yes doesn't carry over.
 |---|---|---|
 | Best for | **Attribution:** the tap and screen behind each request, navigation, `FS.log` | **Detail:** full URL and query, headers, request and response bodies |
 | Timing | ~20 s upload lag; each `review-open` costs 10 credits | Live, within milliseconds; free |
-| Coverage | All of the app's networking; matches production review | URLSession traffic (React Native `fetch` included) |
-| Needs | The SDK, network capture on, the MCP on the same org | A Debug build signed with `get-task-allow` (normal Xcode Debug builds) for full detail |
+| Coverage | All of the app's networking; matches production review | URLSession traffic (React Native `fetch` included). Some React Native requests reach local capture only as host-less `summary` entries, though Fullstory has them |
+| Needs | The SDK, network capture on, the MCP on the same org | A build signed with `get-task-allow` for full detail (see Requirements to check) |
 
 Use both on every run: start with `sightmap device start … --network auto` (the default), and check `sightmap device status --json` → `network.sources` to see which local source is active. Author `requests:` routes, methods and `properties:` field paths from `network list` / `network get`; decide each request's name and the view it belongs to from the Fullstory session. Join the two by **time, method and URL**: both use the Mac's clock, typically within a second.
 
@@ -71,11 +71,11 @@ Use both on every run: start with `sightmap device start … --network auto` (th
 
 ## Requirements
 
-- For full local capture, a **Debug** build (signed with `get-task-allow`, as Xcode Debug builds are). A Release build falls back to the `summary` source.
-- The Fullstory SDK in the app, and an app **built by Xcode with signing allowed** (`xcodebuild` or the Xcode app, never `CODE_SIGNING_ALLOWED=NO`). Without signing, the executable lacks the simulated entitlements Xcode links in as `__TEXT,__entitlements`, and every SDK upload fails inside the simulator with `NSURLErrorDomain -1`. Check with `otool -s __TEXT __entitlements <App>.app/<App>` (it must print a section; `codesign -d --entitlements -` can't tell). Fix by rebuilding without the flag, which needs no team, certificate or Apple ID; re-signing a built app with entitlements makes it fail to launch.
+- For full local capture, a build signed with `get-task-allow`. A Release build falls back to the `summary` source. A signed `xcodebuild` Debug build doesn't always have it: check with `codesign -d --entitlements :- <App.app>`, or look for the `__TEXT,__entitlements` section. If it's missing, `har` is unavailable; add `<key>get-task-allow</key><true/>` to the app's entitlements file (Xcode then embeds it) and rebuild.
+- The Fullstory SDK in the app, and an app **built by Xcode with signing allowed** (`xcodebuild` or the Xcode app, never `CODE_SIGNING_ALLOWED=NO`). Without signing, the executable lacks the simulated entitlements Xcode links in as `__TEXT,__entitlements`, and every SDK upload fails inside the simulator with `NSURLErrorDomain -1`. Check with `otool -s __TEXT __entitlements <App>.app/<App>` (it must print a section; `codesign -d --entitlements -` can't tell). Fix by rebuilding without the flag, which needs no team, certificate or Apple ID; re-signing a built app with `codesign … --entitlements <plist>` makes it fail to launch (POSIX 163). The local-only recipe's `--preserve-metadata=entitlements` form doesn't: it keeps `__TEXT,__entitlements` and `get-task-allow` and launches.
 - **Mobile network capture turned on** for the org (Settings → Data Capture → Mobile). It's off by default, and nothing but the settings page can turn it on.
 - The Subtext MCP authenticated to the **same org** the app records to.
-- Debug builds record to a **separate dev org**, so simulator runs stay out of production data. Authenticate the MCP to that org for the run.
+- Some apps send Debug builds to a separate dev org, so simulator runs stay out of production data; others record Debug builds to their production org. Check which org the build's SDK config points at before a recording run, say it, and authenticate the MCP to that org.
 
 If sessions never arrive, are implausibly short, or lose their interactions, run `subtext-doctor` before reading anything into the data.
 
@@ -103,9 +103,11 @@ sightmap device console list --grep terminat --limit 0
 - The `202` variant: recording is blocked for the app or org.
 - `capture is terminated; not resuming session`.
 
-Nothing after that point is recorded. `sightmap device relaunch` starts a new session with a new URL; find it as above.
+A session can also stall with no termination line (one stopped sending data 35 s after a relaunch). If 2 consecutive reads, about 30 s apart, show no new data while the producer is still acting, treat the session as dead: fall back to local-only capture and note it.
 
-**`review-open` says "invalid session_url"?** The link is usually fine: the session never reached Fullstory, because it ended before its first bundle arrived or never uploaded (see Requirements). Check the console for the lines above, then relaunch.
+Nothing after a termination line is recorded. `sightmap device relaunch` starts a new session with a new URL; find it as above.
+
+**`review-open` says "invalid session_url"?** The first opens can fail before any bundle has arrived: wait for the first `rec/bundle` (about 30 s after the session URL appears) before opening. Failed opens don't count against the open budget; cap retries at about 3. The link is usually fine: the session never reached Fullstory, because it ended before its first bundle arrived or never uploaded (see Requirements). Check the console for the lines above, then relaunch.
 
 ## Producer and consumer
 
