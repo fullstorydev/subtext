@@ -6,6 +6,17 @@ A running record of what came up while building and testing the iOS Simulator lo
 
 Status values: **fixed** (commit noted), **in progress**, **open**, **upstream** (outside this skill), **won't fix**.
 
+## UIKit demo app (2026-10-30)
+
+A small UIKit shop app recording to a production org, driven with `sightmap device` and read back through review:
+
+| Finding | Where it belongs | Status |
+|---|---|---|
+| View-scoped components never apply in review for mobile sessions: review matches `route:` against the page URL, which is the bare view-controller name, so only global components get named. A views-based corpus named 1 element in `review-snapshot`; the same components made global named all of them | Review (lidar should choose the view without a URL, as `sightmap device` does); interim guidance in `subtext-device` | Skill note added; review fix open |
+| A `UIBarButtonItem`'s id is recorded on each of its wrapper views, so one component appears nested 5 deep in `review-snapshot` | Review / matcher (dedupe a component matching inside itself); note in `subtext-device` | Skill note added; dedupe open |
+| `click` right after a full-screen modal presentation reported success but the tap was lost (2 of 3 runs); the same click on the settled screen worked | `sightmap device` (#522): wait for presentation transitions to settle before tapping | Reported to #522 |
+| A tap 0.1 s before `button home` was missing from the Fullstory session | `subtext-device` timing guidance | Skill note added |
+
 ## Local-only runs (2026-10-29)
 
 `subtext-device` now asks before a run whether to record to Fullstory, and defaults to no. For a local-only run it installs a copy of the built app with `RecordOnStart = false` and `ServerUrl` pointed at an unreachable local address, re-signed with its entitlements kept. Verified on the dev Mac with the SwiftUI sample built with the SDK: after launch and a full upload interval, the SDK only registered and removed its background upload session. It created no session and no upload tasks, and nothing contacted `fullstory.com`. The `ServerUrl` backstop (for apps that start recording themselves) is untested.
