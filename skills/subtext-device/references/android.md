@@ -51,6 +51,14 @@ Notes:
 - Frames and coordinates are dp, not pixels: divide screenshot pixels by dpi/160 (2.625 on the 420 dpi Pixel 8 AVD).
 - If a snapshot fails with "could not get idle state", turn animations off: `adb shell settings put global animator_duration_scale 0` (also `transition_animation_scale` and `window_animation_scale`).
 - **Known issue (fixed in sightmap#526):** on Android 15 the IME window's frame spans the screen, so `sightmap device` builds before #526 report a full-screen `keyboard` node and refuse clicks as "covered by the keyboard". Run `sightmap device button back` to hide the keyboard before clicking.
+- Names drop icon-font glyphs (Unicode private-use characters), so a React Native tab reads `Rank`, not `\U000f0538, Rank` (#526).
+- When the launcher is showing, a snapshot reports `[Not in front]` and actions fail with `not_in_front`, not a system sheet. Run `sightmap device launch` to bring the app back. `button back` on the app's first screen closes the app.
+- `sightmap device start` creates `.sightmap/.device-session` and `.sightmap/.device-runs/` in the repo root. Add both to `.gitignore`.
+- For an agent loop, keep a project script that builds a standalone release APK with a staging environment. A release APK bakes JS environment at bundle time, and Gradle doesn't rerun the bundle when only the environment changes: `./gradlew app:createBundleReleaseJsAndAssets --rerun`.
+
+### Worked example
+
+On a React Native app (Pick'em Club), an iOS-oriented `.sightmap/mobile` corpus matched 100% T1 on most Android screens unchanged. The orphans were Pressables with no `testID`, such as a linked avatar and a pick row toggle. Adding `testID`s and corpus components took the tournament screen from 24/36 to 36/36 T1, and Stats from 10/16 to 13/16. The rest is a react-native-paper `Tooltip`: it forwards props to its child, not to its own Pressable, so that press target can't take a `testID` and stays a scoped (T2) element.
 
 ## Producer and consumer
 
